@@ -1,3 +1,9 @@
+# Temporary dirs
+objs/
+
+# Generated executables
+schism_esmf_test
+
 # Prerequisites
 *.d
 
@@ -30,3 +36,6 @@
 *.exe
 *.out
 *.app
+
+
+
