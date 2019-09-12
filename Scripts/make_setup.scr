@@ -1,0 +1,27 @@
+#!/bin/bash
+
+name=$1
+dx=$2
+dt=$3
+dtmax=$dt
+dtmin=$4
+nspool=$5
+stack=$6
+
+
+mkdir -p $name
+(cd $name; python ../Scripts/create_grid.py $dx)
+cp param.in $name
+sed -i "/dt =/c\  dt = ${dt}" $name/param.in
+sed -i "/dtb_max =/c\  dtb_max = ${dtmax}" $name/param.in
+sed -i "/dtb_min =/c\  dtb_min = ${dtmin}" $name/param.in
+sed -i "/ nspool =/c\  nspool = ${nspool}" $name/param.in
+sed -i "/ ihfskip =/c\  ihfskip = ${stack}" $name/param.in
+cp vgrid.in $name
+mkdir -p $name/outputs
+
+echo "  run model"
+(cd $name; time ~/SCHISM/build/bin/pschism &> log.txt; ~/SCHISM/build/bin/autocombine_MPI_elfe.pl 1 1)
+
+
+
