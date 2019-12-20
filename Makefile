@@ -1,7 +1,23 @@
-# make most simple SCHISM-ESMF application
+# This Makefile is part of the SCHISM-ESMF interface
 #
+# @copyright (C) 2018, 2019 Helmholtz-Zentrum Geesthacht
+# @author Carsten Lemmen carsten.lemmen@hzg.de
+# @author Richard Hofmeister richard.hofmeister@hzg.de
+#
+# @license under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# 		http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# include your ESMF Makefile (esmf.mk)
+# include your ESMF Makefile (esmf.mk), and obtain compiler settings
+# from this file
 ifndef ESMFMKFILE
 $(error ESMFMKFILE has to be set in environment)
 endif
@@ -17,14 +33,8 @@ LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment)
 endif
-ifndef PARMETIS_DIR
-$(error PARMETIS_DIR has to be set in environment)
-endif
-ifeq ($(wildcard $(PARMETIS_DIR)/libmetis.a),)
-$(error METIS has to be compiled before ESMF-SCHISM)
-endif
-ifeq ($(wildcard $(PARMETIS_DIR)/libparmetis.a),)
-$(error ParMETIS has to be compiled before ESMF-SCHISM)
+ifneq ($(wildcard $(SCHISM_BUILD_DIR)/libmetis.a),)
+$(error SCHISM has to be compiled before ESMF-SCHISM)
 endif
 
 LIBS+= -lschism_esmf
@@ -32,8 +42,9 @@ F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L.
 
 EXPAND_TARGETS= expand_schismlibs
+
 ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
-  $(info Info: include fabm libraries from $(SCHISM_BUILD_DIR)/lib/libfabm*.a)
+  $(info Include fabm libraries from $(SCHISM_BUILD_DIR)/lib/libfabm*.a)
   EXPAND_TARGETS+= expand_fabmlibs
   F90FLAGS += -DUSE_FABM
 #else
@@ -52,9 +63,9 @@ schism_esmf_lib: schism_esmf_component.o $(EXPAND_TARGETS)
 	$(AR) crus libschism_esmf.a schism_esmf_component.o objs/*/*.o
 
 expand_schismlibs:
-	$(shell mkdir -p objs/a; cd objs/a;$(AR) x $(PARMETIS_DIR)/libparmetis.a)
-	$(shell mkdir -p objs/b; cd objs/b;$(AR) x $(PARMETIS_DIR)/libmetis.a)
-	$(shell mkdir -p objs/c; cd objs/c;$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; $(AR) x  $(SCHISM_DIR)/lib/libhydro.a )
+	$(shell mkdir -p objs/a; cd objs/a;$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a)
+	$(shell mkdir -p objs/b; cd objs/b;$(AR) x $(SCHISM_BUILD_DIR)/lib/libmetis.a)
+	$(shell mkdir -p objs/c; cd objs/c;$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; $(AR) x  $(SCHISM_BUILD_DIR)/lib/libhydro.a )
 
 expand_fabmlibs:
 	$(shell mkdir -p objs/sf; cd objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)

@@ -37,5 +37,5 @@ schism_esmf_test
 *.out
 *.app
 
-
-
+# Log files from ESMF
+PET*
