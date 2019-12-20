@@ -120,7 +120,8 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   call parallel_init(communicator=mpi_comm)
 
   ! call initialize model
-  call schism_init(iths, ntime)
+  call schism_init('./', iths, ntime)
+
   write(0,*) '  Initialized SCHISM'
   write(message, '(A)') trim(compName)//' initialized SCHISM'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
