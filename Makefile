@@ -51,16 +51,16 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
 #  $(info Info: no fabm libraries in $(SCHISM_BUILD_DIR)/lib)
 endif
 
-all: schism_esmf_lib schism_esmf_test
+all: schism_esmf_lib schism_esmf_test concurrent_esmf_test
 
-schism_esmf_test: schism_esmf_test.o schism_esmf_component.o
+schism_esmf_test: schism_esmf_test.o schism_esmf_component_new.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-concurrent_esmf_test: schism_esmf_component.o dummy_grid_component.o concurrent_esmf_test.o
+concurrent_esmf_test: schism_esmf_component_new.o dummy_grid_component.o concurrent_esmf_test.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-schism_esmf_lib: schism_esmf_component.o $(EXPAND_TARGETS)
-	$(AR) crus libschism_esmf.a schism_esmf_component.o objs/*/*.o
+schism_esmf_lib: schism_esmf_component_new.o $(EXPAND_TARGETS)
+	$(AR) crus libschism_esmf.a schism_esmf_component_new.o objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p objs/a; cd objs/a;$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a)
@@ -73,7 +73,7 @@ expand_fabmlibs:
 	$(shell mkdir -p objs/f; cd objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 	@# $(shell cd objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
 
-schism_esmf_component.o: schism_driver_interfaces.mod
+schism_esmf_component_new.o: schism_driver_interfaces.mod
 
 %.o: %.F90
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
