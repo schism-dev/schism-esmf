@@ -86,4 +86,5 @@ clean:
 
 distclean: clean
 	$(RM) -rf objs
-	$(RM) schism_esmf_test concurrent_esmf_test libschism_esmf.a
+	$(RM) schism_esmf_test concurrent_esmf_test libschism_esmf.a 
+	$(RM) outputs/*nc
