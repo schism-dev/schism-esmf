@@ -124,8 +124,13 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   call ESMF_VMGet(vm, mpiCommunicator=mpi_comm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! initialize schism's MPI
-  call parallel_init(communicator=mpi_comm)
+#ifndef ESMF_MPIUNI
+    ! initialize schism's MPI
+    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call parallel_init(communicator=schism_mpi_comm)
+#endif
 
   ! call initialize model
   call schism_init('./',iths, ntime)
