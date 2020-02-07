@@ -4,7 +4,8 @@
 !  (http://www.apache.org/licenses/LICENSE-2.0)
 ! Author(s): Richard Hofmeister, Carsten Lemmen
 
-! This version accounts for halo(ghost) zone
+! This version accounts for halo(ghost) zone, because ESMF by default partitions
+! among nodes instead of elements
 
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
