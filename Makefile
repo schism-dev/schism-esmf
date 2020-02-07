@@ -94,10 +94,11 @@ clean:
 
 distclean: clean
 	$(RM) -rf objs
-	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat
+	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat mirror.out
 	$(RM) -f schism_esmf_test concurrent_esmf_test libschism_esmf.a
 	$(RM) -f outputs/*nc
 	$(RM) -f outputs/nonfatal*nc
+	$(RM) -f PET*
 
 
 # $(shell cd objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
