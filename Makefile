@@ -1,6 +1,6 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
-# @copyright (C) 2018, 2019 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hzg.de
 # @author Richard Hofmeister richard.hofmeister@hzg.de
 #
@@ -31,13 +31,18 @@ LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 
 # add SCHISM libraries
 ifndef SCHISM_BUILD_DIR
-$(error SCHISM_BUILD_DIR has to be set in environment)
-endif
-ifneq ($(wildcard $(SCHISM_BUILD_DIR)/libmetis.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM)
+$(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
 
-LIBS+= -lschism_esmf
+SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
+
+ifneq ($(wildcard $(SCHISM_BUILD_DIR)/libmetis.a),)
+$(error SCHISM has to be compiled before ESMF-SCHISM.)
+endif
+
+# @todo parmetis should have been included in lschism_esmf, but
+# that does not seem to work cross-platform ...
+LIBS+= -lschism_esmf -lparmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L.
 
@@ -47,8 +52,6 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   $(info Include fabm libraries from $(SCHISM_BUILD_DIR)/lib/libfabm*.a)
   EXPAND_TARGETS+= expand_fabmlibs
   F90FLAGS += -DUSE_FABM
-#else
-#  $(info Info: no fabm libraries in $(SCHISM_BUILD_DIR)/lib)
 endif
 
 all: schism_esmf_lib schism_esmf_test concurrent_esmf_test
@@ -63,15 +66,20 @@ schism_esmf_lib: schism_esmf_component_new.o $(EXPAND_TARGETS)
 	$(AR) crus libschism_esmf.a schism_esmf_component_new.o objs/*/*.o
 
 expand_schismlibs:
-	$(shell mkdir -p objs/a; cd objs/a;$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a)
-	$(shell mkdir -p objs/b; cd objs/b;$(AR) x $(SCHISM_BUILD_DIR)/lib/libmetis.a)
-	$(shell mkdir -p objs/c; cd objs/c;$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; $(AR) x  $(SCHISM_BUILD_DIR)/lib/libhydro.a )
+	$(shell mkdir -p objs/d; cd objs/d; \
+	$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; \
+		$(AR) x $(SCHISM_BUILD_DIR)/lib/libhydro.a ; \
+		$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a ; \
+		$(AR) x $(SCHISM_BUILD_DIR)/lib/libmetis.a ; \
+	)
 
+# @todo the fabm lib symbols should be renamed, e.g., prefixed with schism_ to
+# avoid duplicate symbols when coupling to other systems that also contain fabm
+# A possible solution is provided by www.mossco.de/code in their
+# scripts/rename_fabm_symbols.py
 expand_fabmlibs:
 	$(shell mkdir -p objs/sf; cd objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
-	@# $(shell cd objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
 	$(shell mkdir -p objs/f; cd objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
-	@# $(shell cd objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
 
 schism_esmf_component_new.o: schism_driver_interfaces.mod
 
@@ -86,5 +94,11 @@ clean:
 
 distclean: clean
 	$(RM) -rf objs
-	$(RM) schism_esmf_test concurrent_esmf_test libschism_esmf.a 
-	$(RM) outputs/*nc
+	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat
+	$(RM) -f schism_esmf_test concurrent_esmf_test libschism_esmf.a
+	$(RM) -f outputs/*nc
+	$(RM) -f outputs/nonfatal*nc
+
+
+# $(shell cd objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
+# $(shell cd objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
