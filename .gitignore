@@ -39,3 +39,12 @@ schism_esmf_test
 
 # Log files from ESMF
 PET*
+
+# Outputs from SCHISM
+
+flux.dat
+fort.11
+param.out.nml
+total.dat
+total_TR.dat
+
