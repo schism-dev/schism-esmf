@@ -17,7 +17,7 @@ module schism_esmf_component
 
 use schism_driver_interfaces
 use esmf
-use mpi
+!use mpi
 
 implicit none
 integer               :: iths=0,ntime=0
@@ -90,7 +90,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   integer               :: i,n,nvcount
   integer               :: ii,ip,ie
   integer               :: mynp,myne
-  integer, dimension(:), allocatable :: testids 
+  integer, dimension(:), allocatable :: testids
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
   type(ESMF_TimeInterval) :: schism_dt
   type(llist_type),pointer :: nextp=>null()
