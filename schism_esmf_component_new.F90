@@ -1,16 +1,28 @@
-! SCHISM-ESMF component
+! This code is part of the SCHISM-ESMF interface
 !
-! Licensed under the Apache License, Version 2.0
-!  (http://www.apache.org/licenses/LICENSE-2.0)
-! Author(s): Richard Hofmeister, Carsten Lemmen
-
-! This version accounts for halo(ghost) zone, because ESMF by default partitions
-! among nodes instead of elements
+! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
+! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @author Richard Hofmeister richard.hofmeister@hzg.de
+!
+! @license under the Apache License, Version 2.0 (the "License");
+! you may not use this file except in compliance with the License.
+! You may obtain a copy of the License at
+!
+! 		http://www.apache.org/licenses/LICENSE-2.0
+!
+! Unless required by applicable law or agreed to in writing, software
+! distributed under the License is distributed on an "AS IS" BASIS,
+! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+! See the License for the specific language governing permissions and
+! limitations under the License.
+!
+! This version accounts for halo(ghost) zone, because ESMF by default
+! partitions among nodes instead of elements
 
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_esmf_component.F90"
+#define ESMF_FILENAME "schism_esmf_component_new.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
