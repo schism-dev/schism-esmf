@@ -50,6 +50,7 @@ contains
   call ESMF_VMGet(vm,petCount=petcount,rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
+  !Simple box grid
   grid  = ESMF_GridCreateNoPeriDim( &
          minIndex=(/1,1/),maxIndex=(/2,2/),  coordsys=ESMF_COORDSYS_CART, rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)

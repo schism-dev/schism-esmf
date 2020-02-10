@@ -30,13 +30,14 @@ real(ESMF_KIND_R8), pointer :: ptr1d(:)
 call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN)
 
 call ESMF_VMGetGlobal(vm,rc=rc)
+!petcount is total # of cores
 call ESMF_VMGet(vm,petCount=petcount,rc=rc)
 allocate(petlist_schism(max(1,petcount-1)))
-do i=1,max(1,petcount-1)
+do i=1,max(1,petcount-1) !use all but 1 core for schism
   petlist_schism(i)=i-1
 end do
 allocate(petlist_atmos(1))
-petlist_atmos(1) = petcount-1
+petlist_atmos(1) = petcount-1 !last PET for atmos
 
 
 schism_component = ESMF_GridCompCreate(name='schism component',petList=petlist_schism,rc=rc)
@@ -55,7 +56,7 @@ schism_import = ESMF_StateCreate(name='schism import state',rc=rc)
 atmos_export = ESMF_StateCreate(name='atmos export state',rc=rc)
 atmos_import = ESMF_StateCreate(name='atmos import state',rc=rc)
 
-! Create a clock
+! Create a clock; start time needs to be passed onto SCHISM
 
 call ESMF_TimeIntervalSet(timestep, s=3600, rc=rc)
 call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=rc)
@@ -71,6 +72,7 @@ call ESMF_GridCompInitialize(schism_component, importState=schism_import, &
 call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
          exportState=atmos_export, clock=clock, rc=rc)
 
+!Barrier
 call ESMF_StateReconcile(schism_import,vm=vm,rc=rc)
 if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
 call ESMF_StateReconcile(atmos_export,vm=vm,rc=rc)
@@ -80,10 +82,11 @@ call ESMF_StateGet(schism_import,'wind_x-velocity_in_10m_height',field=field_out
 if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
 call ESMF_StateGet(atmos_export,'wind_x-velocity',field=field_in,rc=rc)
 if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+!Store interp weights
 call ESMF_FieldRegridStore(field_in,field_out,routehandle=routehandle_air2sea,rc=rc)
 if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
 
-! Run SCHISM until StopTime
+! Run SCHISM until StopTime (coupling time steps)
 do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
   call ESMF_FieldRegrid(field_in,field_out,routeHandle=routehandle_air2sea,rc=rc)
@@ -106,6 +109,7 @@ do while ( .not. (ESMF_ClockIsStopTime(clock)))
   write(0,*) '  expected [63]=-1.0, got: ',ptr1d(63)
 #endif
 
+  !Better way is to exchange states explicitly (instead of pointers)
   call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
            exportState=atmos_export, clock=clock, rc=rc)
   if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)

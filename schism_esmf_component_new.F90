@@ -130,6 +130,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! get communicator
+  !Get VM for this component
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -468,7 +469,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
 
   schism_ptr2d => fluxevp(1:np)
   !> @todo ist this the correct name for fluxevp?
-  fieldName = 'temperature_at_water_surface'
+  fieldName = 'evaporation_flux_at_water_surface' !'temperature_at_water_surface'
   field = ESMF_FieldCreate(mesh2d, name=fieldName, &
                            farrayPtr=schism_ptr2d, &
                            meshloc=ESMF_MESHLOC_NODE, rc=localrc)
@@ -518,6 +519,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
     trim(fieldName)//'" on nodes'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  !Bottom T (for benthic model)
   name = 'temperature'
   call schism_esmf_add_bottom_tracer(name,mesh2d,1,exportState)
   write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
