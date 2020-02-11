@@ -1,7 +1,10 @@
 # Utility scripts for SCHISM-ESMF
 
 This directory contains utility scripts to test the
-SCHISM-ESMF component.
+SCHISM-ESMF component. 
+
+> Do not execute the scripts in this directory, but 
+  run `make` in `../example/` to see these in action.
 
 run_timesteps.py
 : Run a simulation ensemble with different timesteps
@@ -11,7 +14,7 @@ run_setups.py
 : Run a simulation ensemble with different grid
   resolution.
 
-make_setup.bash
+make_setups.bash
 : Script called by `run_*.py` to prepare a complete setup.
 
 create_grid.py

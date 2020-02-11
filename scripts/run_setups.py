@@ -14,7 +14,4 @@ for dx in dxs:
   nspool = int(1800./dt)
   stack = int(864000/dt)
   print('  run %0.0f m resolution'%dx)
-  os.system('Scripts/make_setup.scr %s_%dm %0.0f %0.1f %0.1f %d %d'%(name,int(dx),dx,dt,dtmin,nspool,stack))
-
-
-
+  os.system('../scripts/make_setups.bash %s_%dm %0.0f %0.1f %0.1f %d %d'%(name,int(dx),dx,dt,dtmin,nspool,stack))
