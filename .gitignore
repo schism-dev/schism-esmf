@@ -1,5 +1,5 @@
 # Temporary dirs
-objs/
+.objs/
 
 # Generated executables
 schism_esmf_test

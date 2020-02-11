@@ -54,7 +54,18 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-all: schism_esmf_lib schism_esmf_test concurrent_esmf_test
+.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib
+default: all
+
+# User-callable make targets
+
+all: lib test
+
+lib: schism_esmf_lib
+
+test: schism_esmf_test concurrent_esmf_test
+
+# Internal make targets
 
 schism_esmf_test: schism_esmf_test.o schism_esmf_component_new.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
@@ -63,10 +74,10 @@ concurrent_esmf_test: schism_esmf_component_new.o dummy_grid_component.o concurr
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 schism_esmf_lib: schism_esmf_component_new.o $(EXPAND_TARGETS)
-	$(AR) crus libschism_esmf.a schism_esmf_component_new.o objs/*/*.o
+	$(AR) crus libschism_esmf.a schism_esmf_component_new.o .objs/*/*.o
 
 expand_schismlibs:
-	$(shell mkdir -p objs/d; cd objs/d; \
+	$(shell mkdir -p .objs/d; cd .objs/d; \
 	$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; \
 		$(AR) x $(SCHISM_BUILD_DIR)/lib/libhydro.a ; \
 		$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a ; \
@@ -78,8 +89,8 @@ expand_schismlibs:
 # A possible solution is provided by www.mossco.de/code in their
 # scripts/rename_fabm_symbols.py
 expand_fabmlibs:
-	$(shell mkdir -p objs/sf; cd objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
-	$(shell mkdir -p objs/f; cd objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
+	$(shell mkdir -p .objs/sf; cd .objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
+	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
 schism_esmf_component_new.o: schism_driver_interfaces.mod
 
@@ -93,7 +104,7 @@ clean:
 	$(RM) *.o *.mod
 
 distclean: clean
-	$(RM) -rf objs
+	$(RM) -rf .objs
 	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat mirror.out
 	$(RM) -f schism_esmf_test concurrent_esmf_test libschism_esmf.a
 	$(RM) -f outputs/*nc
@@ -101,5 +112,5 @@ distclean: clean
 	$(RM) -f PET*
 
 
-# $(shell cd objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
-# $(shell cd objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
+# $(shell cd .objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
+# $(shell cd .objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
