@@ -63,18 +63,15 @@ all: lib test
 
 lib: schism_esmf_lib
 
-test: schism_esmf_test concurrent_esmf_test
+test: concurrent_esmf_test
 
 # Internal make targets
 
-schism_esmf_test: schism_esmf_test.o schism_esmf_component_new.o
+concurrent_esmf_test: schism_component.o dummy_grid_component.o concurrent_esmf_test.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-concurrent_esmf_test: schism_esmf_component_new.o dummy_grid_component.o concurrent_esmf_test.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
-
-schism_esmf_lib: schism_esmf_component_new.o $(EXPAND_TARGETS)
-	$(AR) crus libschism_esmf.a schism_esmf_component_new.o .objs/*/*.o
+schism_esmf_lib: schism_component.o $(EXPAND_TARGETS)
+	$(AR) crus libschism_esmf.a schism_component.o .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
@@ -92,7 +89,7 @@ expand_fabmlibs:
 	$(shell mkdir -p .objs/sf; cd .objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
 	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
-schism_esmf_component_new.o: schism_driver_interfaces.mod
+schism_component.o: schism_driver_interfaces.mod
 
 %.o: %.F90
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
@@ -106,7 +103,7 @@ clean:
 distclean: clean
 	$(RM) -rf .objs
 	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat mirror.out
-	$(RM) -f schism_esmf_test concurrent_esmf_test libschism_esmf.a
+	$(RM) -f concurrent_esmf_test libschism_esmf.a
 	$(RM) -f outputs/*nc
 	$(RM) -f outputs/nonfatal*nc
 	$(RM) -f PET*
