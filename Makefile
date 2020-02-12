@@ -63,9 +63,12 @@ all: lib test
 
 lib: schism_esmf_lib
 
-test: concurrent_esmf_test
+test: schism_esmf_test concurrent_esmf_test
 
 # Internal make targets
+
+schism_esmf_test: schism_esmf_test.o schism_esmf_component_new.o
+	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 concurrent_esmf_test: schism_esmf_component_new.o dummy_grid_component.o concurrent_esmf_test.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
