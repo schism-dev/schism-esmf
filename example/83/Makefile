@@ -23,8 +23,6 @@ ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
 $(error Please point SCHISM_DIR to the source directory of SCHISM.)
 endif
 
-SUBDIRS=cfl 83
-
 .PHONY: default all subdirs $(SUBDIRS)
 
 default: all

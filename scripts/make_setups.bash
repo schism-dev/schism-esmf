@@ -9,7 +9,7 @@ nspool=$5
 stack=$6
 
 mkdir -p $name
-(cd $name; python ../../scripts/create_grid.py $dx)
+(cd $name; python ${SCRIPTS_DIR}/create_grid.py $dx)
 cp param.nml $name
 sed -i "/dt =/c\  dt = ${dt}" $name/param.nml
 sed -i "/dtb_max =/c\  dtb_max = ${dtmax}" $name/param.nml

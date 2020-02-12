@@ -23,13 +23,30 @@ ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
 $(error Please point SCHISM_DIR to the source directory of SCHISM.)
 endif
 
-SUBDIRS=cfl 83
+export SCRIPTS_DIR=$(subst /example/cfl,/scripts,$(CURDIR))
 
-.PHONY: default all subdirs $(SUBDIRS)
+SCRIPTS=${SCRIPTS_DIR}/run_timesteps.py ${SCRIPTS_DIR}/create_grid.py ${SCRIPTS_DIR}/make_setups.bash ${SCRIPTS_DIR}/run_setups.py
 
-default: all
-all: subdirs
-subdirs: $(SUBDIRS)
+default: all setups
 
-$(SUBDIRS):
-	$(MAKE) -C $@
+all: sample_param
+
+clean:
+	@$(RM) *.in param.nml
+	@$(RM) -r dt_*
+
+setups: timestep_setups resolution_setups
+
+timestep_setups: $(SCRIPTS)
+	python $<
+
+resolution_setups: $(SCRIPTS)
+	python $<
+
+sample_param: param.nml vgrid.in
+
+param.nml:
+	ln -s $(SCHISM_DIR)/sample_inputs/param.nml $@
+
+vgrid.in:
+	ln -s $(SCHISM_DIR)/sample_inputs/vgrid.in.SZ $@

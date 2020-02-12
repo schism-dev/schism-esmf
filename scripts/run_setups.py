@@ -1,9 +1,11 @@
-import os,sys
+import os, sys
 
 if len(sys.argv)>1:
   name=sys.argv[1]
 else:
   name='test'
+
+scriptDir = os.environ['SCRIPTS_DIR'] if 'SCRIPTS_DIR' in os.environ else '../scripts'
 
 dxs=[1000.,500.,200.,100.,50.,20.]
 #dxs=[1000.,500.]
@@ -14,4 +16,4 @@ for dx in dxs:
   nspool = int(1800./dt)
   stack = int(864000/dt)
   print('  run %0.0f m resolution'%dx)
-  os.system('../scripts/make_setups.bash %s_%dm %0.0f %0.1f %0.1f %d %d'%(name,int(dx),dx,dt,dtmin,nspool,stack))
+  os.system(scriptsDir + '/make_setups.bash %s_%dm %0.0f %0.1f %0.1f %d %d'%(name,int(dx),dx,dt,dtmin,nspool,stack))
