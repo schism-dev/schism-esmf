@@ -37,6 +37,15 @@ program main
 
   implicit none
 
+  interface
+    function clockCreateFrmParam(filename, rc)
+      use esmf
+        character(len=ESMF_MAXSTR), intent(in) :: filename
+        integer(ESMF_KIND_I4), intent(out)     :: rc
+        type(ESMF_Clock)                       :: clockCreateFrmParam
+    end function clockCreateFrmParam
+  end interface
+
   type(ESMF_GridComp)     :: schism_component
   type(ESMF_GridComp)     :: atmos_component
 
@@ -51,10 +60,11 @@ program main
   type(ESMF_RouteHandle)  :: routehandle_air2sea, routehandle_sea2air
   type(ESMF_Vm)           :: vm
 
-  integer(ESMF_KIND_I4)   :: rc, petCount, i, inum, localrc
-  integer, allocatable    :: petlist_schism(:),petlist_atmos(:)
+  integer(ESMF_KIND_I4)       :: rc, petCount, i, inum, localrc
+  integer, allocatable        :: petlist_schism(:),petlist_atmos(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
-  logical                 :: isPresent
+  logical                     :: isPresent
+  character(len=ESMF_MAXSTR)  :: filename
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -117,17 +127,20 @@ program main
   ! file but is hardcoded here for now. The timestep defined here
   ! is the coupling timestep.
 
-  call ESMF_TimeIntervalSet(timestep, s=3600, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_TimeIntervalSet(timestep, s=3600, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! stop_time = start_time + 2*timestep
+  !
+  ! clock = ESMF_ClockCreate(timestep, start_time, stopTime=stop_time, &
+  !   name='main clock',rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  stop_time = start_time + 2*timestep
-
-  clock = ESMF_ClockCreate(timestep, start_time, stopTime=stop_time, &
-    name='main clock',rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  filename = './global.nml'
+  clock = clockCreateFrmParam(filename, localrc)
 
   ! Initialize SCHISM
   call ESMF_GridCompInitialize(schism_component, &
@@ -213,3 +226,55 @@ program main
   call ESMF_Finalize(rc=localrc)
 
 end program main
+
+function clockCreateFrmParam(filename, rc) result(clock)
+
+  use esmf
+  implicit none
+
+  character(len=ESMF_MAXSTR), intent(in) :: filename
+  integer(ESMF_KIND_I4), intent(out)     :: rc
+  type(ESMF_Clock)                       :: clock
+
+  logical               :: isPresent
+  integer(ESMF_KIND_I4) :: unit, localrc
+  type(ESMF_Time)       :: stopTime, startTime
+  type(ESMF_TimeInterval) :: timeStep
+
+  integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
+  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2
+  namelist /global/ start_year, start_month, start_day, start_hour, rnday
+
+  inquire(file=filename, exist=isPresent)
+  if (isPresent) then
+
+    call ESMF_UtilIOUnitGet(unit, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    open(unit, file=filename, iostat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    read(unit, nml=global, iostat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    close(unit)
+  endif
+
+  ! Set day as timestep temporarily to count later to stop time
+  call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
+    h=start_hour, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  stopTime = startTime + timeStep
+
+  ! Only now define the coupling timestep as fraction of full timeStep
+  timeStep = timeStep / 24
+
+  clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
+    name='main clock', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+end function clockCreateFrmParam

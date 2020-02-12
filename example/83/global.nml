@@ -1,0 +1,7 @@
+&global
+    rnday = 2
+    start_day = 1
+    start_hour = 0
+    start_month = 1
+    start_year = 2000
+/

@@ -62,3 +62,6 @@ param.nml:
 
 vgrid.in:
 	ln -s $(SCHISM_DIR)/sample_inputs/vgrid.in.SZ $@
+
+global.nml: param.nml
+	python ../../scripts/param2global.py

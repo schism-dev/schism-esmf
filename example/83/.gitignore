@@ -16,6 +16,6 @@ dt_*s
 *.in
 *.gr3
 *.ic
-global.nml
+global.rc
 global.yaml
 param.yaml
