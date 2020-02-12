@@ -28,14 +28,12 @@
 
 module schism_esmf_component
 
-use schism_driver_interfaces
-use esmf
-!use mpi
+  use schism_driver_interfaces
+  use esmf
 
-implicit none
-integer               :: iths=0,ntime=0
+  implicit none
 
-public SetServices
+  public SetServices
 
 contains
 
@@ -51,15 +49,15 @@ subroutine SetServices(comp, rc)
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-                            userRoutine=Initialize, rc=localrc)
+    userRoutine=Initialize, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
-                            userRoutine=Run, rc=localrc)
+    userRoutine=Run, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
-                            userRoutine=Finalize, rc=localrc)
+    userRoutine=Finalize, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine SetServices
@@ -69,7 +67,12 @@ end subroutine SetServices
 subroutine Initialize(comp, importState, exportState, clock, rc)
 
   !> @todo apply only filter to 'use schism_glbl'
-  use schism_glbl
+  use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
+  use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
+  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, lreadll
+  use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
+  use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
+  use schism_glbl, only: dt, vv2, nvrt
   use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
 #ifdef USE_FABM
@@ -101,7 +104,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   integer               :: numLocalNodes, numNodeHaloIdx
   integer               :: mpi_comm
   integer               :: i,n,nvcount
-  integer               :: ii,ip,ie
+  integer               :: ii,ip,ie, iths=0, ntime=0
   integer               :: mynp,myne
   integer, dimension(:), allocatable :: testids
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
@@ -145,9 +148,9 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
-  ! call initialize model
-  call schism_init('./',iths, ntime)
-  write(0,*) '  Initialized SCHISM'
+  ! call initialize model with parameters iths=0, ntime=0
+  call schism_init('./', iths, ntime)
+
   write(message, '(A)') trim(compName)//' initialized SCHISM'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
@@ -169,13 +172,18 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   !    exclusive domain
   numNodeHaloIdx=0
   numLocalNodes=np
-  allocate(tmpIdx(npa-np))
-  allocate(tmpIdx2(npa))
+
+  allocate(tmpIdx(npa-np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(tmpIdx2(npa), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   do i=1,np
     tmpIdx2(i)=i
   end do
   do i=np+1,npa-np
-    ! check existance in local elements
+    ! check existence in local elements
     do ie=1,ne
       if (any(elnode(1:i34(ie),ie)==i)) then
         numLocalNodes = numLocalNodes+1
@@ -201,16 +209,35 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
 
   ! define mesh
   allocate(nodeids(numLocalNodes), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(nodecoords2d(2*numLocalNodes), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(nodecoords3d(3*numLocalNodes), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(nodeowners(numLocalNodes), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(nodemask(numLocalNodes), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(elementids(ne), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(elementtypes(ne), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(elementmask(ne), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(elementcoords2d(2*ne), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   !allocate(elementcoords2d(3*nea), stat=localrc)
   allocate(nv(4*ne), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
   if (lreadll) then
@@ -262,7 +289,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
     elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
   end do
 
-#if 1
+#if 0
   write(0,*) 'Local Nodes, np=',np
   do i=1,numLocalNodes
    write(0,*) 'localid, globalid, nodeowner',i,nodeids(i),nodeowners(i)
@@ -288,7 +315,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
              elementConn=nv(1:nvcount-1), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#if 1
+#if 0
   ! output mesh information from schism and esmf
   call ESMF_MeshGet(mesh2d,numOwnedNodes=mynp,numOwnedElements=myne,elementDistgrid=distgrid,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
