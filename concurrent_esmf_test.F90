@@ -1,135 +1,215 @@
-! a main program for concurrently running schism component in esmf
+! This code is part of the SCHISM-ESMF interface. It is a main
+! program for running the SCHISM component concurrent to a
+! dummy component.
 !
-! Licensed under the Apache License, Version 2.0
-!  (http://www.apache.org/licenses/LICENSE-2.0)
-! Author(s): Richard Hofmeister
+! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
+! @author Richard Hofmeister richard.hofmeister@hzg.de
+! @author Carsten Lemmen carsten.lemmen@hzg.de
+!
+! @license under the Apache License, Version 2.0 (the "License");
+! you may not use this file except in compliance with the License.
+! You may obtain a copy of the License at
+!
+! 		http://www.apache.org/licenses/LICENSE-2.0
+!
+! Unless required by applicable law or agreed to in writing, software
+! distributed under the License is distributed on an "AS IS" BASIS,
+! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+! See the License for the specific language governing permissions and
+! limitations under the License.
+!
+! This version accounts for halo(ghost) zone, because ESMF by default
+! partitions among nodes instead of elements
 
-program concurrent_esmf_test
+#define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
+#define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
+#undef ESMF_FILENAME
+#define ESMF_FILENAME "concurrent_esmf_test.F90"
 
-use esmf
-use schism_esmf_component, only: schismSetServices=>SetServices
-use dummy_grid_component, only: atmosSetServices=>SetServices
-implicit none
+#define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-integer :: rc
-type(ESMF_GridComp)     :: schism_component
-type(ESMF_GridComp)     :: atmos_component
-type(ESMF_State)        :: schism_import, schism_export
-type(ESMF_State)        :: atmos_import, atmos_export
-type(ESMF_TimeInterval) :: timestep
-type(ESMF_Time)         :: start_time, stop_time
-type(ESMF_Clock)        :: clock
-type(ESMF_FIELD)        :: field,field_in,field_out
-type(ESMF_RouteHandle)  :: routehandle_air2sea, routehandle_sea2air
-type(ESMF_VM)           :: vm
-integer                 :: petcount
-integer,allocatable     :: petlist_schism(:),petlist_atmos(:)
-integer                 :: i, inum
-real(ESMF_KIND_R8), pointer :: ptr1d(:)
+#define ESMF_METHOD "main"
+program main
 
-call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN)
+  use esmf
+  use schism_esmf_component, only: schismSetServices => SetServices
+  use dummy_grid_component,  only: atmosSetServices => SetServices
 
-call ESMF_VMGetGlobal(vm,rc=rc)
-call ESMF_VMGet(vm,petCount=petcount,rc=rc)
-allocate(petlist_schism(max(1,petcount-1)))
-do i=1,max(1,petcount-1)
-  petlist_schism(i)=i-1
-end do
-allocate(petlist_atmos(1))
-petlist_atmos(1) = petcount-1
+  implicit none
 
+  type(ESMF_GridComp)     :: schism_component
+  type(ESMF_GridComp)     :: atmos_component
 
-schism_component = ESMF_GridCompCreate(name='schism component',petList=petlist_schism,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  type(ESMF_State)        :: schism_import, schism_export
+  type(ESMF_State)        :: atmos_import, atmos_export
 
-atmos_component = ESMF_GridCompCreate(name='atmosphere component',petList=petlist_atmos,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  type(ESMF_TimeInterval) :: timestep
+  type(ESMF_Time)         :: start_time, stop_time
+  type(ESMF_Clock)        :: clock
 
-call ESMF_GridCompSetServices(schism_component, schismSetServices, rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
-call ESMF_GridCompSetServices(atmos_component, atmosSetServices, rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  type(ESMF_Field)        :: field,field_in,field_out
+  type(ESMF_RouteHandle)  :: routehandle_air2sea, routehandle_sea2air
+  type(ESMF_Vm)           :: vm
 
-schism_export = ESMF_StateCreate(name='schism export state',rc=rc)
-schism_import = ESMF_StateCreate(name='schism import state',rc=rc)
-atmos_export = ESMF_StateCreate(name='atmos export state',rc=rc)
-atmos_import = ESMF_StateCreate(name='atmos import state',rc=rc)
+  integer(ESMF_KIND_I4)   :: rc, petCount, i, inum, localrc
+  integer, allocatable    :: petlist_schism(:),petlist_atmos(:)
+  real(ESMF_KIND_R8), pointer :: ptr1d(:)
+  logical                 :: isPresent
 
-! Create a clock
+  call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-call ESMF_TimeIntervalSet(timestep, s=3600, rc=rc)
-call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=rc)
-stop_time = start_time + 2*timestep
+  ! Inquire the parallel environment about available
+  ! resources, and partition the environment to use
+  ! all but one PET for SCHISM, the remainder for the
+  ! dummy atmosphere component
 
-clock = ESMF_ClockCreate(timestep, start_time, stopTime=stop_time, &
-          name='main clock',rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  call ESMF_VMGetGlobal(vm, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-! Initialize SCHISM
-call ESMF_GridCompInitialize(schism_component, importState=schism_import, &
-         exportState=schism_export, clock=clock, rc=rc)
-call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
-         exportState=atmos_export, clock=clock, rc=rc)
+  call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-call ESMF_StateReconcile(schism_import,vm=vm,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
-call ESMF_StateReconcile(atmos_export,vm=vm,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  allocate(petlist_schism(max(1,petcount-1)), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-call ESMF_StateGet(schism_import,'wind_x-velocity_in_10m_height',field=field_out,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
-call ESMF_StateGet(atmos_export,'wind_x-velocity',field=field_in,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
-call ESMF_FieldRegridStore(field_in,field_out,routehandle=routehandle_air2sea,rc=rc)
-if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  do i=1, max(1, petcount-1)
+    petlist_schism(i)=i-1
+  end do
+  allocate(petlist_atmos(1))
+  petlist_atmos(1) = petcount-1
 
-! Run SCHISM until StopTime
-do while ( .not. (ESMF_ClockIsStopTime(clock)))
+  ! Create both components on their respective parallel
+  ! environment provided by each petList, then register
+  ! the components entry points.
 
-  call ESMF_FieldRegrid(field_in,field_out,routeHandle=routehandle_air2sea,rc=rc)
-  if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  schism_component = ESMF_GridCompCreate(name='schismComponent', &
+    petList=petlist_schism, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#if 0
-  ! schism should run in single-processor mode (so max.2 processes for this
-  ! test); hgrid.gr3 has 63 nodes, schism runs in cartesian coordinates,
-  ! coordinates of test nodes:
-  !  [1]  = (0.    ,0.   )
-  !  [3]  = (0.    ,1000.)
-  !  [61] = (20000.,0.   )
-  !  [63] = (20000.,1000.)
-  call ESMF_FieldGet(field_out,farrayPtr=ptr1d, rc=rc)
-  if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
-  write(0,*) 'interpolated wind field:'
-  write(0,*) '  expected [1]=0.0, got: ',ptr1d(1)
-  write(0,*) '  expected [3]=1.5, got: ',ptr1d(3)
-  write(0,*) '  expected [61]=-3.0, got: ',ptr1d(61)
-  write(0,*) '  expected [63]=-1.0, got: ',ptr1d(63)
-#endif
+  atmos_component = ESMF_GridCompCreate(name='atmosComponent', &
+    petList=petlist_atmos, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
-           exportState=atmos_export, clock=clock, rc=rc)
-  if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  call ESMF_GridCompSetServices(schism_component, &
+    schismSetServices, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompRun(schism_component, importState=schism_import, &
-           exportState=schism_export, clock=clock, rc=rc)
-  if(rc /= ESMF_SUCCESS) call ESMF_Finalize(rc=rc)
+  call ESMF_GridCompSetServices(atmos_component, &
+    atmosSetServices, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockAdvance(clock)
-end do
+  ! Create states for exchange of information between
+  ! components.
+  schism_export = ESMF_StateCreate(name='schism export state', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-! Finalize SCHISM
-call ESMF_GridCompFinalize(schism_component, importState=schism_import, &
-         exportState=schism_export, clock=clock, rc=rc)
+  schism_import = ESMF_StateCreate(name='schism import state', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-call ESMF_ClockDestroy(clock)
-call ESMF_StateDestroy(schism_import)
-call ESMF_StateDestroy(schism_export)
-call ESMF_StateDestroy(atmos_import)
-call ESMF_StateDestroy(atmos_export)
-call ESMF_GridCompDestroy(schism_component)
-call ESMF_GridCompDestroy(atmos_component)
+  atmos_export = ESMF_StateCreate(name='atmos export state', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-call ESMF_Finalize()
+  atmos_import = ESMF_StateCreate(name='atmos import state', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-end program
+  ! Create a clock, this should ideally be done with a configuration
+  ! file but is hardcoded here for now. The timestep defined here
+  ! is the coupling timestep.
 
+  call ESMF_TimeIntervalSet(timestep, s=3600, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  stop_time = start_time + 2*timestep
+
+  clock = ESMF_ClockCreate(timestep, start_time, stopTime=stop_time, &
+    name='main clock',rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Initialize SCHISM
+  call ESMF_GridCompInitialize(schism_component, &
+    importState=schism_import, &
+    exportState=schism_export, clock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
+    exportState=atmos_export, clock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Make sure that all states are reconciled across the
+  ! entire VM
+  call ESMF_StateReconcile(schism_import, vm=vm, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateReconcile(atmos_export, vm=vm, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Within the schism component, the following fields are
+  ! defined for import and export
+  call ESMF_StateGet(schism_import, 'wind_x-velocity_in_10m_height', &
+    field=field_out, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(atmos_export,'wind_x-velocity', &
+    field=field_in, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Precompute the weights
+  call ESMF_FieldRegridStore(field_in, field_out, &
+    routehandle=routehandle_air2sea, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Loop over coupling timesteps until stopTime
+  do while ( .not. (ESMF_ClockIsStopTime(clock)))
+
+    !> Directly manipulate the fields from import and export
+    !> states.  In less basic applications, this should be
+    !> handled by a mediator component.
+    call ESMF_FieldRegrid(field_in, field_out, &
+      routeHandle=routehandle_air2sea,rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
+      exportState=atmos_export, clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_GridCompRun(schism_component, importState=schism_import, &
+      exportState=schism_export, clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_ClockAdvance(clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end do
+
+  !> Clean up
+  call ESMF_GridCompFinalize(schism_component, importState=schism_import, &
+    exportState=schism_export, clock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_ClockDestroy(clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateDestroy(schism_import, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateDestroy(schism_export, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateDestroy(atmos_import, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateDestroy(atmos_export, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompDestroy(schism_component, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompDestroy(atmos_component, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_Finalize(rc=localrc)
+
+end program main
