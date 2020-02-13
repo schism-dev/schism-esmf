@@ -35,11 +35,11 @@ endif
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $<
 
-main_nuopc: main_nuopc.o toplevel_component.o atmosphere.o ocn.o
+main_nuopc: main_nuopc.o toplevel_component.o atmosphere.o schism_cmi_nuopc.o
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS)
 
 main_nuopc.o: toplevel_component.o
-toplevel_component.o: atmosphere.o ocn.o
+toplevel_component.o: atmosphere.o schism_cmi_nuopc.o
 
 .PHONY:  clean default all
 

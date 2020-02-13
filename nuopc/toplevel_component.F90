@@ -39,7 +39,7 @@ module toplevel
     driver_label_SetModelServices => label_SetModelServices
 
   use atmosphere, only: atmosphereSS => SetServices
-  use OCN, only: ocnSS => SetServices
+  use schism, only: schismSS => SetServices
 
   use NUOPC_Connector, only: cplSS => SetServices
 
@@ -49,54 +49,57 @@ module toplevel
 
   public SetServices
 
-  contains
+contains
 
-  subroutine SetServices(comp, rc)
-    type(ESMF_GridComp)  :: comp
-    integer, intent(out) :: rc
+#undef ESMF_METHOD
+#define ESMF_METHOD "SetServices"
+subroutine SetServices(comp, rc)
 
-    integer(ESMF_KIND_I4) :: localrc
+  type(ESMF_GridComp)  :: comp
+  integer, intent(out) :: rc
 
-    rc = ESMF_SUCCESS
+  integer(ESMF_KIND_I4) :: localrc
 
-    call NUOPC_CompDerive(comp, driver_routine_SS, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  rc = ESMF_SUCCESS
 
-    call NUOPC_CompSpecialize(comp, specLabel=driver_label_SetModelServices, &
-      specRoutine=SetModelServices, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_CompDerive(comp, driver_routine_SS, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_CompAttributeSet(comp, name="Verbosity", value="high", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_CompSpecialize(comp, specLabel=driver_label_SetModelServices, &
+    specRoutine=SetModelServices, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  end subroutine
+  call NUOPC_CompAttributeSet(comp, name="Verbosity", value="high", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !-----------------------------------------------------------------------------
+end subroutine
 
-  subroutine SetModelServices(comp, rc)
-    type(ESMF_GridComp)  :: comp
-    integer, intent(out) :: rc
+#undef ESMF_METHOD
+#define ESMF_METHOD "SetModelServices"
+subroutine SetModelServices(comp, rc)
 
-    ! local variables
-    type(ESMF_Grid)               :: grid
-    type(ESMF_Field)              :: field
-    type(ESMF_Time)               :: startTime, stopTime
-    type(ESMF_TimeInterval)       :: timeStep
-    type(ESMF_Clock)              :: internalClock
-    type(ESMF_GridComp)           :: child
-    type(ESMF_CplComp)            :: connector
-    integer(ESMF_KIND_I4)         :: localrc
+  type(ESMF_GridComp)  :: comp
+  integer, intent(out) :: rc
 
-    rc = ESMF_SUCCESS
+  type(ESMF_Grid)               :: grid
+  type(ESMF_Field)              :: field
+  type(ESMF_Time)               :: startTime, stopTime
+  type(ESMF_TimeInterval)       :: timeStep
+  type(ESMF_Clock)              :: internalClock
+  type(ESMF_GridComp)           :: child
+  type(ESMF_CplComp)            :: connector
+  integer(ESMF_KIND_I4)         :: localrc
 
-    ! SetServices for dummy atmosphereosphere and for schism ocean
-    call NUOPC_DriverAddComp(comp, "atmosphere", atmosphereSS, comp=child, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  rc = ESMF_SUCCESS
 
-    call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! SetServices for dummy atmosphereosphere and for schism ocean
+  call NUOPC_DriverAddComp(comp, "atmosphere", atmosphereSS, comp=child, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_DriverAddComp(comp, "schism", ocnSS, comp=child, rc=localrc)
+  call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call NUOPC_DriverAddComp(comp, "schism", schismSS, comp=child, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=localrc)

@@ -1,6 +1,5 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
-! a main() program for a NUOPC coupled system of SCHISM with a
-! dummy atmosphere without a mediator.
+! a main() program for a NUOPC coupled system.
 !
 ! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
 ! @author Carsten Lemmen carsten.lemmen@hzg.de
@@ -17,8 +16,6 @@
 ! See the License for the specific language governing permissions and
 ! limitations under the License.
 !
-! This version accounts for halo(ghost) zone, because ESMF by default
-! partitions among nodes instead of elements
 
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
