@@ -145,6 +145,9 @@ end subroutine
 #define ESMF_METHOD "InititalizeP2"
 subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
+  use schism_esmf_util, only : addSchismMesh
+  implicit none
+
   type(ESMF_GridComp)  :: comp
   type(ESMF_State)     :: importState, exportState
   type(ESMF_Clock)     :: clock
@@ -152,41 +155,67 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   type(ESMF_TimeInterval) :: stabilityTimeStep
   type(ESMF_Field)        :: field
-  type(ESMF_Grid)         :: gridIn
-  type(ESMF_Grid)         :: gridOut
-  integer(ESMF_KIND_I4) :: localrc
+  integer(ESMF_KIND_I4)   :: localrc, i, itemCount
+
+  type(ESMF_CoordSys_Flag) :: coordsys
+  type(ESMF_Mesh)          :: mesh2d
+
+  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
 
   rc = ESMF_SUCCESS
 
-  gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/100, 10/), &
-      minCornerCoord=(/10._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
-      maxCornerCoord=(/100._ESMF_KIND_R8, 200._ESMF_KIND_R8/), &
-      coordSys=ESMF_COORDSYS_CART, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
-      rc=localrc)
+  call addSchismMesh(comp, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  gridOut = gridIn ! for now out same as in
+  ! call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! call ESMF_StateGet(exportState,  itemCount=itemCount, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! allocate(itemTypeList(itemCount))
+  ! allocate(itemNameList(itemCount))
+  !
+  ! call ESMF_StateGet(exportState,  itemTypeList=itemTypeList, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! do i=1, itemCount
+  !   if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+  !
+  !   call ESMF_StateGet(exportState, trim(itemNameList(i)), field=field, rc=localrc )
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  !   call NUOPC_Realize(exportState, field=field, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! enddo
+  ! deallocate(itemTypeList)
+  ! deallocate(itemNameList)
 
-  field = ESMF_FieldCreate(name="pmsl", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  field = ESMF_FieldCreate(name="pmsl", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  field = ESMF_FieldCreate(name="rsns", grid=gridIn, &
-      typekind=ESMF_TYPEKIND_R8, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  field = ESMF_FieldCreate(name="rsns", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_Realize(importState, field=field, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! exportable field: sea_surface_temperature
-    field = ESMF_FieldCreate(name="sst", grid=gridOut, &
-      typekind=ESMF_TYPEKIND_R8, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    call NUOPC_Realize(exportState, field=field, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! exportable field: sea_surface_temperature
+  field = ESMF_FieldCreate(name="sst", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(exportState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
