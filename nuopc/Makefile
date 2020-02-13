@@ -30,16 +30,25 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
+# @todo parmetis should have been included in lschism_esmf, but
+# that does not seem to work cross-platform ...
+LIBS+= -lhydro -lcore -lparmetis -lmetis
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
+
 .SUFFIXES: .F90
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $<
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 
-main_nuopc: main_nuopc.o toplevel_component.o atmosphere.o schism_cmi_nuopc.o
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS)
+main_nuopc: main_nuopc.o toplevel_component.o atmosphere.o \
+	schism_cmi_nuopc.o schism_bmi.o
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
 main_nuopc.o: toplevel_component.o
 toplevel_component.o: atmosphere.o schism_cmi_nuopc.o
+schism_cmi_nuopc.o: schism_bmi.o
+schism_cmi_esmf.o: schism_bmi.o
 
 .PHONY:  clean default all
 

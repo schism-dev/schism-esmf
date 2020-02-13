@@ -20,7 +20,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "toplevel_component.F90"
+#define ESMF_FILENAME "schism_cmi_nuopc.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -34,6 +34,8 @@ module schism
     model_routine_SS      => SetServices, &
     model_label_SetClock  => label_SetClock, &
     model_label_Advance   => label_Advance
+
+  use schism_bmi
 
   implicit none
 
@@ -75,29 +77,67 @@ subroutine SetServices(comp, rc)
 end subroutine SetServices
 
 #undef ESMF_METHOD
-#define ESMF_METHOD "InititalizeP1"
+#define ESMF_METHOD "InitializeP1"
 subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
-    type(ESMF_GridComp)  :: comp
-    type(ESMF_State)     :: importState, exportState
-    type(ESMF_Clock)     :: clock
-    integer, intent(out) :: rc
+  implicit none
 
-    integer(ESMF_KIND_I4) :: localrc
+  type(ESMF_GridComp)  :: comp
+  type(ESMF_State)     :: importState, exportState
+  type(ESMF_Clock)     :: clock
+  integer, intent(out) :: rc
 
-    rc = ESMF_SUCCESS
+  integer(ESMF_KIND_I4)       :: localrc, mpiCommunicator, mpiCommDuplicate
+  integer(ESMF_KIND_I4)       :: ntime=0, iths=0
+  character(len=ESMF_MAXSTR)  :: message, compName
 
-    call NUOPC_Advertise(importState, &
-      StandardName="air_pressure_at_sea_level", name="pmsl", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  type(ESMF_Vm)               :: vm
 
-    call NUOPC_Advertise(importState, &
-      StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  rc = ESMF_SUCCESS
 
-    call NUOPC_Advertise(exportState, &
-      StandardName="sea_surface_temperature", name="sst", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> @todo replace by NUOPC_CompGet()
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Get VM for this component
+  call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_VMGet(vm, mpiCommunicator=mpiCommunicator, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+#ifndef ESMF_MPIUNI
+  call MPI_Comm_dup(mpiCommunicator, mpiCommDuplicate, rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A)') trim(compName)//' initializing parallel environment ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  call schism_parallel_init(communicator=mpiCommDuplicate)
+
+  write(message, '(A)') trim(compName)//' initialized parallel environment.'
+#endif
+
+  write(message, '(A)') trim(compName)//' initializing science model ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call ESMF_UtilIOMkDir ('./outputs',  relaxedFlag=.true., rc=localrc)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call schism_init('./', iths, ntime)
+  write(message, '(A)') trim(compName)//' initialized science model'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call NUOPC_Advertise(importState, &
+    StandardName="air_pressure_at_sea_level", name="pmsl", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(importState, &
+    StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="sea_surface_temperature", name="sst", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
