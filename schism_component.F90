@@ -49,7 +49,11 @@ subroutine SetServices(comp, rc)
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-    userRoutine=Initialize, rc=localrc)
+    phase=0, userRoutine=InitializeP0, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+    phase=1, userRoutine=InitializeP1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
@@ -63,8 +67,47 @@ subroutine SetServices(comp, rc)
 end subroutine SetServices
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "Initialize"
-subroutine Initialize(comp, importState, exportState, clock, rc)
+#define ESMF_METHOD "InitializeP0"
+  subroutine InitializeP0(gridComp, importState, exportState, &
+    parentClock, rc)
+
+    implicit none
+
+    type(ESMF_GridComp)         :: gridComp
+    type(ESMF_State)            :: importState
+    type(ESMF_State)            :: exportState
+    type(ESMF_Clock)            :: parentClock
+    integer, intent(out)        :: rc
+
+    character(len=10)           :: InitializePhaseMap(1)
+    character(len=ESMF_MAXSTR)  :: myName
+    type(ESMF_Time)             :: currTime
+    integer                     :: localrc
+
+    rc=ESMF_SUCCESS
+
+    InitializePhaseMap(1) = "IPDv00p1=1"
+
+    call ESMF_AttributeAdd(gridComp, convention="NUOPC", &
+      purpose="General", &
+      attrList=(/"InitializePhaseMap"/), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(gridComp, name="InitializePhaseMap", valueList=InitializePhaseMap, &
+      convention="NUOPC", purpose="General", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_StateValidate(importState, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_StateValidate(exportState, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  end subroutine InitializeP0
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "InitializeP1"
+subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   !> @todo apply only filter to 'use schism_glbl'
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
@@ -122,7 +165,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  write(message, '(A)') trim(compName)//' initializing ...'
+  write(message, '(A)') trim(compName)//' initializing component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Make a local copy of the clock
@@ -132,8 +175,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   call ESMF_GridCompSet(comp, clock=schism_clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! get communicator
-  !Get VM for this component
+  ! Get VM for this component
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -149,9 +191,11 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
 #endif
 
   ! call initialize model with parameters iths=0, ntime=0
-  call schism_init('./', iths, ntime)
+  write(message, '(A)') trim(compName)//' initializing science model ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(message, '(A)') trim(compName)//' initialized SCHISM'
+  call schism_init('./', iths, ntime)
+  write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Use schism time interval
@@ -601,6 +645,9 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   end do
 #endif
 
+  call addCIM(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! clean up
   deallocate(nodeids, stat=localrc)
   deallocate(nodecoords2d, stat=localrc)
@@ -617,7 +664,7 @@ subroutine Initialize(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initialized.'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-end subroutine Initialize
+end subroutine InitializeP1
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "Run"
@@ -918,5 +965,74 @@ end subroutine Run
   if (present(rc)) rc = rc_
 
   end subroutine schism_esmf_update_bottom_tracer
+
+
+  !! Add a CIM component attribute package to a component
+#undef ESMF_METHOD
+#define ESMF_METHOD "addCIM"
+subroutine addCIM(comp, rc)
+
+  implicit none
+
+  type(ESMF_GridComp)                          :: comp
+  integer(ESMF_KIND_I4), intent(out), optional :: rc
+
+  integer(ESMF_KIND_I4)      :: localrc, petCount
+  type(ESMF_VM)              :: vm
+  character(len=ESMF_MAXSTR) :: message, convention, purpose
+  type(ESMF_State)           :: importState
+
+  if (present(rc)) rc=ESMF_SUCCESS
+
+  convention='CIM 1.5'
+  purpose='ModelComp'
+
+  call ESMF_AttributeAdd(comp, convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'ShortName', 'schism', &
+    convention=convention, purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'LongName', 'schism', convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'ModelType', 'ocean', convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, importState=importState, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'SimulationStartDate', message, convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeGet(importState, name='simulation_stop', value=message, defaultvalue='Untitled', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'SimulationDuration', message, convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message,'(I4)') petCount
+  call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  purpose='Platform'
+  !call ESMF_AttributeGetAttPack(comp, convention, purpose, attpack=attpack, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, 'MachineName', 'unknown', convention=convention, &
+    purpose=purpose, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+end subroutine addCIM
 
 end module schism_esmf_component
