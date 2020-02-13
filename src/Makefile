@@ -26,7 +26,7 @@ endif
 
 SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
 
-ifneq ($(wildcard $(SCHISM_BUILD_DIR)/libhydros.a),)
+ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
