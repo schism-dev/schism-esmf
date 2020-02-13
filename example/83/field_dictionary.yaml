@@ -1,0 +1,101 @@
+field_dictionary:
+  description: Community-based dictionary for shared coupling fields
+  entries:
+  - canonical_units: mmol m-3
+    standard_name: alkalinity_expressed_as_mole_equivalent
+  - canonical_units: m-1
+    standard_name: attenuation_coefficient_of_photosynthetic_radiative_flux
+  - canonical_units: m-1
+    standard_name: attenuation_coefficient_of_shortwave_flux
+  - canonical_units: m
+    standard_name: cell_thickness
+  - canonical_units: kg m-3
+    standard_name: density
+  - canonical_units: m
+    standard_name: depth
+  - canonical_units: W m-2
+    standard_name: downwelling_photosynthetic_radiative_flux
+  - canonical_units: W m-2
+    standard_name: downwelling_shortwave_flux
+  - canonical_units: g m-3
+    standard_name: mass_concentration_of_suspended_matter
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_ammonium
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_carbonate_expressed_as_carbon
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_dissolved_inorganic_carbon
+  - canonical_units: umol m-3
+    standard_name: mole_concentration_of_dissolved_iron
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_nitrate
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_phosphate
+  - canonical_units: mmol m-3
+    standard_name: mole_concentration_of_silicate
+  - canonical_units: 1
+    standard_name: ph_reported_on_total_scale
+  - canonical_units: 1e-3
+    standard_name: practical_salinity
+  - canonical_units: dbar
+    standard_name: pressure
+  - canonical_units: degree_Celsius
+    standard_name: temperature
+  - canonical_units: 1
+    standard_name: fractional_saturation_of_oxygen
+  - canonical_units: m
+    standard_name: secchi_depth
+  - canonical_units: W m-2
+    standard_name: net_rate_of_absorption_of_shortwave_energy_in_layer
+  - canonical_units: m
+    standard_name: bottom_depth_below_geoid
+  - canonical_units: m
+    standard_name: bottom_depth
+  - canonical_units: m
+    standard_name: bottom_roughness_length
+  - canonical_units: Pa
+    standard_name: bottom_stress
+  - canonical_units: 1
+    standard_name: cloud_area_fraction
+  - canonical_units: W m-2
+    standard_name: surface_downwelling_photosynthetic_radiative_flux
+  - canonical_units: W m-2
+    standard_name: surface_downwelling_photosynthetic_radiative_flux_in_air
+  - canonical_units: W m-2
+    standard_name: surface_downwelling_shortwave_flux
+  - canonical_units: W m-2
+    standard_name: surface_downwelling_shortwave_flux_in_air
+  - canonical_units: degree_north
+    standard_name: latitude
+  - canonical_units: degree_east
+    standard_name: longitude
+  - canonical_units: 1e-6
+    standard_name: mole_fraction_of_carbon_dioxide_in_air
+  - canonical_units: m s-1
+    standard_name: wind_speed
+  - canonical_units: 1
+    standard_name: surface_specific_humidity
+  - canonical_units: Pa
+    standard_name: surface_air_pressure
+  - canonical_units: degree_Celsius
+    standard_name: surface_temperature
+  - canonical_units: d
+    standard_name: number_of_days_since_start_of_the_year
+  - canonical_units: mmol m-3
+    standard_name: total_carbon
+  - canonical_units: mmol m-3
+    standard_name: total_nitrogen
+  - canonical_units: mmol m-3
+    standard_name: total_phosphorus
+  - canonical_units: mmol m-3
+    standard_name: total_silicate
+  - canonical_units: umol m-3
+    standard_name: total_iron
+  - canonical_units: m s-1
+    standard_name: x_velocity_at_10m_above_sea_surface
+  - canonical_units: m s-1
+    standard_name: y_velocity_at_10m_above_sea_surface
+  institution: "Helmholtz-Zentrum Geesthacht Zentrum f\xFCr Material- und K\xFCstenforschung"
+  source: automatically generated from FABM standard variables, with enhancements
+    from MOSSCO
+  version_number: 0.1

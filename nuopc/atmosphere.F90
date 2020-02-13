@@ -88,24 +88,24 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   ! This component imports SST and exports SLP and SWFLUX
 
   call NUOPC_Advertise(importState, &
-    StandardName="sea_surface_temperature", name="sst", rc=localrc)
+    StandardName="surface_temperature", name="sst", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-    StandardName="air_pressure_at_sea_level", name="pmsl", rc=localrc)
+    StandardName="surface_air_pressure", name="pmsl", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-      StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
+      StandardName="surface_downwelling_photosynthetic_radiative_flux", name="rsns", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo expand fieldDict to correctly label this
   call NUOPC_Advertise(exportState, &
-      StandardName="surface_eastward_sea_water_velocity", name="x_velocity_at_10m_above_sea_surface", rc=localrc)
+      StandardName="x_velocity_at_10m_above_sea_surface", name="x_velocity_at_10m_above_sea_surface", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-      StandardName="surface_northward_sea_water_velocity", name="y_velocity_at_10m_above_sea_surface", rc=localrc)
+      StandardName="y_velocity_at_10m_above_sea_surface", name="y_velocity_at_10m_above_sea_surface", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine InitializeP1

@@ -129,16 +129,16 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   !> @todo define more import fields, i.e wind x,y fields
   call NUOPC_Advertise(importState, &
-    StandardName="air_pressure_at_sea_level", name="pmsl", rc=localrc)
+    StandardName="surface_air_pressure", name="pmsl", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(importState, &
-    StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
+    StandardName="surface_downwelling_photosynthetic_radiative_flux", name="rsns", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo define more export fields, i.e wind x,y fields
   call NUOPC_Advertise(exportState, &
-    StandardName="sea_surface_temperature", name="temperature_at_water_surface", rc=localrc)
+    StandardName="surface_temperature", name="temperature_at_water_surface", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldDictionaryAddEntry('mesh_topology','1', rc=localrc)
@@ -244,7 +244,7 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! exportable field: sea_surface_temperature
+  ! exportable field: surface_temperature
   field = ESMF_FieldCreate(name="temperature_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)

@@ -43,8 +43,11 @@ program main
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call NUOPC_FieldDictionarySetup("field_dictionary.yaml", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! @todo find out why this does not work
-  !call FieldDictionaryLog("fielddictionary.yaml", iofmt=ESMF_IOFMT_YAML, rc=localrc)
+  !call FieldDictionaryLog("field_dictionary.yaml.out", iofmt=ESMF_IOFMT_YAML, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Create the top level component and register its services along with
