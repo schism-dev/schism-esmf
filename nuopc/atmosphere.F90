@@ -2,7 +2,8 @@
 ! a dummy atmosphere component for a NUOPC coupled system.
 !
 ! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @author Carsten Lemmen <carsten.lemmen@hzg.de>
+! @author Richard Hofmeister
 !
 ! @license under the Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -98,6 +99,15 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
       StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo expand fieldDict to correctly label this
+  call NUOPC_Advertise(exportState, &
+      StandardName="surface_eastward_sea_water_velocity", name="x_velocity_at_10m_above_sea_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+      StandardName="surface_northward_sea_water_velocity", name="y_velocity_at_10m_above_sea_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 end subroutine InitializeP1
 
 #undef ESMF_METHOD
@@ -111,14 +121,16 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   type(ESMF_Field)        :: field
   type(ESMF_Grid)         :: gridIn, gridOut
-  integer(ESMF_KIND_I4) :: localRc
+  integer(ESMF_KIND_I4)   :: localRc, ubnd(2), lbnd(2), i, j
+
+  real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
 
   rc = ESMF_SUCCESS
 
   ! create a Grid object for Fields
   gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/10, 100/), &
-    minCornerCoord=(/10._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
-    maxCornerCoord=(/100._ESMF_KIND_R8, 200._ESMF_KIND_R8/), &
+    minCornerCoord=(/0._ESMF_KIND_R8, 0._ESMF_KIND_R8/), &
+    maxCornerCoord=(/2000._ESMF_KIND_R8, 20000._ESMF_KIND_R8/), &
     coordSys=ESMF_COORDSYS_CART, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -163,8 +175,33 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 #endif
 
-  ! exportable field: surface_net_downward_shortwave_flux
+  ! Other export fields
   field = ESMF_FieldCreate(name="rsns", grid=gridOut, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(exportState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", grid=gridOut, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr2, &
+    exclusiveUBound=ubnd, exclusiveLBound=lbnd, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do j=lbnd(2),ubnd(2)
+    do i=lbnd(1), ubnd(1)
+      farrayPtr2(i,j) = 3*sin(i/ubnd(1)*3.14/180.) &
+        + 3*cos(j/ubnd(2)*3.14/180.)
+    end do
+  enddo
+
+  call NUOPC_Realize(exportState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  field = ESMF_FieldCreate(name="y_velocity_at_10m_above_sea_surface", grid=gridOut, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

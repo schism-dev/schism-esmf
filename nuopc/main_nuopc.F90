@@ -2,7 +2,7 @@
 ! a main() program for a NUOPC coupled system.
 !
 ! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @author Carsten Lemmen <carsten.lemmen@hzg.de>
 !
 ! @license under the Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
