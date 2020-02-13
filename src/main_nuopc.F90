@@ -48,7 +48,7 @@ program main
 
   ! Create the top level component and register its services along with
   ! profiling attributes
-  topComp = ESMF_GridCompCreate(name="esm", rc=localrc)
+  topComp = ESMF_GridCompCreate(name="toplevel", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(topComp, toplevelSetServices, userRc=userRc, rc=localrc)
