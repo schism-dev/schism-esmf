@@ -43,6 +43,10 @@ program main
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  ! @todo find out why this does not work
+  !call FieldDictionaryLog("fielddictionary.yaml", iofmt=ESMF_IOFMT_YAML, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! Create the top level component and register its services along with
   ! profiling attributes
   topComp = ESMF_GridCompCreate(name="toplevel", rc=localrc)

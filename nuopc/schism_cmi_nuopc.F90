@@ -127,6 +127,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  !> @todo define more import fields, i.e wind x,y fields
   call NUOPC_Advertise(importState, &
     StandardName="air_pressure_at_sea_level", name="pmsl", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -135,8 +136,37 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     StandardName="surface_net_downward_shortwave_flux", name="rsns", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo define more export fields, i.e wind x,y fields
   call NUOPC_Advertise(exportState, &
-    StandardName="sea_surface_temperature", name="sst", rc=localrc)
+    StandardName="sea_surface_temperature", name="temperature_at_water_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddEntry('mesh_topology','1', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddEntry('mesh_global_node_id','1', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddEntry('mesh_global_element_id','1', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddEntry('mesh_element_node_connectivity','1', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="mesh_topology", name="mesh_topology", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="mesh_global_node_id", name="mesh_global_node_id", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="mesh_global_element_id", name="mesh_global_element_id", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="mesh_element_node_connectivity", name="mesh_element_node_connectivity", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
@@ -146,6 +176,8 @@ end subroutine
 subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
+  !> @todo move all use statements of schism into schism_bmi
+  use schism_glbl, only: np, pr2, airt2
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -162,6 +194,8 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+
+  real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
 
   rc = ESMF_SUCCESS
 
@@ -195,8 +229,9 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  farrayPtr1 => pr2(1:np)
   field = ESMF_FieldCreate(name="pmsl", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
@@ -210,7 +245,7 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! exportable field: sea_surface_temperature
-  field = ESMF_FieldCreate(name="sst", mesh=mesh2d, &
+  field = ESMF_FieldCreate(name="temperature_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -221,22 +256,26 @@ end subroutine
 
 subroutine SetClock(comp, rc)
 
+  use schism_bmi, only : schismTimeStep
+
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
   type(ESMF_Clock)              :: clock
-  type(ESMF_TimeInterval)       :: stabilityTimeStep
-  integer(ESMF_KIND_I4) :: localrc
+  type(ESMF_TimeInterval)       :: timeStep
+  integer(ESMF_KIND_I4)         :: localrc
+  real(ESMF_KIND_R8)            :: seconds
 
   rc = ESMF_SUCCESS
 
   call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_TimeIntervalSet(stabilityTimeStep, m=5, rc=localrc) ! 5 minute steps
+  call schismTimeStep(seconds)
+  call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_CompSetClock(comp, clock, stabilityTimeStep, rc=localrc)
+  call NUOPC_CompSetClock(comp, clock, timeStep, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
@@ -250,16 +289,28 @@ subroutine ModelAdvance(comp, rc)
   type(ESMF_State)            :: importState, exportState
   type(ESMF_Time)             :: currTime
   type(ESMF_TimeInterval)     :: timeStep
-  character(len=160)          :: msgString
-  integer(ESMF_KIND_I4) :: localrc
-
-  call ESMF_TraceRegionEnter("schism:ModelAdvance")
+  character(len=160)          :: message, compName
+  integer(ESMF_KIND_I4)       :: localrc
+  integer(ESMF_KIND_I8)       :: advanceCount
+  integer, save               :: it=1
 
   rc = ESMF_SUCCESS
+
+  call ESMF_TraceRegionEnter("schism:ModelAdvance", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_ModelGet(comp, modelClock=clock, importState=importState, &
     exportState=exportState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_ClockGet(clock, advanceCount=advanceCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call schism_step(it)
+  it = it + 1
 
     ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
 
@@ -271,20 +322,20 @@ subroutine ModelAdvance(comp, rc)
     ! stopTime of the internal Clock has been reached.
 
   call ESMF_ClockPrint(clock, options="currTime", &
-      preString="------>Advancing schism from: ", unit=msgString, rc=localrc)
+      preString="------>Advancing schism from: ", unit=message, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=localrc)
+  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_TimePrint(currTime + timeStep, &
-      preString="---------------------> to: ", unit=msgString, rc=localrc)
+      preString="---------------------> to: ", unit=message, rc=localrc)
 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=localrc)
+    call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_TraceRegionExit("schism:ModelAdvance")

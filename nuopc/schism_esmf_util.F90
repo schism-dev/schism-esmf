@@ -252,7 +252,7 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   return
-  !> @todo the following steps don't work in NUOPC yet
+  !> @todo the following steps don't work in the NUOPC cap yet
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)

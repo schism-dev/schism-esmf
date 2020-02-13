@@ -43,8 +43,6 @@ module schism_bmi
       implicit none
     end subroutine parallel_finalize
 
-
-
     subroutine schism_init(indir,iths,ntime)
       implicit none
       character(len=*), intent(in) :: indir
@@ -55,7 +53,6 @@ module schism_bmi
       implicit none
       integer, intent(in) :: it
     end subroutine schism_step
-
 
     subroutine schism_finalize()
       implicit none
@@ -78,6 +75,37 @@ subroutine schism_parallel_init(communicator)
   call parallel_init(communicator)
 
 end subroutine schism_parallel_init
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "schismTimeStep"
+subroutine schismTimeStep(seconds)
+
+  use schism_glbl, only: dt
+
+  implicit none
+  double precision, intent(out) :: seconds
+
+  seconds = dt
+
+end subroutine schismTimeStep
+
+#undef ESMF_METHOD
+#define ESMF_METHOD 'schismPtr1'
+function schismPtr1(varname) result(farrayPtr)
+
+  use schism_glbl, only: airt2
+  character(len=*), intent(in) :: varname
+  double precision, pointer :: farrayPtr(:)
+
+  select case((trim(varname)))
+  case ('airt2')
+    farrayPtr => airt2
+  case default
+    nullify(farrayPtr)
+  end select
+
+end function schismPtr1
+
 
 ! subroutine  prepareMesh(nodeIds, nodeCoords2D, nodeOwners, nodeMask, &
 !   elementIds, elementCoords2d, elementTypes, elementMask, nv, &
