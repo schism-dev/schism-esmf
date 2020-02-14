@@ -87,9 +87,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   ! This component imports SST and exports SLP and SWFLUX
 
-  call NUOPC_Advertise(importState, &
-    StandardName="surface_temperature", name="sst", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !call NUOPC_Advertise(importState, &
+  !  StandardName="surface_temperature", name="sst", rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
     StandardName="surface_air_pressure", name="pmsl", rc=localrc)
@@ -141,7 +141,8 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  ! Disabled for now as we disabled coupling OCN->ATM
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifdef CREATE_AND_REALIZE

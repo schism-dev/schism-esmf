@@ -53,32 +53,32 @@ contains
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "SetServices"
-subroutine SetServices(comp, rc)
+subroutine SetServices(driver, rc)
 
-  type(ESMF_GridComp)  :: comp
+  type(ESMF_GridComp)  :: driver
   integer, intent(out) :: rc
 
   integer(ESMF_KIND_I4) :: localrc
 
   rc = ESMF_SUCCESS
 
-  call NUOPC_CompDerive(comp, driver_routine_SS, rc=localrc)
+  call NUOPC_CompDerive(driver, driver_routine_SS, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_CompSpecialize(comp, specLabel=driver_label_SetModelServices, &
+  call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetModelServices, &
     specRoutine=SetModelServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_CompAttributeSet(comp, name="Verbosity", value="high", rc=localrc)
+  call NUOPC_CompAttributeSet(driver, name="Verbosity", value="high", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "SetModelServices"
-subroutine SetModelServices(comp, rc)
+subroutine SetModelServices(driver, rc)
 
-  type(ESMF_GridComp)  :: comp
+  type(ESMF_GridComp)  :: driver
   integer, intent(out) :: rc
 
   type(ESMF_Grid)               :: grid
@@ -88,57 +88,104 @@ subroutine SetModelServices(comp, rc)
   type(ESMF_Clock)              :: internalClock
   type(ESMF_GridComp)           :: child
   type(ESMF_CplComp)            :: connector
-  integer(ESMF_KIND_I4)         :: localrc
+  integer(ESMF_KIND_I4)         :: localrc, petCount, slotCount, i
+  type(ESMF_Vm)                 :: vm
+  integer(ESMF_KIND_I4), allocatable :: petList(:)
+  type(NUOPC_FreeFormat)        :: freeFormat
 
   rc = ESMF_SUCCESS
 
+  call ESMF_GridCompGet(driver, vm=vm, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_VmGet(vm, petCount=petCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Use all but one pets in this petList for schism and the last
+  ! PET for the dummy atmosphere.  This runs the models concurrently.
+  ! For petCount=1, both run sequentially on the same PET
+  allocate(petList(max(1, petCount-1)))
+  do i=1, max(1, petCount-1)
+    petList(i) = i-1
+  enddo
+
   ! SetServices for dummy atmosphereosphere and for schism ocean
-  call NUOPC_DriverAddComp(comp, "atmosphere", atmosphereSS, comp=child, rc=localrc)
+  ! NUOPC_DriverAddGridComp(driver, compLabel, &
+  !   compSetServicesRoutine, compSetVMRoutine, petList, info, driver, rc)
+  call NUOPC_DriverAddComp(driver=driver, compLabel="atmosphere", &
+    compSetServicesroutine=atmosphereSS, petList=(/petCount-1/), comp=child, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_CompAttributeSet(child, name="Verbosity", value="low", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_DriverAddComp(driver, "schism", schismSS, petList=petList, &
+    comp=child, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_DriverAddComp(comp, "schism", schismSS, comp=child, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> Doesn't seem to work for now
+  !call NUOPC_GridCompAttributeEgest(child, freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_CompAttributeSet(child, name="Verbosity", value="high", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! SetServices for connectores atmosphere--ocean and vice versa
-    call NUOPC_DriverAddComp(comp, srcCompLabel="atmosphere", dstCompLabel="schism", &
-      compSetServicesRoutine=cplSS, comp=connector, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! SetServices for connectors atmosphere--ocean and vice versa
+  call NUOPC_DriverAddComp(driver, srcCompLabel="atmosphere",   dstCompLabel="schism", &
+    compSetServicesRoutine=cplSS, comp=connector, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_DriverAddComp(comp, srcCompLabel="schism", dstCompLabel="atmosphere", &
-      compSetServicesRoutine=cplSS, comp=connector, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! Let's skipt the feedback for now
+  ! call NUOPC_DriverAddComp(driver, srcCompLabel="schism", dstCompLabel="atmosphere", &
+  !   compSetServicesRoutine=cplSS, comp=connector, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !
+  ! call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high", rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high", rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  deallocate(petList)
 
-    call ESMF_TimeIntervalSet(timeStep, m=15, rc=localrc) ! 15 minute steps
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_TimeIntervalSet(timeStep, m=15, rc=localrc) ! 15 minute steps
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    !> @todo inherit from main()
-    call ESMF_TimeSet(startTime, yy=2010, mm=6, dd=1, h=0, m=0, &
-      calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> @todo inherit from or set by main()
+  call ESMF_TimeSet(startTime, yy=2010, mm=6, dd=1, h=0, m=0, &
+    calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_TimeSet(stopTime, yy=2010, mm=6, dd=1, h=1, m=0, &
-      calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_TimeSet(stopTime, yy=2010, mm=6, dd=1, h=2, m=0, &
+    calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    internalClock = ESMF_ClockCreate(name="Application Clock", &
-      timeStep=timeStep, startTime=startTime, stopTime=stopTime, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  internalClock = ESMF_ClockCreate(name="Application Clock", &
+    timeStep=timeStep, startTime=startTime, stopTime=stopTime, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_GridCompSet(comp, clock=internalClock, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_GridCompSet(driver, clock=internalClock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  end subroutine
+  ! call NUOPC_DriverGet(driver, slotCount=slotCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_DriverEgestRunSequence(driver, freeFormat=freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FreeFormatDestroy(freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+end subroutine
+
+!NUOPC_StateWrite(state, fieldNameList, fileNamePrefix, overwrite, &
+!     status, timeslice, relaxedflag, rc)
+
 
 end module toplevel

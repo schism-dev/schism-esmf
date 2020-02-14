@@ -59,11 +59,11 @@ subroutine SetServices(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-    phaseLabelList=(/"IPDv00p1"/), userRoutine=InitializeP1, rc=localrc)
+    phaseLabelList=(/"IPDv00p1"/), userRoutine=InitializeAdvertise, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-    phaseLabelList=(/"IPDv00p2"/), userRoutine=InitializeP2, rc=localrc)
+    phaseLabelList=(/"IPDv00p2"/), userRoutine=InitializeRealize, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompSpecialize(comp, specLabel=model_label_SetClock, &
@@ -74,11 +74,20 @@ subroutine SetServices(comp, rc)
     specRoutine=ModelAdvance, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Do we need a specialization of Finalize, by adding a label?
+  !call NUOPC_CompSpecialize(comp, specLabel=model_label_Finalize, &
+  !  specRoutine=Finalize, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 end subroutine SetServices
 
 #undef ESMF_METHOD
-#define ESMF_METHOD "InitializeP1"
-subroutine InitializeP1(comp, importState, exportState, clock, rc)
+#define ESMF_METHOD "InitializeAdvertise"
+!> @description The purpose of this phase is for your model to advertise its import and export fields. This means that your model announces which model variables it is capable of exporting (e.g., an atmosphere might export air pressure at sea level) and which model variables it requires (e.g., an atmosphere might require sea surface temperature as a boundary condition). The reason there is an explicit advertise phase is because NUOPC dynamically matches fields among all the models participating in a coupled simulation during runtime. So, we need to collect the list of possible input and output fields from all the models during their initialization.
+! Note that NUOPC does not allocate memory for fields during the advertise phase or when NUOPC_Advertise is called. Instead, this is simply a way for models to communicate the standard names of fields. During a later phase, only those fields that are connected (e.g., a field exported from one model that is imported by another) need to have memory allocated. Also, since ESMF will accept pointers to pre-allocated memory, it is usually not necessary to change how memory is allocated for your model’s variables.
+!> Should be mapped to IPDv00p1, IPDv01p1, IPDv02p1, IPDv03p1, IPDv04p1, IPDv05p1;
+!> its implementation is required
+subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   implicit none
 
@@ -88,8 +97,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer, intent(out) :: rc
 
   integer(ESMF_KIND_I4)       :: localrc, mpiCommunicator, mpiCommDuplicate
-  integer(ESMF_KIND_I4)       :: ntime=0, iths=0
+  integer(ESMF_KIND_I4)       :: ntime=0, iths=0, i
   character(len=ESMF_MAXSTR)  :: message, compName
+  character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
 
   type(ESMF_Vm)               :: vm
 
@@ -137,43 +147,41 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo define more export fields, i.e wind x,y fields
+  ! NUOPC_AdvertiseField(state, StandardName, Units, &
+  !   LongName, ShortName, name, TransferOfferGeomObject, SharePolicyField, &
+  !   SharePolicyGeomObject, vm, field, rc)
   call NUOPC_Advertise(exportState, &
-    StandardName="surface_temperature", name="temperature_at_water_surface", rc=localrc)
+    StandardName="surface_temperature", name="temperature_at_water_surface", &
+    TransferOfferGeomObject="will provide", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_FieldDictionaryAddEntry('mesh_topology','1', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> The mesh information is usually not in CF standard and therefore needs
+  !> to be added to the FieldDictionary before advertising
+  allocate(itemNameList(4))
+  itemNameList=(/ 'mesh_topology                 ', &
+                  'mesh_global_node_id           ', &
+                  'mesh_global_element_id        ', &
+                  'mesh_element_node_connectivity'/)
 
-  call NUOPC_FieldDictionaryAddEntry('mesh_global_node_id','1', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  do i=1,4
+    call NUOPC_FieldDictionaryAddEntry(trim(itemNameList(i)),'1', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_FieldDictionaryAddEntry('mesh_global_element_id','1', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_FieldDictionaryAddEntry('mesh_element_node_connectivity','1', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Advertise(exportState, &
-    StandardName="mesh_topology", name="mesh_topology", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Advertise(exportState, &
-    StandardName="mesh_global_node_id", name="mesh_global_node_id", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Advertise(exportState, &
-    StandardName="mesh_global_element_id", name="mesh_global_element_id", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Advertise(exportState, &
-    StandardName="mesh_element_node_connectivity", name="mesh_element_node_connectivity", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    call NUOPC_Advertise(exportState, StandardName=trim(itemNameList(i)), &
+      SharePolicyField='share', SharePolicyGeomObject='not share', &
+      TransferOfferGeomObject='will provide', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  enddo
 
 end subroutine
 
 #undef ESMF_METHOD
-#define ESMF_METHOD "InititalizeP2"
-subroutine InitializeP2(comp, importState, exportState, clock, rc)
+#define ESMF_METHOD "InitializeRealize"
+!> @description During this phase, fields that were previously advertised should now be realized. Realizing a field means that an ESMF_Field object is created and it is added to the appropriate ESMF_State, either import or export. In order to create an ESMF_Field, you’ll first need to create one of the ESMF geometric types, ESMF_Grid, ESMF_Mesh, or ESMF_LocStream. For 2D and 3D logically rectangular grids (such as a lat-lon grid), the typical choice is ESMF_Grid. For unstructured grids, use an ESMF_Mesh. Fields are put into import or export States by calling NUOPC_Realize.
+!> Should be mapped to IPDv00p2, IPDv01p3, IPDv02p3, IPDv03p3, IPDv04p3, IPDv05p4;
+!> Required if providing any geometry.  For higher phases IPDv03p5, IPDv04p5, IPDv05p6
+!> a separate routine should be provided for accepting fields.
+subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
@@ -254,6 +262,11 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
 end subroutine
 
+#undef ESMF_METHOD
+#define ESMF_METHOD "SetClock"
+!> @description A model's clock copies start/stop time and timestep from its
+!> parent's clock.  If a model has a timestep that is different (smaller) than
+!> the parent's it needs to be set here.
 subroutine SetClock(comp, rc)
 
   use schism_bmi, only : schismTimeStep
@@ -275,11 +288,54 @@ subroutine SetClock(comp, rc)
   call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call NUOPC_CompSetClock(comp, externalClock=clock, &
+    stabilityTimeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+end subroutine
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "SetRunClock"
+!> @description If the timestep of the parent is dynamic, then there might
+!> be mismatches between intergral timesteps of a model and the parent
+!> timestep.  This is reported as an error unless dealt with in this label
+!> @todo (not registered and fully implemented yet, so not used)
+subroutine SetRunClock(comp, rc)
+
+  use schism_bmi, only : schismTimeStep
+
+  type(ESMF_GridComp)  :: comp
+  integer, intent(out) :: rc
+
+  type(ESMF_Clock)              :: clock
+  type(ESMF_TimeInterval)       :: timeStep
+  integer(ESMF_KIND_I4)         :: localrc
+  real(ESMF_KIND_R8)            :: seconds
+
+  rc = ESMF_SUCCESS
+
+  call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call schismTimeStep(seconds)
+  call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> @todo find integral partitioning of timesteps and
+  !> set schism's timestep temporarily
+  !> NUOPC_AdjustClock(clock, maxTimestep, rc)
+
   call NUOPC_CompSetClock(comp, clock, timeStep, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
+
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "ModelAdvance"
+!> @description As described in the section 4.2, the subroutine ModelAdvance (shown below) has been registered to the special- ization point with the label model_label_Advance in the SetServices subroutine. This specialization point subroutine is called within the generic NUOPC_Model run phase in order to request that your model take a timestep forward. The code to do this is model dependent, so it does not appear in the subroutine below. Each NUOPC component maintains its own clock (an ESMF_Clock object). The clock is used to indicate the current model time and the timestep size. When the subroutine finishes, your model should be moved ahead in time from the current time by one timestep. NUOPC will automatically advance the clock for you, so there is no explicit call to do that here.
+!> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
   type(ESMF_GridComp)  :: comp
