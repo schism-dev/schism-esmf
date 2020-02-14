@@ -1,5 +1,4 @@
 field_dictionary:
-  contact: Carsten Lemmen <carsten.lemmen@hzg.de>
   description: Community-based dictionary for shared coupling fields
   entries:
   - canonical_units: mmol m-3
@@ -97,7 +96,6 @@ field_dictionary:
   - canonical_units: m s-1
     standard_name: y_velocity_at_10m_above_sea_surface
   institution: "Helmholtz-Zentrum Geesthacht Zentrum f\xFCr Material- und K\xFCstenforschung"
-  last_modified: '2020-02-14T19:43:06.297412'
   source: automatically generated from FABM standard variables, with enhancements
     from MOSSCO
   version_number: 0.1
