@@ -1,0 +1,82 @@
+# This code is part of the SCHISM-ESMF interface.
+#
+# @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
+# @author Carsten Lemmen carsten.lemmen@hzg.de
+#
+# @license under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# 		http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+$(error This makefile does not work yet, but should replace the active one eventually)
+
+ifneq ($(origin ESMFMKFILE), environment)
+$(error ESMFMKFILE has to be set in environment.)
+endif
+include $(ESMFMKFILE)
+
+include schism/schism_cmi_nuopc.mk
+DEP_FRONTS:= $(DEP_FRONTS) -DFRONT_SCHISM=$(ESMF_DEP_FRONT)
+DEP_INCS:= $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+DEP_CMPL_OBJS:= $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+DEP_LINK_OBJS:= $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+DEP_SHRD_PATH:= $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH))
+DEP_SHRD_LIBS:= $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+
+include model/atmosphere.mk
+DEP_FRONTS:= $(DEP_FRONTS) -DFRONT_ATMOSPHERE=$(ESMF_DEP_FRONT)
+DEP_INCS:= $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+DEP_CMPL_OBJS:= $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+DEP_LINK_OBJS:= $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+DEP_SHRD_PATH:= $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH))
+DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+
+include driver/toplevel_component.mk
+DEP_FRONTS:= $(DEP_FRONTS) -DFRONT_TOPLEVEL=$(ESMF_DEP_FRONT)
+DEP_INCS:= $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
+DEP_CMPL_OBJS:= $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)
+DEP_LINK_OBJS:= $(DEP_LINK_OBJS) $(ESMF_DEP_LINK_OBJS)
+DEP_SHRD_PATH:= $(DEP_SHRD_PATH) $(addprefix -L, $(ESMF_DEP_SHRD_PATH))
+DEP_SHRD_LIBS := $(DEP_SHRD_LIBS) $(addprefix -l, $(ESMF_DEP_SHRD_LIBS))
+
+
+.SUFFIXES: .F90
+
+%.o : %.f90
+	$(ESMF_F90COMPILER) -c $(DEP_FRONTS) $(DEP_INCS) $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREENOCPP) $<
+
+%.o : %.F90
+	$(ESMF_F90COMPILER) -c $(DEP_FRONTS) $(DEP_INCS) $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $<
+
+%.o : %.c
+	$(ESMF_CXXCOMPILER) -c $(DEP_FRONTS) $(DEP_INCS) $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<
+
+%.o : %.C
+	$(ESMF_CXXCOMPILER) -c $(DEP_FRONTS) $(DEP_INCS) $(ESMF_CXXCOMPILEOPTS) $(ESMF_CXXCOMPILEPATHSLOCAL) $(ESMF_CXXCOMPILEPATHS) $(ESMF_CXXCOMPILECPPFLAGS) $<
+
+# app: app.o appSub.o $(DEP_LINK_OBJS)
+# 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) \
+# 	$(ESMF_F90LINKRPATHS) -o $@ $^ $(DEP_SHRD_PATH) $(DEP_SHRD_LIBS) \ $(ESMF_F90ESMFLINKLIBS)
+# 	app.o: appSub.o
+# 	appSub.o: $(DEP_CMPL_OBJS)
+
+main_nuopc: main_nuopc.o $(DEP_LINK_OBJS)
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) \
+	$(ESMF_F90LINKRPATHS) -o $@ $^ $(DEP_SHRD_PATH) $(DEP_SHRD_LIBS) $(ESMF_F90ESMFLINKLIBS)
+
+main_nuopc.o: $(DEP_CMPL_OBJS)
+
+.PHONY:  clean default all
+
+default: all
+all: main_nuopc
+clean:
+	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
+	$(RM) main_nuopc *.o *.mod

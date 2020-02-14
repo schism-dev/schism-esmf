@@ -39,17 +39,17 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
 .SUFFIXES: .F90
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -o $@ 	$<
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 
-main_nuopc: main_nuopc.o driver/toplevel_component.o model/atmosphere.o \
-	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
+main_nuopc: main_nuopc.o toplevel_component.o atmosphere.o \
+	schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_nuopc.o: driver/toplevel_component.o
-driver/toplevel_component.o: model/atmosphere.o schism/schism_cmi_nuopc.o
-schism/schism_cmi_nuopc.o: schism/schism_esmf_util.o schism/schism_bmi.o
-schism/schism_cmi_esmf.o: schism/schism_esmf_util.o schism/schism_bmi.o
-schism/schism_esmf_util.o: schism/schism_bmi.o
+main_nuopc.o: toplevel_component.o
+toplevel_component.o: atmosphere.o schism_cmi_nuopc.o
+schism_cmi_nuopc.o: schism_esmf_util.o schism_bmi.o
+schism_cmi_esmf.o: schism_esmf_util.o schism_bmi.o
+schism_esmf_util.o: schism_bmi.o
 
 .PHONY:  clean default all
 
@@ -57,5 +57,4 @@ default: all
 all: main_nuopc
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
-	$(RM) main_nuopc *.o *.mod */*.mod */*.o
-	
+	$(RM) main_nuopc *.o *.mod

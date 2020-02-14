@@ -28,21 +28,22 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
-OBJS=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
+OBJS=schism_bmi.o schism_esmf_util.o schism_cmi_nuopc
 LIBS=-lhydro -lcore -lparmetis -lmetis
+CWD=$(shell pwd)/schism
 
 # 1. ESMF_DEP_FRONT - The name of the Fortran module to be used in a USE statement, or (if it ends in ".h") the name of the header file to be used in an #include statement, or (if it ends in ".so") the name of the shared object to be loaded at run-time.
 
 ESMF_DEP_FRONT=schism_cmi_nuopc
 
 # 2. ESMF_DEP_INCPATH - The include path to find module or header files during compilation. Must be specified as absolute path.
-ESMF_DEP_INCPATH=$(shell pwd)
+ESMF_DEP_INCPATH=$(CWD) $(SCHISM_BUILD_DIR)/include
 
 # 3. ESMF_DEP_CMPL_OBJS - Object files that need to be considered as compile dependencies. Must be specified with absolute path.
-ESMF_DEP_CMPL_OBJS=$(addprefix ‘pwd‘/, $(OBJS))
+ESMF_DEP_CMPL_OBJS=$(addprefix $(CWD)/, $(OBJS))
 
 # 4. ESMF_DEP_LINK_OBJS - Object files that need to be considered as link dependencies. Must be specified with absolute path.
-ESMF_DEP_LINK_OBJS=$(addprefix ‘pwd‘/, $(OBJS)) $(LIBS)
+ESMF_DEP_LINK_OBJS=$(addprefix $(CWD)/, $(OBJS)) $(LIBS)
 
 # 5. ESMF_DEP_SHRD_PATH - The path to find shared libraries during link-time (and during run-time unless over- ridden by LD_LIBRARY_PATH). Must be specified as absolute path.
 ESMF_DEP_SHRD_PATH=$(SCHISM_BUILD_DIR)/lib
