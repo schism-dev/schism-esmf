@@ -70,14 +70,19 @@ program main
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Read clock parameters from global.nml
+
+  filename = './global.nml'
+  clock = clockCreateFrmParam(filename, localrc)
+
   ! Initialize, run, and finalize top level
-  call ESMF_GridCompInitialize(topComp, userRc=userRc, rc=localrc)
+  call ESMF_GridCompInitialize(topComp, clock=clock, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
-  call ESMF_GridCompRun(topComp, userRc=userRc, rc=localrc)
+  call ESMF_GridCompRun(topComp, clock=clock, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
-  call ESMF_GridCompFinalize(topComp, userRc=userRc, rc=localrc)
+  call ESMF_GridCompFinalize(topComp, clock=clock, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
   ! Clean up and finish
