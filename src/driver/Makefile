@@ -20,38 +20,40 @@ $(error ESMFMKFILE has to be set in environment.)
 endif
 include $(ESMFMKFILE)
 
-ifneq ($(origin SCHISM_BUILD_DIR), environment)
-$(error SCHISM_BUILD_DIR has to be set in environment.)
-endif
+EXTRA_DIST=Readme.md
+SUBDIRS=
 
-SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
+MODELS=atmosphere.o
+MODEL_OBJS:=$(addprefix ../model/,$(MODELS))
+SCHISM_OBJS:=$(addprefix ../schism/,schism_cmi_nuopc.o)
 
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
-endif
-
-# @todo parmetis should have been included in lschism_esmf, but
-# that does not seem to work cross-platform ...
-LIBS+= -lhydro -lcore -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
+F90FLAGS += -I../model -I ../schism
 
 .SUFFIXES: .F90
 
-%.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
-
-schism_cmi_nuopc.o: schism_esmf_util.o schism_bmi.o
-schism_cmi_esmf.o: schism_esmf_util.o schism_bmi.o
-schism_esmf_util.o: schism_bmi.o
-
-.PHONY:  clean default all
-
 default: all
-all: nuopc #esmf
-esmf: schism_cmi_esmf.o
-nuopc: schism_cmi_nuopc.o
+
+%.o : %.F90
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS)  $<
+
+.PHONY:  clean default all nuopc esmf
+
+$(MODEL_OBJS):
+	make -C ../model nuopc
+
+$(SCHISM_OBJS):
+	make -C ../schism nuopc
+
+toplevel_component.o: $(MODEL_OBJS) $(SCHISM_OBJS)
+
+all: subdirs nuopc #esmf
+esmf: toplevel_component.o
+nuopc: toplevel_component.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
 	$(RM) *.o *.mod
+
+subdirs: $(SUBDIRS)
+$(SUBDIRS):
+	$(MAKE) -C $@
