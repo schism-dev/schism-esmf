@@ -44,9 +44,10 @@ program main
     end function clockCreateFrmParam
   end interface
 
-
   integer                 :: localrc, userRc, rc
   type(ESMF_GridComp)     :: topComp
+  character(len=ESMF_MAXSTR)  :: filename
+  type(ESMF_Clock)        :: clock
 
   ! Initialize ESMF
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, &

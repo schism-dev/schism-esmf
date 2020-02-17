@@ -54,19 +54,22 @@ default: all
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -o $@ 	$<
 
-main_esmf: main_esmf.o driver/toplevel_component.o model/atmosphere.o \
+main_esmf: main_esmf.o driver/toplevel_schism--atm.o model/atmosphere.o \
 	$(addprefix schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_nuopc: main_nuopc.o driver/toplevel_component.o model/atmosphere.o \
+main_nuopc: main_nuopc.o driver/driver_schism--atm.o model/atmosphere.o \
 	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_esmf.o: driver/toplevel_component.o
-main_nuopc.o: driver/toplevel_component.o
+main_esmf.o: driver/toplevel_schism--atm.o
+main_nuopc.o: driver/driver_schism--atm.o
 
-driver/toplevel_component.o:
-	make -C driver toplevel_component.o
+driver/driver_schism--atm.o:
+	make -C driver driver_schism--atm.o
+
+driver/toplevel--atm.o:
+	make -C driver toplevel_schism--atm.o
 
 .PHONY:  clean default all nuopc esmf
 

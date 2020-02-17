@@ -28,7 +28,7 @@
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #define ESMF_METHOD "toplevel"
-module toplevel
+module driver
 
   use esmf
   use nuopc
@@ -169,4 +169,4 @@ end subroutine
 !     status, timeslice, relaxedflag, rc)
 
 
-end module toplevel
+end module driver

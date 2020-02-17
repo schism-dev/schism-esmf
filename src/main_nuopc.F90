@@ -31,7 +31,7 @@ program main
 
   use esmf
   use nuopc
-  use toplevel, only: toplevelSetServices => SetServices
+  use driver, only: driverSetServices => SetServices
   use schism_esmf_util, only : clockCreateFrmParam
 
   implicit none
@@ -59,7 +59,7 @@ program main
   topComp = ESMF_GridCompCreate(name="toplevel", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompSetServices(topComp, toplevelSetServices, userRc=userRc, rc=localrc)
+  call ESMF_GridCompSetServices(topComp, driverSetServices, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)

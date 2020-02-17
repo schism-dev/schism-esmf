@@ -44,11 +44,12 @@ $(MODEL_OBJS):
 $(SCHISM_OBJS):
 	make -C ../schism nuopc
 
-toplevel_component.o: $(MODEL_OBJS) $(SCHISM_OBJS)
+driver_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
+toplevel_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
 
 all: subdirs nuopc #esmf
-esmf: toplevel_component.o
-nuopc: toplevel_component.o
+esmf: toplevel_schism--atm.o
+nuopc: driver_schism--atm.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
