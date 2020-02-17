@@ -32,6 +32,9 @@ module schism_esmf_util
   use esmf
   implicit none
 
+  public addSchismMesh, clockCreateFrmParam
+  private
+
 contains
 
 #undef  ESMF_METHOD

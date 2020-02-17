@@ -151,25 +151,6 @@ subroutine SetModelServices(driver, rc)
 
   deallocate(petList)
 
-  call ESMF_TimeIntervalSet(timeStep, m=15, rc=localrc) ! 15 minute steps
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !> @todo inherit from or set by main()
-  call ESMF_TimeSet(startTime, yy=2010, mm=6, dd=1, h=0, m=0, &
-    calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_TimeSet(stopTime, yy=2010, mm=6, dd=1, h=2, m=0, &
-    calkindflag=ESMF_CALKIND_GREGORIAN, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  internalClock = ESMF_ClockCreate(name="Application Clock", &
-    timeStep=timeStep, startTime=startTime, stopTime=stopTime, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_GridCompSet(driver, clock=internalClock, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   ! call NUOPC_DriverGet(driver, slotCount=slotCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

@@ -32,20 +32,15 @@ program main
   use esmf
   use nuopc
   use toplevel, only: toplevelSetServices => SetServices
+  use schism_esmf_util, only : clockCreateFrmParam
 
   implicit none
 
-  interface
-    function clockCreateFrmParam(filename, rc)
-      use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
-    end function clockCreateFrmParam
-  end interface
-
   integer                 :: localrc, userRc, rc
   type(ESMF_GridComp)     :: topComp
+  character(len=ESMF_MAXSTR)  :: filename
+  type(ESMF_Clock)        :: clock
+  character(len=ESMF_MAXSTR) :: message, string
 
   ! Initialize ESMF
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, &
@@ -74,6 +69,20 @@ program main
 
   filename = './global.nml'
   clock = clockCreateFrmParam(filename, localrc)
+
+  call ESMF_ClockPrint(clock, options="startTime", &
+      preString='main starts at ', unit=message, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_ClockPrint(clock, options="stopTime", &
+      preString='main will stop at ', unit=message, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Initialize, run, and finalize top level
   call ESMF_GridCompInitialize(topComp, clock=clock, userRc=userRc, rc=localrc)

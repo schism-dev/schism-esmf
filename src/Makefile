@@ -49,6 +49,8 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
 
 .SUFFIXES: .F90
 
+default: all
+
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -o $@ 	$<
 
@@ -68,7 +70,6 @@ driver/toplevel_component.o:
 
 .PHONY:  clean default all nuopc esmf
 
-default: all
 
 all: nuopc #esmf
 nuopc: main_nuopc
