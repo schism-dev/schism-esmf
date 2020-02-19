@@ -44,6 +44,7 @@ $(MODEL_OBJS):
 $(SCHISM_OBJS):
 	make -C ../schism nuopc
 
+driver_schism.o: $(SCHISM_OBJS)
 driver_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
 toplevel_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
 

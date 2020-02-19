@@ -34,7 +34,7 @@ endif
 EXTRA_DIST=Readme.md
 SUBDIRS=model schism driver
 
-MODELS=atmosphere.o
+MODELS=atmosphere_cmi_nuopc.o
 SCHISM_NUOPC=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
 SCHISM_ESMF=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
 MODEL_OBJS:=$(addprefix ../model/,$(MODELS))
@@ -54,11 +54,11 @@ default: all
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -o $@ 	$<
 
-main_esmf: main_esmf.o driver/toplevel_schism--atm.o model/atmosphere.o \
+main_esmf: main_esmf.o driver/toplevel_schism--atm.o model/atmosphere_cmi_nuopc.o \
 	$(addprefix schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_nuopc: main_nuopc.o driver/driver_schism--atm.o model/atmosphere.o \
+main_nuopc: main_nuopc.o driver/driver_schism--atm.o model/atmosphere_cmi_nuopc.o \
 	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 

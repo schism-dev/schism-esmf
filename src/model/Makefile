@@ -30,7 +30,7 @@ include $(ESMFMKFILE)
 default: all
 all: nuopc #esmf
 esmf: atmosphere_cmi_esmf.o
-nuopc: atmosphere.o
+nuopc: atmosphere_cmi_nuopc.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
