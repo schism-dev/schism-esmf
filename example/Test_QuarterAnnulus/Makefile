@@ -16,20 +16,45 @@
 # limitations under the License.
 
 ifndef SCHISM_DIR
-	$(error SCHISM_DIR has to be set in environment)
+$(error SCHISM_DIR has to be set in environment)
 endif
 
 ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
 $(error Please point SCHISM_DIR to the source directory of SCHISM.)
 endif
 
-SUBDIRS=cfl 83 Test_QuarterAnnulus
+ifndef SCHISM_VERIFICATION_DIR
+$(error SCHISM_VERIFICATION_DIR has to be set in environment)
+endif
+
+ifeq ($(wildcard $(SCHISM_VERIFICATION_DIR)/Test_QuarterAnnulus/param.nml),)
+$(error Please point SCHISM_VERIFICATION_DIR to the directory containing Test_QuarterAnnulus.)
+endif
+
+D=$(SCHISM_VERIFICATION_DIR)/Test_QuarterAnnulus
+
+COPY_FILES=bctides.in drag.gr3 hgrid.gr3 param.nml vgrid.in
 
 .PHONY: default all subdirs $(SUBDIRS)
 
 default: all
-all: subdirs
+all: subdirs setups
 subdirs: $(SUBDIRS)
 
 $(SUBDIRS):
 	$(MAKE) -C $@
+
+distclean: clean
+	@$(RM) *.in *.nml *.ic *.prop *.gr3
+
+setups: $(COPY_FILES) global.nml
+
+$(COPY_FILES):
+	cp $(D)/$@ .
+
+clean:
+	@$(RM) *.out PET*
+	@$(RM) outputs/*nc outputs/nonfatal* outputs/fatal* outputs/local_to* outputs/global_to*
+
+global.nml: param.nml
+	python ../../scripts/param2global.py
