@@ -42,8 +42,8 @@ endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lschism_esmf -lparmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include
+LIBS+= -lschism_esmf -lparmetis -lmetis
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/model -I src/schism
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L.
 
 EXPAND_TARGETS= expand_schismlibs
@@ -66,12 +66,14 @@ lib: schism_esmf_lib
 test: concurrent_esmf_test
 
 # Internal make targets
+SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
+MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
 
-concurrent_esmf_test: schism_component.o dummy_grid_component.o concurrent_esmf_test.o
+concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-schism_esmf_lib: schism_component.o $(EXPAND_TARGETS)
-	$(AR) crus libschism_esmf.a schism_component.o .objs/*/*.o
+schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
+	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
@@ -89,7 +91,11 @@ expand_fabmlibs:
 	$(shell mkdir -p .objs/sf; cd .objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
 	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
-schism_component.o: schism_driver_interfaces.mod
+$(SCHISM_OBJS):
+	make -C src/schism esmf
+
+$(MODEL_OBJS):
+	make -C src/model esmf
 
 %.o: %.F90
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
@@ -99,6 +105,7 @@ schism_component.o: schism_driver_interfaces.mod
 
 clean:
 	$(RM) *.o *.mod
+	$(RM) $(SCHISM_OBJS) $(MODEL_OBJS)
 
 distclean: clean
 	$(RM) -rf .objs
