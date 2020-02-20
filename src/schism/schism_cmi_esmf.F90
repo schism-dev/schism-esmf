@@ -26,9 +26,10 @@
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module schism_esmf_component
+module schism_cmi_esmf
 
-  use schism_driver_interfaces
+  use schism_bmi
+  use schism_esmf_util
   use esmf
 
   implicit none
@@ -1035,4 +1036,4 @@ subroutine addCIM(comp, rc)
 
 end subroutine addCIM
 
-end module schism_esmf_component
+end module schism_cmi_esmf

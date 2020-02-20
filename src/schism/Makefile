@@ -48,7 +48,7 @@ schism_esmf_util.o: schism_bmi.o
 .PHONY:  clean default all
 
 default: all
-all: nuopc #esmf
+all: nuopc esmf
 esmf: schism_cmi_esmf.o
 nuopc: schism_cmi_nuopc.o
 

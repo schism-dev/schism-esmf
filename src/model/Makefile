@@ -28,7 +28,7 @@ include $(ESMFMKFILE)
 .PHONY:  clean default all
 
 default: all
-all: nuopc #esmf
+all: nuopc esmf
 esmf: atmosphere_cmi_esmf.o
 nuopc: atmosphere_cmi_nuopc.o
 

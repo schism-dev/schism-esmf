@@ -4,7 +4,8 @@
 !  (http://www.apache.org/licenses/LICENSE-2.0)
 ! Author(s): Richard Hofmeister
 
-module dummy_grid_component
+module atmosphere_cmi_esmf
+
 use esmf
 use mpi
 
@@ -134,7 +135,7 @@ contains
 
   call ESMF_FieldDestroy(field,rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  
+
   call ESMF_GridDestroy(grid,rc=rc)
   if (rc /= ESMF_SUCCESS) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
@@ -142,4 +143,4 @@ contains
   end subroutine Finalize
 
 
-end module dummy_grid_component
+end module atmosphere_cmi_esmf

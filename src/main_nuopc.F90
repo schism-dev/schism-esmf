@@ -31,7 +31,7 @@ program main
 
   use esmf
   use nuopc
-  use driver, only: driverSetServices => SetServices
+  use driver_schism_atm, only: driverSetServices => SetServices
   use schism_esmf_util, only : clockCreateFrmParam
 
   implicit none

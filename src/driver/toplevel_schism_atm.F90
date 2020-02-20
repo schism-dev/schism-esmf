@@ -27,24 +27,104 @@
 #define ESMF_FILENAME "concurrent_esmf_test.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
+#define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-#define ESMF_METHOD "main"
-program main
+#define ESMF_METHOD "toplevel_schism_atm"
+module toplevel_schism_atm
 
   use esmf
-  use schism_esmf_component, only: schismSetServices => SetServices
-  use dummy_grid_component,  only: atmosSetServices => SetServices
+  use schism_cmi_esmf, only: schismSetServices => SetServices
+  use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
 
   implicit none
 
-  interface
-    function clockCreateFrmParam(filename, rc)
-      use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
-    end function clockCreateFrmParam
-  end interface
+  public SetServices
+
+  !> @todo this needs to be moved to internal state or dedicated coupler
+  type(ESMF_RouteHandle) :: routehandle_air2sea, routehandle_sea2air
+
+contains
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SetServices"
+subroutine SetServices(comp, rc)
+
+  type(ESMF_GridComp)                :: comp
+  integer(ESMF_KIND_I4), intent(out) :: rc
+
+  integer(ESMF_KIND_I4)              :: localrc
+
+  rc = ESMF_SUCCESS
+
+  call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+    phase=0, userRoutine=InitializeP0, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+    phase=1, userRoutine=InitializeP1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, &
+    userRoutine=Run, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, &
+    userRoutine=Finalize, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+end subroutine SetServices
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "InitializeP0"
+  subroutine InitializeP0(gridComp, importState, exportState, &
+    parentClock, rc)
+
+    implicit none
+
+    type(ESMF_GridComp)         :: gridComp
+    type(ESMF_State)            :: importState
+    type(ESMF_State)            :: exportState
+    type(ESMF_Clock)            :: parentClock
+    integer, intent(out)        :: rc
+
+    character(len=10)           :: InitializePhaseMap(1)
+    character(len=ESMF_MAXSTR)  :: myName
+    type(ESMF_Time)             :: currTime
+    integer                     :: localrc
+
+    rc=ESMF_SUCCESS
+
+    InitializePhaseMap(1) = "IPDv00p1=1"
+
+    call ESMF_AttributeAdd(gridComp, convention="NUOPC", &
+      purpose="General", &
+      attrList=(/"InitializePhaseMap"/), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(gridComp, name="InitializePhaseMap", valueList=InitializePhaseMap, &
+      convention="NUOPC", purpose="General", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_StateValidate(importState, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_StateValidate(exportState, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  end subroutine InitializeP0
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "InitializeP1"
+subroutine InitializeP1(comp, importState, exportState, clock, rc)
+
+
+  type(ESMF_GridComp)     :: comp
+  type(ESMF_State)        :: importState
+  type(ESMF_State)        :: exportState
+  type(ESMF_Clock)        :: clock
+  integer, intent(out)    :: rc
+
+  integer(ESMF_KIND_I4)   :: localrc
 
   type(ESMF_GridComp)     :: schism_component
   type(ESMF_GridComp)     :: atmos_component
@@ -54,51 +134,40 @@ program main
 
   type(ESMF_TimeInterval) :: timestep
   type(ESMF_Time)         :: start_time, stop_time
-  type(ESMF_Clock)        :: clock
 
   type(ESMF_Field)        :: field,field_in,field_out
-  type(ESMF_RouteHandle)  :: routehandle_air2sea, routehandle_sea2air
   type(ESMF_Vm)           :: vm
 
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, inum, localrc
-  integer, allocatable        :: petlist_schism(:),petlist_atmos(:)
-  real(ESMF_KIND_R8), pointer :: ptr1d(:)
-  logical                     :: isPresent
-  character(len=ESMF_MAXSTR)  :: filename
+  integer(ESMF_KIND_I4)       :: petCount, i, inum
+  integer, allocatable        :: petList(:)
 
-  call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
+
+  call ESMF_GridCompGet(driver, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Inquire the parallel environment about available
-  ! resources, and partition the environment to use
-  ! all but one PET for SCHISM, the remainder for the
-  ! dummy atmosphere component
-
-  call ESMF_VMGetGlobal(vm, rc=localrc)
+  call ESMF_VmGet(vm, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(petlist_schism(max(1,petcount-1)), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  do i=1, max(1, petcount-1)
-    petlist_schism(i)=i-1
-  end do
-  allocate(petlist_atmos(1))
-  petlist_atmos(1) = petcount-1
+  ! Use all but one pets in this petList for schism and the last
+  ! PET for the dummy atmosphere.  This runs the models concurrently.
+  ! For petCount=1, both run sequentially on the same PET
+  allocate(petList(max(1, petCount-1)))
+  do i=1, max(1, petCount-1)
+    petList(i) = i-1
+  enddo
 
   ! Create both components on their respective parallel
   ! environment provided by each petList, then register
   ! the components entry points.
 
   schism_component = ESMF_GridCompCreate(name='schismComponent', &
-    petList=petlist_schism, rc=localrc)
+    petList=petList, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  deallocate(petList)
+
   atmos_component = ESMF_GridCompCreate(name='atmosComponent', &
-    petList=petlist_atmos, rc=localrc)
+    petList=(/petCount-1/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(schism_component, &
@@ -123,26 +192,6 @@ program main
   atmos_import = ESMF_StateCreate(name='atmos import state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Create a clock, this should ideally be done with a configuration
-  ! file but is hardcoded here for now. The timestep defined here
-  ! is the coupling timestep.
-
-  ! call ESMF_TimeIntervalSet(timestep, s=3600, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  ! call ESMF_TimeSet(start_time, yy=2018, mm=4, dd=10, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  ! stop_time = start_time + 2*timestep
-  !
-  ! clock = ESMF_ClockCreate(timestep, start_time, stopTime=stop_time, &
-  !   name='main clock',rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  filename = './global.nml'
-  clock = clockCreateFrmParam(filename, localrc)
-
-  ! Initialize SCHISM
   call ESMF_GridCompInitialize(schism_component, &
     importState=schism_import, &
     exportState=schism_export, clock=clock, rc=localrc)
@@ -175,6 +224,21 @@ program main
     routehandle=routehandle_air2sea, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+end subroutine InitializeP1
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "Run"
+subroutine Run(comp, importState, exportState, clock, rc)
+
+  type(ESMF_GridComp)     :: comp
+  type(ESMF_State)        :: importState
+  type(ESMF_State)        :: exportState
+  type(ESMF_Clock)        :: clock
+  integer, intent(out)    :: rc
+
+  integer(ESMF_KIND_I4)   :: localrc
+
+
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
@@ -196,10 +260,27 @@ program main
     call ESMF_ClockAdvance(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end do
+end subroutine Run
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "Finalize"
+subroutine Finalize(comp, importState, exportState, clock, rc)
+
+  type(ESMF_GridComp)     :: comp
+  type(ESMF_State)        :: importState
+  type(ESMF_State)        :: exportState
+  type(ESMF_Clock)        :: clock
+  integer, intent(out)    :: rc
+
+  integer(ESMF_KIND_I4)   :: localrc
 
   !> Clean up
   call ESMF_GridCompFinalize(schism_component, importState=schism_import, &
     exportState=schism_export, clock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompFinalize(atmos_component, importState=atmos_import, &
+    exportState=atmos_export, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
@@ -223,58 +304,5 @@ program main
   call ESMF_GridCompDestroy(atmos_component, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_Finalize(rc=localrc)
-
-end program main
-
-function clockCreateFrmParam(filename, rc) result(clock)
-
-  use esmf
-  implicit none
-
-  character(len=ESMF_MAXSTR), intent(in) :: filename
-  integer(ESMF_KIND_I4), intent(out)     :: rc
-  type(ESMF_Clock)                       :: clock
-
-  logical               :: isPresent
-  integer(ESMF_KIND_I4) :: unit, localrc
-  type(ESMF_Time)       :: stopTime, startTime
-  type(ESMF_TimeInterval) :: timeStep
-
-  integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2
-  namelist /global/ start_year, start_month, start_day, start_hour, rnday
-
-  inquire(file=filename, exist=isPresent)
-  if (isPresent) then
-
-    call ESMF_UtilIOUnitGet(unit, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    open(unit, file=filename, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    read(unit, nml=global, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    close(unit)
-  endif
-
-  ! Set day as timestep temporarily to count later to stop time
-  call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
-    h=start_hour, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  stopTime = startTime + timeStep
-
-  ! Only now define the coupling timestep as fraction of full timeStep
-  timeStep = timeStep / 24
-
-  clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
-    name='main clock', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-end function clockCreateFrmParam
+end subroutine Finalize
+end module toplevel_schism_atm

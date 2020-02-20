@@ -26,7 +26,7 @@
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module schism
+module schism_cmi_nuopc
 
   use esmf
   use nuopc
@@ -397,4 +397,4 @@ _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
 
-end module schism
+end module schism_cmi_nuopc

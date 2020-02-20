@@ -23,9 +23,13 @@ include $(ESMFMKFILE)
 EXTRA_DIST=Readme.md
 SUBDIRS=
 
-MODELS=atmosphere.o
-MODEL_OBJS:=$(addprefix ../model/,$(MODELS))
-SCHISM_OBJS:=$(addprefix ../schism/,schism_cmi_nuopc.o)
+CMI_NUOPC=atmosphere_cmi_nuopc.o
+CMI_ESMF=atmosphere_cmi_esmf.o
+
+CMI_NUOPC_OBJS:=$(addprefix ../model/,$(CMI_NUOPC))
+CMI_ESMF_OBJS:=$(addprefix ../model/,$(CMI_ESMF))
+CMI_NUOPC_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_nuopc.o)
+CMI_ESMF_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_esmf.o)
 
 F90FLAGS += -I../model -I ../schism
 
@@ -36,21 +40,27 @@ default: all
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS)  $<
 
-.PHONY:  clean default all nuopc esmf
+.PHONY:  clean default all
 
-$(MODEL_OBJS):
-	make -C ../model nuopc
-
-$(SCHISM_OBJS):
+$(CMI_NUOPC_SCHISM_OBJ):
 	make -C ../schism nuopc
 
-driver_schism.o: $(SCHISM_OBJS)
-driver_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
-toplevel_schism--atm.o: $(MODEL_OBJS) $(SCHISM_OBJS)
+$(CMI_NUOPC_OBJS):
+	make -C ../model nuopc
+
+$(CMI_ESMF_SCHISM_OBJ):
+	make -C ../schism esmf
+
+$(CMI_ESMF_OBJS):
+	make -C ../model esmf
+
+driver_schism.o: $(CMI_NUOPC_SCHISM_OBJ) driver_schism.F90
+driver_schism_atm.o: $(CMI_NUOPC_SCHISM_OBJ) $(CMI_NUOPC_OBJS) driver_schism_atm.F90
+toplevel_schism_atm.o: $(CMI_ESMF_SCHISM_OBJ) $(CMI_ESMF_OBJS) toplevel_schism_atm.F90
 
 all: subdirs nuopc #esmf
-esmf: toplevel_schism--atm.o
-nuopc: driver_schism--atm.o
+esmf: toplevel_schism_atm.o
+nuopc: driver_schism_atm.o driver_schism.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout

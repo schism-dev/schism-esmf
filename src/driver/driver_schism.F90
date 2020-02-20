@@ -27,7 +27,7 @@
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #define ESMF_METHOD "driver"
-module driver
+module driver_schism
 
   use esmf
   use nuopc
@@ -37,7 +37,7 @@ module driver
     driver_routine_SS             => SetServices, &
     driver_label_SetModelServices => label_SetModelServices
 
-  use schism, only: schismSS => SetServices
+  use schism_cmi_nuopc, only: schismSS => SetServices
 
   implicit none
 
@@ -116,4 +116,4 @@ subroutine SetModelServices(driver, rc)
 
 end subroutine
 
-end module driver
+end module driver_schism
