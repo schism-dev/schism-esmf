@@ -13,6 +13,10 @@ Earth System Modeling Framework cap for SCHISM
 
     setenv ESMFMKFILE /sciclone/home10/yinglong/esmf/lib/libO/Linux.intel.64.mvapich2.default/esmf.mk
 
+At the moment also need to:
+     setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf/lib/libO/Linux.intel.64.mvapich2.default
+
+
 2. SCHISM: You need to have SCHISM built with `cmake` and an environment
    variable `SCHISM_BUILD_DIR` defined that points to your SCHISM build
    directory containing `lib/libhydro.a`, e.g.
