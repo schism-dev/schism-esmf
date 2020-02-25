@@ -1,6 +1,6 @@
 ! This code is part of the SCHISM-ESMF interface. It is a main
 ! program for running the SCHISM component concurrent to a
-! dummy component.
+! dummy component (in src/model/atmosphere_cmi_esmf.F90).
 !
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister richard.hofmeister@hzg.de
@@ -71,7 +71,7 @@ program main
 
   ! Inquire the parallel environment about available
   ! resources, and partition the environment to use
-  ! all but one PET for SCHISM, the remainder for the
+  ! all but one PET for SCHISM, and last core for the
   ! dummy atmosphere component
 
   call ESMF_VMGetGlobal(vm, rc=localrc)
@@ -84,7 +84,7 @@ program main
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i=1, max(1, petcount-1)
-    petlist_schism(i)=i-1
+    petlist_schism(i)=i-1 !0 based
   end do
   allocate(petlist_atmos(1))
   petlist_atmos(1) = petcount-1
