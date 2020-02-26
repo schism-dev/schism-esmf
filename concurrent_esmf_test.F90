@@ -161,7 +161,7 @@ program main
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Within the schism component, the following fields are
-  ! defined for import and export
+  ! defined for import and export (y-component not implemented yet)
   call ESMF_StateGet(schism_import, 'wind_x-velocity_in_10m_height', &
     field=field_out, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -242,7 +242,7 @@ function clockCreateFrmParam(filename, rc) result(clock)
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2
+  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2 !rnday in hours
   namelist /global/ start_year, start_month, start_day, start_hour, rnday
 
   inquire(file=filename, exist=isPresent)
@@ -270,7 +270,8 @@ function clockCreateFrmParam(filename, rc) result(clock)
 
   stopTime = startTime + timeStep
 
-  ! Only now define the coupling timestep as fraction of full timeStep
+  ! Only now define the coupling timestep as fraction of full timeStep (24
+  ! coupling steps in total here)
   timeStep = timeStep / 24
 
   clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &

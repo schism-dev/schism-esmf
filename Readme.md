@@ -11,17 +11,24 @@ Earth System Modeling Framework cap for SCHISM
    `ESMFMKFILE` defined (via `setenv` or `export`) that points to your ESMF
    installation, for example
 
-    setenv ESMFMKFILE /sciclone/home10/yinglong/esmf/lib/libO/Linux.intel.64.mvapich2.default/esmf.mk
+    on femto: 
+      setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+      setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.intelmpi.default
 
-At the moment also need to:
-     setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf/lib/libO/Linux.intel.64.mvapich2.default
+    on WW: 
+      setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_WW/lib/libO/Linux.intel.64.mvapich2.default/esmf.mk
+      setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf_WW/lib/libO/Linux.intel.64.mvapich2.default
 
 
 2. SCHISM: You need to have SCHISM built with `cmake` and an environment
    variable `SCHISM_BUILD_DIR` defined that points to your SCHISM build
    directory containing `lib/libhydro.a`, e.g.
 
-    setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.whirlwind
+    on femto:
+      setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.femto
+
+    on WW:
+      setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.whirlwind
 
 ## Compilation
 
