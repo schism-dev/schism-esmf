@@ -54,7 +54,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib
+.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib triple_schism
 default: all
 
 # User-callable make targets
@@ -63,13 +63,16 @@ all: lib test
 
 lib: schism_esmf_lib
 
-test: concurrent_esmf_test
+test: concurrent_esmf_test triple_schism
 
 # Internal make targets
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
 MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
 
 concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
+	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+triple_schism: $(SCHISM_OBJS) $(MODEL_OBJS) triple_schism.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
@@ -110,11 +113,10 @@ clean:
 distclean: clean
 	$(RM) -rf .objs
 	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat mirror.out
-	$(RM) -f concurrent_esmf_test libschism_esmf.a
+	$(RM) -f concurrent_esmf_test triple_schism libschism_esmf.a
 	$(RM) -f outputs/*nc
 	$(RM) -f outputs/nonfatal*nc
 	$(RM) -f PET*
-
 
 # $(shell cd .objs/sf; nm fabm_schism.F90.o|grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$2 " "; gsub("fabm_mp","s_fabm_mp",$$2); gsub("fabm_types_mp","s_fabm_types_mp",$$2); print $$2}'>replace.tsv; objcopy --redefine-syms=replace.tsv fabm_schism.F90.o)
 # $(shell cd .objs/f; for O in *.o ; do rm -f replace.tsv; nm -f posix $$O |grep 'fabm_mp\|fabm_types_mp' | awk '{printf $$1 " "; gsub("fabm_mp","s_fabm_mp",$$1); gsub("fabm_types_mp","s_fabm_types_mp",$$1); print $$1}'>replace.tsv; printf "fabm._ s_fabm._\nfabm_types._ s_fabm_types._\n">> replace.tsv; objcopy --redefine-syms=replace.tsv $$O; done)
