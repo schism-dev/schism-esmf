@@ -15,21 +15,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifndef SCHISM_DIR
-	$(error SCHISM_DIR has to be set in environment)
-endif
-
-ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
-$(error Please point SCHISM_DIR to the source directory of SCHISM.)
-endif
-
-SUBDIRS=cfl 83 Test_QuarterAnnulus TripleSchism
-
 .PHONY: default all subdirs $(SUBDIRS)
 
+SUBDIRS=sim_1 sim_2 sim_3
+
 default: all
-all: subdirs
+all: subdirs setups
 subdirs: $(SUBDIRS)
 
 $(SUBDIRS):
-	$(MAKE) -C $@
+	mkdir -p $@/outputs
+	ln -s ../83/*.in ../83/*.nml ../83/*.ic ../83/*.prop ../83/*.gr3 $@
+
+distclean: clean
+	@$(RM) *.in *.nml *.ic *.prop *.gr3
+	@$(RM) -r $(SUBDIRS)
+
+clean:
+	@$(RM) *.out PET*
+
+setups: global.nml
+
+global.nml: ../83/global.nml
+	cp $< $@
+
+../83/global.nml:
+	make -C ../83 global.nml
