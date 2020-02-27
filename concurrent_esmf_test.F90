@@ -93,11 +93,11 @@ program main
   ! environment provided by each petList, then register
   ! the components entry points.
 
-  schism_component = ESMF_GridCompCreate(name='schismComponent', &
+  schism_component = ESMF_GridCompCreate(name='schism_component', &
     petList=petlist_schism, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  atmos_component = ESMF_GridCompCreate(name='atmosComponent', &
+  atmos_component = ESMF_GridCompCreate(name='atmosphere_component', &
     petList=petlist_atmos, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
