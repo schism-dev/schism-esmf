@@ -130,7 +130,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer, intent(out)  :: rc
 
   type(ESMF_Field)      :: field
-  type(ESMF_Clock)      :: schism_clock
+  type(ESMF_Clock)      :: schismClock
   type(ESMF_VM)         :: vm
   type(ESMF_Mesh)       :: mesh2d,mesh3d
   type(ESMF_DistGrid)   :: elementDistgrid,distgrid
@@ -160,6 +160,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
   integer(ESMF_KIND_I4)       :: localrc
+  logical                     :: isPresent
+  character(len=ESMF_MAXSTR)  :: configFileName
+  type(ESMF_Config)           :: config
 
   rc = ESMF_SUCCESS
 
@@ -169,12 +172,20 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initializing component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  ! Make a local copy of the clock
-  schism_clock = ESMF_ClockCreate(clock, rc=localrc)
+  ! Make a local copy of the clock if there isn't one already
+  call ESMF_GridCompGet(comp, clockIsPresent=isPresent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompSet(comp, clock=schism_clock, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (isPresent) then
+    call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    schismClock = ESMF_ClockCreate(clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_GridCompSet(comp, clock=schismClock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   ! Get VM for this component
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
@@ -203,7 +214,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_TimeIntervalSet(schism_dt, s_r8=dt, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockSet(schism_clock, timeStep=schism_dt, rc=localrc)
+  call ESMF_ClockSet(schismClock, timeStep=schism_dt, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! prepare mesh
@@ -683,7 +694,7 @@ subroutine Run(comp, importState, exportState, clock, rc)
   type(ESMF_Clock)        :: clock
   integer, intent(out)    :: rc
 
-  type(ESMF_Clock)        :: schism_clock
+  type(ESMF_Clock)        :: schismClock
   type(ESMF_Time)         :: nextTime, currTime
   type(ESMF_TimeInterval) :: interv
   integer                 :: i
@@ -697,10 +708,10 @@ subroutine Run(comp, importState, exportState, clock, rc)
 
   rc = ESMF_SUCCESS
 
-  call ESMF_GridCompGet(comp, name=compName, clock=schism_clock, rc=localrc)
+  call ESMF_GridCompGet(comp, name=compName, clock=schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockGet(schism_clock, advanceCount=advanceCount, rc=localrc)
+  call ESMF_ClockGet(schismClock, advanceCount=advanceCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message, '(A,I6.6)') trim(compName)//' running step ',advanceCount
@@ -711,28 +722,28 @@ subroutine Run(comp, importState, exportState, clock, rc)
   !         since fields are created with ESMF_DATACOPY_REFERENCE
 
   ! run model to stopTime of clock
-  call ESMF_GridCompGet(comp, clock=schism_clock, rc=localrc)
+  call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockGetNextTime(clock,nextTime,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockGet(schism_clock, currTime=currTime, rc=localrc)
+  call ESMF_ClockGet(schismClock, currTime=currTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   interv = nextTime-currTime
   call ESMF_TimeIntervalGet(interv, s_r8=dt_coupling)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockSet(schism_clock, stopTime=nextTime, rc=localrc)
+  call ESMF_ClockSet(schismClock, stopTime=nextTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do while (.not. ESMF_ClockIsStopTime(schism_clock, rc=localrc))
+  do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     write(0,'(A5,I4,A,F0.2,A1)') 'it = ',it,', elapsed  ',it*dt,'s'
     call schism_step(it)
 
-    call ESMF_ClockAdvance(schism_clock, rc=localrc)
+    call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     it=it+1
@@ -791,7 +802,7 @@ end subroutine Run
   type(ESMF_Clock)      :: clock
   integer, intent(out)  :: rc
 
-  type(ESMF_Clock)      :: schism_clock
+  type(ESMF_Clock)      :: schismClock
   type(ESMF_Mesh)       :: mesh
   type(ESMF_Field)      :: field
   type(ESMF_Distgrid)   :: distgrid
@@ -822,10 +833,10 @@ end subroutine Run
   call ESMF_DistgridDestroy(distgrid,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompGet(comp, clock=schism_clock, rc=localrc)
+  call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockDestroy(schism_clock, rc=localrc)
+  call ESMF_ClockDestroy(schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message, '(A)') trim(compName)//' finalized.'
