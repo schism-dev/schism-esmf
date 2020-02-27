@@ -147,7 +147,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer, dimension(1:4)                       :: elLocalNode
   integer               :: numLocalNodes, numNodeHaloIdx
   integer               :: mpi_comm
-  integer               :: i,n,nvcount
+  integer               :: i, n, nvcount
   integer               :: ii,ip,ie, iths=0, ntime=0
   integer               :: mynp,myne
   integer, dimension(:), allocatable :: testids
@@ -159,9 +159,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc
+  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet
   logical                     :: isPresent
-  character(len=ESMF_MAXSTR)  :: configFileName
+  character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
+  character(len=ESMF_MAXSTR)  :: currentDirectory
   type(ESMF_Config)           :: config
 
   rc = ESMF_SUCCESS
@@ -224,7 +225,8 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_VMGet(vm, mpiCommunicator=mpi_comm, rc=localrc)
+  call ESMF_VMGet(vm, mpiCommunicator=mpi_comm, petCount=petCount, &
+    localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifndef ESMF_MPIUNI
@@ -235,11 +237,25 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
+  call ESMF_ConfigGetAttribute(config, simulationDirectory, &
+    label='simulationDirectory:', default='.', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! Construct the full path to the simulation directory if it is not an
+  ! absolute path starting with slash or backslash
+  call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
+    simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
+  endif
+
   ! call initialize model with parameters iths=0, ntime=0
-  write(message, '(A)') trim(compName)//' initializing science model ...'
+  write(message, '(A,I4,A,A)') trim(compName)//' initializing science model on ', &
+    petCount, ' PET in ', trim(simulationDirectory)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  call schism_init('./', iths, ntime)
+  call schism_init(trim(simulationDirectory), iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
