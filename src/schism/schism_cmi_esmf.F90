@@ -172,6 +172,39 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initializing component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  ! Read the configuration for this component from file if not
+  ! already present in the component
+  call ESMF_GridCompGet(comp, configIsPresent=isPresent, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (isPresent) then
+    call ESMF_GridCompGet(comp, config=config, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message, '(A)') trim(compName)//' uses internal configuration'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  else
+    configfilename=trim(compName)//'.cfg'
+    inquire(file=trim(configfilename), exist=isPresent)
+
+    config = ESMF_ConfigCreate(rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    if (isPresent) then
+      call ESMF_ConfigLoadFile(config, trim(configfilename), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      write(message,'(A)')  trim(compName)//' read configuration from '//trim(configFileName)
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    else
+      write(message,'(A)')  trim(compName)//' has no configuration'
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+
+    call ESMF_GridCompSet(comp, config=config, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
   ! Make a local copy of the clock if there isn't one already
   call ESMF_GridCompGet(comp, clockIsPresent=isPresent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
