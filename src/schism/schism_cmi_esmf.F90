@@ -113,7 +113,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   !> @todo apply only filter to 'use schism_glbl'
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
-  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, lreadll
+  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, lreadll,ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
   use schism_glbl, only: dt, vv2, nvrt
@@ -269,7 +269,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   ! prepare mesh
   ! a) take local elements and get number of nodes for definition
   ! b) get number of augmented nodes, which are not connected to local elements
-  ! c) allocate node arrays such that nodeids gives all nods belonging to local
+  ! c) allocate node arrays such that nodeids gives all nodes belonging to local
   !    elements, all other nodes as part of the augmented domain are outside the
   !    exclusive region
   ! d) allocate element arrays such that local elements (ne) are in array and
@@ -281,13 +281,14 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   allocate(tmpIdx(npa-np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(tmpIdx2(npa), stat=localrc)
+  allocate(tmpIdx2(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i=1,np
     tmpIdx2(i)=i
   end do
-  do i=np+1,npa-np
+!Error: upper bound should be npa? Loop can be simplified
+  do i=np+1,npa !-np
     ! check existence in local elements
     do ie=1,ne
       if (any(elnode(1:i34(ie),ie)==i)) then
@@ -345,7 +346,8 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
-  if (lreadll) then
+!Error: should be ics==2
+  if (ics==2) then
     coordsys=ESMF_COORDSYS_SPH_DEG
   else
     coordsys=ESMF_COORDSYS_CART
@@ -354,7 +356,8 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   do ip=1,numLocalNodes
     i = localNodes(ip)
     nodeids(ip)=iplg(i)
-    if (lreadll) then
+!Error
+    if (ics==2) then
       ! if geographical coordinates present
       nodecoords2d(2*ip-1) = rad2deg*xlon(i)
       nodecoords2d(2*ip)   = rad2deg*ylat(i)
@@ -368,9 +371,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     else
       ! get owner of foreign node
       nextp => ipgl(iplg(i))
-      do while (associated(nextp%next))
-        nextp => nextp%next
-      end do
+!      do while (associated(nextp%next))
+!        nextp => nextp%next
+!      end do
       nodeowners(ip) = nextp%rank
     end if
     nodemask(ip)         = idry(i)
