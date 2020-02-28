@@ -135,6 +135,11 @@ program main
   atmos_import = ESMF_StateCreate(name='atmos import state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call ESMF_GridCompSetServices(atmos_component, &
+    atmosSetServices, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+
   filename = './global.nml'
   clock = clockCreateFrmParam(filename, localrc)
 
