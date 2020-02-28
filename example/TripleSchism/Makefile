@@ -25,7 +25,7 @@ subdirs: $(SUBDIRS)
 
 $(SUBDIRS):
 	mkdir -p $@/outputs
-	make -C ../83
+	make -C ../83 setups
 	cp ../83/*.in ../83/*.nml ../83/*.ic ../83/*.prop ../83/*.gr3 $@
 
 distclean: clean

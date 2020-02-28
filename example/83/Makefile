@@ -16,19 +16,17 @@
 # limitations under the License.
 
 ifndef SCHISM_DIR
-	$(error SCHISM_DIR has to be set in environment)
+$(error SCHISM_DIR has to be set in environment)
 endif
 
 ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
 $(error Please point SCHISM_DIR to the source directory of SCHISM.)
 endif
 
-
 ifndef MOSSCO_DIR
-	$(error MOSSCO_DIR has to be set in environment to generate the
-	example files here)
+$(error MOSSCO_DIR has to be set in environment to generate the
+example files here)
 endif
-
 
 D=${MOSSCO_DIR}/examples/esmf/schism
 
