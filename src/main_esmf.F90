@@ -36,15 +36,6 @@ program main
 
   implicit none
 
-  ! interface
-  !   function clockCreateFrmParam(filename, rc)
-  !     use esmf
-  !       character(len=ESMF_MAXSTR), intent(in) :: filename
-  !       integer(ESMF_KIND_I4), intent(out)     :: rc
-  !       type(ESMF_Clock)                       :: clockCreateFrmParam
-  !   end function clockCreateFrmParam
-  ! end interface
-
   integer                 :: localrc, userRc, rc
   type(ESMF_GridComp)     :: topComp
   character(len=ESMF_MAXSTR)  :: filename

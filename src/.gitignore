@@ -38,3 +38,4 @@ schism_esmf_test
 *.app
 
 main_nuopc
+main_esmf
