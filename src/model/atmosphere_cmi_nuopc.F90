@@ -127,11 +127,11 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   rc = ESMF_SUCCESS
 
-  ! create a Grid object for Fields
-  gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/10, 100/), &
-    minCornerCoord=(/0._ESMF_KIND_R8, 0._ESMF_KIND_R8/), &
-    maxCornerCoord=(/2000._ESMF_KIND_R8, 20000._ESMF_KIND_R8/), &
-    coordSys=ESMF_COORDSYS_CART, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
+  ! create a northwestern hemisphere grid
+  gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/100, 10/), &
+    minCornerCoord=(/-120._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
+    maxCornerCoord=(/60._ESMF_KIND_R8, 60._ESMF_KIND_R8/), &
+    coordSys=ESMF_COORDSYS_SPH_DEG, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
