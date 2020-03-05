@@ -23,15 +23,23 @@ include $(ESMFMKFILE)
 EXTRA_DIST=Readme.md
 SUBDIRS=
 
+CMI_MOSSCO=
 CMI_NUOPC=atmosphere_cmi_nuopc.o
 CMI_ESMF=atmosphere_cmi_esmf.o
+ifeq ($(origin MOSSCO_DIR), environment)
+CMI_MOSSCO+=netcdf_component.o
+endif
 
 CMI_NUOPC_OBJS:=$(addprefix ../model/,$(CMI_NUOPC))
 CMI_ESMF_OBJS:=$(addprefix ../model/,$(CMI_ESMF))
+CMI_MOSSCO_OBJS:=$(addprefix ../mossco/,$(CMI_MOSSCO))
 CMI_NUOPC_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_nuopc.o)
 CMI_ESMF_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_esmf.o)
 
 F90FLAGS += -I../model -I ../schism
+ifeq ($(origin MOSSCO_DIR), environment)
+F90FLAGS += -I ../mossco
+endif
 
 .SUFFIXES: .F90
 
@@ -54,12 +62,16 @@ $(CMI_ESMF_SCHISM_OBJ):
 $(CMI_ESMF_OBJS):
 	make -C ../model esmf
 
+$(CMI_MOSSCO_OBJS):
+	make -C ../mossco all
+
 driver_schism.o: $(CMI_NUOPC_SCHISM_OBJ) driver_schism.F90
 driver_schism_atm.o: $(CMI_NUOPC_SCHISM_OBJ) $(CMI_NUOPC_OBJS) driver_schism_atm.F90
 toplevel_schism_atm.o: $(CMI_ESMF_SCHISM_OBJ) $(CMI_ESMF_OBJS) toplevel_schism_atm.F90
+toplevel_schism_netcdf.o: $(CMI_ESMF_SCHISM_OBJ) $(CMI_MOSSCO_OBJS) toplevel_schism_netcdf.F90
 
-all: subdirs nuopc #esmf
-esmf: toplevel_schism_atm.o
+all: subdirs nuopc esmf
+esmf: toplevel_schism_atm.o toplevel_schism_netcdf.o
 nuopc: driver_schism_atm.o driver_schism.o
 
 clean:

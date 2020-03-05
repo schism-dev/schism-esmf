@@ -34,10 +34,14 @@ EXTRA_DIST=Readme.md
 
 SUBDIRS=model schism driver
 ifeq ($(origin MOSSCO_DIR), environment)
-SUBDIRS+=mossco
+ SUBDIRS+=mossco
 endif
 
 MODELS=atmosphere_cmi_nuopc.o
+ifeq ($(origin MOSSCO_DIR), environment)
+ MODELS=netcdf_component.o
+endif
+
 SCHISM_NUOPC=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
 SCHISM_ESMF=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
 MODEL_OBJS:=$(addprefix ../model/,$(MODELS))
