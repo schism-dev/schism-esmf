@@ -33,14 +33,14 @@ endif
 EXTRA_DIST=Readme.md
 
 SUBDIRS=model schism driver
+
+MOSSCO_LIB=
 ifeq ($(origin MOSSCO_DIR), environment)
  SUBDIRS+=mossco
+ MOSSCO_LIB+=-L mossco -lmossco
 endif
 
 MODELS=atmosphere_cmi_nuopc.o
-ifeq ($(origin MOSSCO_DIR), environment)
- MODELS=netcdf_component.o
-endif
 
 SCHISM_NUOPC=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
 SCHISM_ESMF=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
@@ -51,7 +51,7 @@ SCHISM_ESMF_OBJS:=$(addprefix ../schism/,$(SCHISM_ESMF))
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I./model -I./schism -I./driver
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I./model -I./schism -I./driver -I./mossco
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
 
 .SUFFIXES: .F90
@@ -61,9 +61,9 @@ default: all
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -o $@ 	$<
 
-main_esmf: main_esmf.o driver/toplevel_schism_atm.o model/atmosphere_cmi_nuopc.o \
+main_esmf: main_esmf.o driver/toplevel_schism_netcdf.o model/atmosphere_cmi_nuopc.o \
 	$(addprefix schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
-	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
+	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(MOSSCO_LIB) $(LDFLAGS) $(LIBS)
 
 main_nuopc: main_nuopc.o driver/driver_schism_atm.o model/atmosphere_cmi_nuopc.o \
 	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
@@ -84,7 +84,7 @@ driver/toplevel_schism_atm.o:
 .PHONY:  clean default all nuopc esmf
 
 
-all: nuopc #esmf
+all: nuopc esmf
 nuopc: main_nuopc
 esmf: main_esmf
 clean:

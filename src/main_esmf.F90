@@ -23,7 +23,6 @@
 #define ESMF_FILENAME "main_esmf.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
-
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #undef ESMF_METHOD
@@ -31,18 +30,20 @@
 program main
 
   use esmf
-  use toplevel, only: toplevelSetServices => SetServices
+  !use toplevel_schism_atm, only: toplevelSetServices => SetServices
+  use toplevel_schism_netcdf, only: toplevelSetServices => SetServices
+  use schism_esmf_util, only: clockCreateFrmParam
 
   implicit none
 
-  interface
-    function clockCreateFrmParam(filename, rc)
-      use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
-    end function clockCreateFrmParam
-  end interface
+  ! interface
+  !   function clockCreateFrmParam(filename, rc)
+  !     use esmf
+  !       character(len=ESMF_MAXSTR), intent(in) :: filename
+  !       integer(ESMF_KIND_I4), intent(out)     :: rc
+  !       type(ESMF_Clock)                       :: clockCreateFrmParam
+  !   end function clockCreateFrmParam
+  ! end interface
 
   integer                 :: localrc, userRc, rc
   type(ESMF_GridComp)     :: topComp

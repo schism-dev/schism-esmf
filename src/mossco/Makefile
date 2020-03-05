@@ -35,6 +35,8 @@ endif
 %.o : %.F90
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 
+default: all
+
 netcdf_component.o: netcdf_component.F90 mossco_netcdf.o git-sha.h \
 	mossco_component.o mossco_config.o
 mossco_netcdf.o: mossco_netcdf.F90 git-sha.h mossco_strings.o mossco_field.o \
@@ -63,10 +65,12 @@ git-sha.h:
 	ln -sf $(MOSSCO_DIR)/src/include/$@  $@
 
 
-.PHONY:  clean default all
+.PHONY:  clean default all libmossco esmf
 
-default: all
-all: esmf
+all: esmf libmossco
+
+libmossco: netcdf_component.o
+	$(AR) crvs libmossco.a *.o
 
 distclean: clean
 	$(RM) *.F90
