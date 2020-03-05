@@ -22,7 +22,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_esmf_component_new.F90"
+#define ESMF_FILENAME "schism_esmf_component.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -98,22 +98,17 @@ end subroutine SetServices
       convention="NUOPC", purpose="General", rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_StateValidate(importState, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_StateValidate(exportState, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   end subroutine InitializeP0
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "InitializeP1"
 subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
-  !> @todo apply only filter to 'use schism_glbl'
+  !> @todo apply only filter to 'use schism_glbl', in the mid-term
+  !> much of this code should go to schism_esmf_util and schism_bmi
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
-  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, lreadll
+  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
   use schism_glbl, only: dt, vv2, nvrt
@@ -278,33 +273,45 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   numNodeHaloIdx=0
   numLocalNodes=np
 
-  allocate(tmpIdx(npa-np), stat=localrc)
+  !allocate(tmpIdx(npa-np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(tmpIdx2(npa), stat=localrc)
+!  allocate(tmpIdx2(npa), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do i=1,np
-    tmpIdx2(i)=i
-  end do
-  do i=np+1,npa-np
-    ! check existence in local elements
-    do ie=1,ne
-      if (any(elnode(1:i34(ie),ie)==i)) then
-        numLocalNodes = numLocalNodes+1
-        tmpIdx2(numLocalNodes)=i
-      else
-        numNodeHaloIdx = numNodeHaloIdx+1
-        tmpIdx(numNodeHaloIdx)=i
-      end if
-    end do
-  end do
-  allocate(nodeHaloIdx(numNodeHaloIdx))
-  nodeHaloIdx(:)=tmpIdx(1:numNodeHaloIdx)
-  deallocate(tmpIdx)
+  !write(0,*) __LINE__, localPet, np, npa, ne, nea
+
+  ! do i=1,np
+  !   tmpIdx2(i)=i
+  ! end do
+  ! do i=np+1,npa-np
+  !   ! check existence in local elements
+  !   do ie=1,ne
+  !     if (any(elnode(1:i34(ie),ie)==i)) then
+  !       numLocalNodes = numLocalNodes+1
+  !       tmpIdx2(numLocalNodes)=i
+  !       write(0,*) __LINE__,i,ie
+  !       write(0,*) 'We should never have arrived here'
+  !       stop
+  !     else
+  !       write(0,*) __LINE__,i,ie, i-np, ubound(tmpIdx)
+  !       numNodeHaloIdx = numNodeHaloIdx+1
+  !       tmpIdx(numNodeHaloIdx)=i-np
+  !     end if
+  !   end do
+  ! end do
+
+  !allocate(nodeHaloIdx(numNodeHaloIdx))
+  !nodeHaloIdx(:)=tmpIdx(1:numNodeHaloIdx)
+  !deallocate(tmpIdx)
   allocate(localNodes(numLocalNodes))
-  localNodes(:)=tmpIdx2(1:numLocalNodes)
-  deallocate(tmpIdx2)
+  do i=1, numLocalNodes
+    localNodes(i) = i
+  end do
+
+!  localNodes(:)=tmpIdx2(1:numLocalNodes)
+  !deallocate(tmpIdx2)
+
   ! get inverse matching
   allocate(schismToLocalNodes(npa))
   schismToLocalNodes(:) = -1 ! initialize to -1
@@ -340,21 +347,25 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   allocate(elementcoords2d(2*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !allocate(elementcoords2d(3*nea), stat=localrc)
+  !allocate(elementcoords3d(3*nea), stat=localrc)
   allocate(nv(4*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
-  if (lreadll) then
+  if (ics==2) then
     coordsys=ESMF_COORDSYS_SPH_DEG
   else
+    write(message, '(A)') trim(compName)//' uses a cartesian coordinate system'// &
+       'which may not be suitable for coupling'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     coordsys=ESMF_COORDSYS_CART
   endif
 
-  do ip=1,numLocalNodes
+  do ip=1, numLocalNodes
     i = localNodes(ip)
+    ! iplg(i) is global node index of local node i in the augmented domain
     nodeids(ip)=iplg(i)
-    if (lreadll) then
+    if (ics==2) then
       ! if geographical coordinates present
       nodecoords2d(2*ip-1) = rad2deg*xlon(i)
       nodecoords2d(2*ip)   = rad2deg*ylat(i)
@@ -364,10 +375,14 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
       nodecoords2d(2*ip)   = ynd(i)
     end if
     if (i<=np) then
-      nodeowners(ip)       = ipgl(iplg(i))%rank
+      ! if iplg(i) is resident, ipgl(iplg(i))%rank=myrank
+      nodeowners(ip) = ipgl(iplg(i))%rank
     else
-      ! get owner of foreign node
+      ! get owner of foreign node, the SCHISM manual tells us to not use
+      ! ipgl for foreign nodes ???
+      ! ipgl%next%next%next.... is the linked list, with ranks in ascending order.  Unless ipgb is an interface node (i.e., resident in more than 1 process), the list has only 1 entry
       nextp => ipgl(iplg(i))
+      ! We here advance to the end of the list, Joseph suggested to just take the next element
       do while (associated(nextp%next))
         nextp => nextp%next
       end do
