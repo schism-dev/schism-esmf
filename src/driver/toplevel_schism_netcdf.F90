@@ -1,6 +1,5 @@
 ! This code is part of the SCHISM-ESMF interface. It is a main
-! program for running the SCHISM component concurrent to a
-! dummy component.
+! program for running the SCHISM component sequential with netcdf output
 !
 ! @copyright (C) 2018-2020 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister richard.hofmeister@hzg.de
@@ -12,7 +11,7 @@
 !
 ! 		http://www.apache.org/licenses/LICENSE-2.0
 !
-! Unless required by applicable law or agreed to in writing, software
+! Unless required by applicable law or agreed to in writESMF_Componenting, software
 ! distributed under the License is distributed on an "AS IS" BASIS,
 ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ! See the License for the specific language governing permissions and
@@ -24,27 +23,23 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "toplevel_schism_atm.F90"
+#define ESMF_FILENAME "toplevel_schism_netcdf.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module toplevel_schism_atm
+module toplevel_schism_netcdf
 
   use esmf
   use schism_cmi_esmf, only: schismSetServices => SetServices
-  use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
+  use netcdf_component,  only: netcdfSetServices => SetServices
 
   implicit none
 
   public SetServices
 
-  !> @todo this needs to be moved to internal state or dedicated coupler
-  type(ESMF_RouteHandle) :: routehandle_air2sea, routehandle_sea2air
-  type(ESMF_Field)       :: field_in, field_out
-  type(ESMF_GridComp)    :: atmos_component, schism_component
-  type(ESMF_State)       :: schism_import, schism_export
-  type(ESMF_State)       :: atmos_import, atmos_export
+  !> @todo this needs to be moved to internal state
+  type(ESMF_GridComp)    :: netcdfComponent, schismComponent
 
 contains
 
@@ -134,9 +129,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   type(ESMF_Field)        :: field
   type(ESMF_Vm)           :: vm
 
-  integer(ESMF_KIND_I4)       :: petCount, i, inum
-  integer, allocatable        :: petList(:)
-
+  integer(ESMF_KIND_I4)   :: petCount, i, inum
+  integer, allocatable    :: petList(:)
+  type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
 
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -145,7 +140,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Use all but one pets in this petList for schism and the last
-  ! PET for the dummy atmosphere.  This runs the models concurrently.
+  ! PET for the dummy netcdfphere.  This runs the models concurrently.
   ! For petCount=1, both run sequentially on the same PET  type(ESMF_Field)        :: field, field_in, field_out
 
   allocate(petList(max(1, petCount-1)))
@@ -157,69 +152,45 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   ! environment provided by each petList, then register
   ! the components entry points.
 
-  schism_component = ESMF_GridCompCreate(name='schismComponent', &
+  schismComponent = ESMF_GridCompCreate(name='schismComponent', &
     petList=petList, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   deallocate(petList)
 
-  atmos_component = ESMF_GridCompCreate(name='atmosComponent', &
+  netcdfComponent = ESMF_GridCompCreate(name='netcdfComponent', &
     petList=(/petCount-1/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompSetServices(schism_component, &
+  call ESMF_GridCompSetServices(schismComponent, &
     schismSetServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-
-  call ESMF_GridCompSetServices(atmos_component, &
-    atmosSetServices, rc=localrc)
+  call ESMF_GridCompSetServices(netcdfComponent, &
+    netcdfSetServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Create states for exchange of information between
   ! components.
-  schism_export = ESMF_StateCreate(name='schism export state', rc=localrc)
+  schismExport = ESMF_StateCreate(name='schism export state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  schism_import = ESMF_StateCreate(name='schism import state', rc=localrc)
+  schismImport = ESMF_StateCreate(name='schism import state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  atmos_export = ESMF_StateCreate(name='atmos export state', rc=localrc)
+  netcdfExport = ESMF_StateCreate(name='netcdf export state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  atmos_import = ESMF_StateCreate(name='atmos import state', rc=localrc)
+  netcdfImport = ESMF_StateCreate(name='netcdf import state', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompInitialize(schism_component, &
-    importState=schism_import, &
-    exportState=schism_export, clock=clock, rc=localrc)
+  call ESMF_GridCompInitialize(schismComponent, &
+    importState=schismImport, &
+    exportState=schismExport, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
-    exportState=atmos_export, clock=clock, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! Make sure that all states are reconciled across the
-  ! entire VM
-  call ESMF_StateReconcile(schism_import, vm=vm, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateReconcile(atmos_export, vm=vm, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! Within the schism component, the following fields are
-  ! defined for import and export
-  call ESMF_StateGet(schism_import, 'wind_x-velocity_in_10m_height', &
-    field=field_out, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateGet(atmos_export,'wind_x-velocity', &
-    field=field_in, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! Precompute the weights
-  call ESMF_FieldRegridStore(field_in, field_out, &
-    routehandle=routehandle_air2sea, rc=localrc)
+  call ESMF_GridCompInitialize(netcdfComponent, importState=netcdfImport, &
+    exportState=netcdfExport, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine InitializeP1
@@ -235,24 +206,28 @@ subroutine Run(comp, importState, exportState, clock, rc)
   integer, intent(out)    :: rc
 
   integer(ESMF_KIND_I4)   :: localrc
+  type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
 
+  call ESMF_GridCompGet(schismComponent, exportState=schismExport, &
+    importState=schismImport, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(netcdfComponent, exportState=netcdfExport, &
+    importState=netcdfImport, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
-    !> Directly manipulate the fields from import and export
+    !> Directly manipulate the fields from import and exportschism_component
     !> states.  In less basic applications, this should be
     !> handled by a mediator component.
-    call ESMF_FieldRegrid(field_in, field_out, &
-      routeHandle=routehandle_air2sea,rc=localrc)
+    call ESMF_GridCompRun(schismComponent, importState=schismImport, &
+      exportState=schismExport, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
-      exportState=atmos_export, clock=clock, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_GridCompRun(schism_component, importState=schism_import, &
-      exportState=schism_export, clock=clock, rc=localrc)
+    call ESMF_GridCompRun(netcdfComponent, importState=schismExport, &
+      exportState=netcdfExport, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_ClockAdvance(clock, rc=localrc)
@@ -271,36 +246,45 @@ subroutine Finalize(comp, importState, exportState, clock, rc)
   integer, intent(out)    :: rc
 
   integer(ESMF_KIND_I4)   :: localrc
+  type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
 
-  !> Clean up
-  call ESMF_GridCompFinalize(schism_component, importState=schism_import, &
-    exportState=schism_export, clock=clock, rc=localrc)
+  call ESMF_GridCompGet(schismComponent, exportState=schismExport, &
+    importState=schismImport, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompFinalize(atmos_component, importState=atmos_import, &
-    exportState=atmos_export, clock=clock, rc=localrc)
+  call ESMF_GridCompGet(netcdfComponent, exportState=netcdfExport, &
+    importState=netcdfImport, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Clean up
+  call ESMF_GridCompFinalize(schismComponent, importState=schismImport, &
+    exportState=schismExport, clock=clock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompFinalize(netcdfComponent, importState=netcdfImport, &
+    exportState=netcdfExport, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateDestroy(schism_import, rc=localrc)
+  call ESMF_StateDestroy(schismImport, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateDestroy(schism_export, rc=localrc)
+  call ESMF_StateDestroy(schismExport, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateDestroy(atmos_import, rc=localrc)
+  call ESMF_StateDestroy(netcdfImport, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateDestroy(atmos_export, rc=localrc)
+  call ESMF_StateDestroy(netcdfExport, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompDestroy(schism_component, rc=localrc)
+  call ESMF_GridCompDestroy(schismComponent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompDestroy(atmos_component, rc=localrc)
+  call ESMF_GridCompDestroy(netcdfComponent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine Finalize
-end module toplevel_schism_atm
+end module toplevel_schism_netcdf
