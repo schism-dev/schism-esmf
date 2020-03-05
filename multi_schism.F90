@@ -276,8 +276,8 @@ function clockCreateFrmParam(filename, rc) result(clock)
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2 !rnday in hours
-  namelist /global/ start_year, start_month, start_day, start_hour, rnday
+  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2 
+  namelist /global/ start_year, start_month, start_day, start_hour, runhours
 
   inquire(file=filename, exist=isPresent)
   if (isPresent) then
@@ -299,7 +299,8 @@ function clockCreateFrmParam(filename, rc) result(clock)
     h=start_hour, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
+  !'h': hour
+  call ESMF_TimeIntervalSet(timeStep, h=runhours, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   stopTime = startTime + timeStep
