@@ -48,7 +48,6 @@ global.nml: ../83/global.nml
 multi_schism:
 	@for i in $(shell seq 1 $(SCHISM_COUNT)); do \
 	  S=`printf 'schism_%03d' $$i`; \
-		echo "simulationDirectory: $$S" > $$S.cfg ; \
-    mkdir -p $$S/outputs ;  \
-		cp ../83/*.in ../83/*.nml ../83/*.ic ../83/*.prop ../83/*.gr3 $$S ; \
+          mkdir -p $$S/outputs ;  \
+	  cp ../83/*.in ../83/*.nml ../83/*.ic ../83/*.prop ../83/*.gr3 $$S ; \
 	done

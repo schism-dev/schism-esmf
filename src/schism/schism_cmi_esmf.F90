@@ -242,8 +242,15 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
+  !> The input directory is by default '.'.  If present as an attribute,
+  !> this one is used, and if also present in the config file, the latter
+  !> one is used.
+  call ESMF_AttributeGet(comp, name='input_directory', &
+    value=simulationDirectory, defaultValue='.', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   call ESMF_ConfigGetAttribute(config, simulationDirectory, &
-    label='simulationDirectory:', default='.', rc=localrc)
+    label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Construct the full path to the simulation directory if it is not an
