@@ -56,10 +56,10 @@ setups: copy-from-mossco sample_param
 sample_param: param.nml vgrid.in
 
 param.nml:
-	ln -s $(SCHISM_DIR)/sample_inputs/param.nml $@
+	ln -sf $(SCHISM_DIR)/sample_inputs/param.nml $@
 
 vgrid.in:
-	ln -s $(SCHISM_DIR)/sample_inputs/vgrid.in.SZ $@
+	ln -sf $(SCHISM_DIR)/sample_inputs/vgrid.in.SZ $@
 
 global.nml: param.nml
 	python ../../scripts/param2global.py
