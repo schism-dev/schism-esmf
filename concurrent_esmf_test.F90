@@ -172,7 +172,9 @@ program main
 
   ! Precompute the weights
   call ESMF_FieldRegridStore(field_in, field_out, &
-    routehandle=routehandle_air2sea, rc=localrc)
+    regridMethod =  ESMF_REGRIDMETHOD_BILINEAR, &
+    routehandle=routehandle_air2sea, unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+    rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Loop over coupling timesteps until stopTime
@@ -182,7 +184,7 @@ program main
     !> states.  In less basic applications, this should be
     !> handled by a mediator component.
     call ESMF_FieldRegrid(field_in, field_out, &
-      routeHandle=routehandle_air2sea,rc=localrc)
+      routeHandle=routehandle_air2sea, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
