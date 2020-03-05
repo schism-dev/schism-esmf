@@ -30,9 +30,12 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
-
 EXTRA_DIST=Readme.md
+
 SUBDIRS=model schism driver
+ifeq ($(origin MOSSCO_DIR), environment)
+SUBDIRS+=mossco
+endif
 
 MODELS=atmosphere_cmi_nuopc.o
 SCHISM_NUOPC=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
