@@ -19,6 +19,10 @@ Earth System Modeling Framework cap for SCHISM
       setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_WW/lib/libO/Linux.intel.64.mvapich2.default/esmf.mk
       setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf_WW/lib/libO/Linux.intel.64.mvapich2.default
 
+    on James:
+      setenv ESMFMKFILE /ches/home00/yinglong/esmf_James/lib/libO/Linux.intel.64.openmpi.default/esmf.mk
+      setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/ches/home00/yinglong/esmf_James/lib/libO/Linux.intel.64.openmpi.default
+
 
 2. SCHISM: You need to have SCHISM built with `cmake` and an environment
    variable `SCHISM_BUILD_DIR` defined that points to your SCHISM build
@@ -29,6 +33,9 @@ Earth System Modeling Framework cap for SCHISM
 
     on WW:
       setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.whirlwind
+
+    on James:
+      setenv SCHISM_BUILD_DIR /ches/home00/yinglong/git/schism/build_james
 
 ## Compilation
 

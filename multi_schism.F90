@@ -80,12 +80,12 @@ program main
   call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  inquire(file=fileName, exist=isPresent)
+  inquire(file=filename, exist=isPresent)
   if (isPresent) then
     config = ESMF_ConfigCreate(rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ConfigLoadFile(config, filename=fileName, rc=localrc)
+    call ESMF_ConfigLoadFile(config, filename=filename, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_ConfigGetAttribute(config, value=schismCount, label='count:', &
