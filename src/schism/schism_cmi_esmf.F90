@@ -22,7 +22,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_esmf_component.F90"
+#define ESMF_FILENAME "schism_cmi_esmf.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -167,6 +167,16 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   write(message, '(A)') trim(compName)//' initializing component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (.not.ESMF_StateIsCreated(importState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Import', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  if (.not.ESMF_StateIsCreated(exportState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Export', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   ! Read the configuration for this component from file if not
   ! already present in the component
@@ -450,6 +460,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(0,*) 'distgridElementIds',testids
   deallocate(testids)
 #endif
+
+  !> Create states if they were not created
+
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)
