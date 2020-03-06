@@ -100,6 +100,12 @@ program main
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  elseif (schismCount > petCount) then
+    write(message, '(A)') 'Requested number of instances exceeds available PETs'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    write(message, '(A,I3,A,I3)') 'Reduced from ',schismCount, ' to ', petCount
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    schismCount = petCount
   else
     write(message, '(A,I3)') 'Number of SCHISM instances ',schismCount
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
