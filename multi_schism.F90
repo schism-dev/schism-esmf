@@ -4,7 +4,7 @@
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister
 ! @author Carsten Lemmen <carsten.lemmen@hzg.de>
-! @author Joseph Zhang <yjzhang@vims.edu>
+! @author Y Joseph Zhang <yjzhang@vims.edu>
 !
 ! @license under the Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ program main
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: filename='multi_schism.cfg', message
   type(ESMF_Config)           :: config
+  type(ESMF_Config), allocatable :: configList(:)
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -109,6 +110,9 @@ program main
   allocate(schism_components(schismCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  allocate(configList(schismCount), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   do i = 1, schismCount
 
     petCountLocal = petCount/schismCount
@@ -126,8 +130,25 @@ program main
       petList=petlist, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    !configList(i) = ESMF_ConfigCreate(rc=localrc)
+
+    !> @todo  the SetAttribute implementation is buggy and thus not enabled, we
+    !> use for now the attribute of the component.
+    !>
+    !call ESMF_ConfigSetAttribute(configList(i), value=i, &
+    !  label='schismInstance:', rc=localrc)
+
+    call ESMF_AttributeSet(schism_components(i), name='input_directory', &
+      value=trim(message), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    !call ESMF_GridCompSet(schism_components(i), config=configList(i), rc=localrc)
+    !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
     deallocate(petList)
   end do ! loop over schismCount
+
+  write(message, '(A,I3,A)') 'Created ',schismCount,' instances of SCHISM'
 
   allocate(schism_exports(schismCount))
   allocate(schism_imports(schismCount))
@@ -211,6 +232,7 @@ program main
   deallocate(schism_exports)
   deallocate(schism_imports)
   deallocate(schism_components)
+  deallocate(configList)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -234,7 +256,7 @@ function clockCreateFrmParam(filename, rc) result(clock)
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2 
+  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2
   namelist /global/ start_year, start_month, start_day, start_hour, runhours
 
   inquire(file=filename, exist=isPresent)
