@@ -143,7 +143,7 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     !call ESMF_GridCompSet(schism_components(i), config=configList(i), rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     deallocate(petList)
   end do ! loop over schismCount
