@@ -133,33 +133,25 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer, allocatable    :: petList(:)
   type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
 
+  rc = ESMF_SUCCESS
+
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_VmGet(vm, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Use all but one pets in this petList for schism and the last
-  ! PET for the dummy netcdfphere.  This runs the models concurrently.
-  ! For petCount=1, both run sequentially on the same PET  type(ESMF_Field)        :: field, field_in, field_out
-
-  allocate(petList(max(1, petCount-1)))
-  do i=1, max(1, petCount-1)
+  allocate(petList(petCount))
+  do i=1, petCount
     petList(i) = i-1
   enddo
 
-  ! Create both components on their respective parallel
-  ! environment provided by each petList, then register
-  ! the components entry points.
-
-  schismComponent = ESMF_GridCompCreate(name='schismComponent', &
+  schismComponent = ESMF_GridCompCreate(name='schism', &
     petList=petList, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  deallocate(petList)
-
-  netcdfComponent = ESMF_GridCompCreate(name='netcdfComponent', &
-    petList=(/petCount-1/), rc=localrc)
+  netcdfComponent = ESMF_GridCompCreate(name='netcdf', &
+    petList=petList, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(schismComponent, &
@@ -172,16 +164,16 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   ! Create states for exchange of information between
   ! components.
-  schismExport = ESMF_StateCreate(name='schism export state', rc=localrc)
+  schismExport = ESMF_StateCreate(name='schismExport', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  schismImport = ESMF_StateCreate(name='schism import state', rc=localrc)
+  schismImport = ESMF_StateCreate(name='schismImport', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  netcdfExport = ESMF_StateCreate(name='netcdf export state', rc=localrc)
+  netcdfExport = ESMF_StateCreate(name='netcdfExport', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  netcdfImport = ESMF_StateCreate(name='netcdf import state', rc=localrc)
+  netcdfImport = ESMF_StateCreate(name='netcdfImport', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompInitialize(schismComponent, &
@@ -207,6 +199,8 @@ subroutine Run(comp, importState, exportState, clock, rc)
 
   integer(ESMF_KIND_I4)   :: localrc
   type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
+
+  rc = ESMF_SUCCESS
 
   call ESMF_GridCompGet(schismComponent, exportState=schismExport, &
     importState=schismImport, rc=localrc)
@@ -247,6 +241,8 @@ subroutine Finalize(comp, importState, exportState, clock, rc)
 
   integer(ESMF_KIND_I4)   :: localrc
   type(ESMF_State)        :: schismExport, schismImport, netcdfExport, netcdfImport
+
+  rc = ESMF_SUCCESS
 
   call ESMF_GridCompGet(schismComponent, exportState=schismExport, &
     importState=schismImport, rc=localrc)

@@ -46,6 +46,9 @@ program main
     defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call ESMF_LogSet(flush=.true., rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! Create the top level component and register its services
   topComp = ESMF_GridCompCreate(name="toplevel", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
