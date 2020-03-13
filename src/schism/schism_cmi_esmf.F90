@@ -764,9 +764,9 @@ end subroutine InitializeP1
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "Run"
-subroutine Run(comp, importState, exportState, clock, rc)
+subroutine Run(comp, importState, exportState, parentClock, rc)
 
-  use schism_glbl, only: dt,tr_nd,nvrt,npa,np,kbp,idry,uu2,vv2
+  use schism_glbl, only: dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -775,12 +775,12 @@ subroutine Run(comp, importState, exportState, clock, rc)
   type(ESMF_GridComp)     :: comp
   type(ESMF_State)        :: importState
   type(ESMF_State)        :: exportState
-  type(ESMF_Clock)        :: clock
+  type(ESMF_Clock)        :: parentClock
   integer, intent(out)    :: rc
 
   type(ESMF_Clock)        :: schismClock
-  type(ESMF_Time)         :: nextTime, currTime
-  type(ESMF_TimeInterval) :: interv
+  type(ESMF_Time)         :: nextTime, currTime, parentCurrTime
+  type(ESMF_TimeInterval) :: timeStep
   integer                 :: i
   integer, save           :: it=1
   type(ESMF_Field)        :: field
@@ -795,8 +795,21 @@ subroutine Run(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, name=compName, clock=schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockGet(schismClock, advanceCount=advanceCount, rc=localrc)
+  call ESMF_ClockGet(schismClock, advanceCount=advanceCount, &
+    currTime=currTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_ClockGet(parentClock, currTime=parentCurrTime, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (currTime /= parentCurrTime) then
+    write(message, '(A)') trim(compName)//' times not synchronized: '
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    call ESMF_TimePrint(currtime, unit=message, rc=localrc)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    call ESMF_TimePrint(currtime, unit=message, rc=localrc)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif
 
   write(message, '(A,I6.6)') trim(compName)//' running step ',advanceCount
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -805,17 +818,12 @@ subroutine Run(comp, importState, exportState, clock, rc)
   !   here: nothing to be done for the wind velocities,
   !         since fields are created with ESMF_DATACOPY_REFERENCE
 
-  ! run model to stopTime of clock
+  ! run model to nextTime of parentClock by manipulating its
+  ! stopTime and running its internal timestep until this stopTime.
   call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockGetNextTime(clock,nextTime,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_ClockGet(schismClock, currTime=currTime, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  interv = nextTime-currTime
-  call ESMF_TimeIntervalGet(interv, s_r8=dt_coupling)
+  call ESMF_ClockGetNextTime(parentClock, nextTime,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockSet(schismClock, stopTime=nextTime, rc=localrc)
@@ -832,6 +840,31 @@ subroutine Run(comp, importState, exportState, clock, rc)
 
     it=it+1
   end do
+
+  !> Do a clock correction for non-integer internal timesteps and issue
+  !> a warning.  We could improve this somewhat by choosing to optionally
+  !> run one less timestep if that gives better accuracy.
+  call ESMF_ClockGet(schismClock, currTime=currTime, rc=localrc)
+
+  if (currTime /= nextTime) then
+
+    timeStep = nextTime-currTime
+
+    call ESMF_TimeIntervalGet(timeStep, s_r8=dt_coupling)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message, '(A,I4,A)') trim(compName)//' corrected clock by ', &
+      int(dt_coupling), ' seconds'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    call ESMF_ClockSet(schismClock, currTime=nextTime, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  timeStep = nextTime-parentCurrTime
+
+  call ESMF_TimeIntervalGet(timeStep, s_r8=dt_coupling)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 
   ! update 3d grid
   ! (so far not necessary for 2d variables to be exchanged)
