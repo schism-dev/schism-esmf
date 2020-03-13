@@ -54,7 +54,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib triple_schism multi_schism
+.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib triple_schism multi_schism schism_pdaf
 default: all
 
 # User-callable make targets
@@ -63,7 +63,7 @@ all: lib test
 
 lib: schism_esmf_lib
 
-test: concurrent_esmf_test triple_schism multi_schism
+test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 
 # Internal make targets
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
@@ -76,6 +76,9 @@ triple_schism: $(SCHISM_OBJS) $(MODEL_OBJS) triple_schism.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 multi_schism: $(SCHISM_OBJS) $(MODEL_OBJS) multi_schism.o
+	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+schism_pdaf: $(SCHISM_OBJS) $(MODEL_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
@@ -116,7 +119,7 @@ clean:
 distclean: clean
 	$(RM) -rf .objs
 	$(RM) -f fort.* flux.dat param.out.nml total.dat total_TR.dat mirror.out
-	$(RM) -f concurrent_esmf_test triple_schism multi_schism libschism_esmf.a
+	$(RM) -f concurrent_esmf_test triple_schism multi_schism schism_pdaf libschism_esmf.a
 	$(RM) -f outputs/*nc
 	$(RM) -f outputs/nonfatal*nc
 	$(RM) -f PET*
