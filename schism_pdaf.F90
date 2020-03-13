@@ -24,7 +24,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "multi_schism.F90"
+#define ESMF_FILENAME "schism_pdaf.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -47,7 +47,7 @@ program main
   end interface
 
   type(ESMF_GridComp), allocatable :: schism_components(:)
-  type(ESMF_State), allocatable    :: schism_imports(:), schism_exports(:)
+  type(ESMF_State), allocatable    ::  importStateList(:), exportStateList(:)
 
   type(ESMF_TimeInterval) :: timestep
   type(ESMF_Time)         :: start_time, stop_time
@@ -57,11 +57,12 @@ program main
   type(ESMF_Log)          :: log
 
   integer(ESMF_KIND_I4)       :: petCountLocal, schismCount
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc,ii,ncohort,maxCountperCohort
+  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc,ii
+  integer(ESMF_KIND_I4)       :: ncohort, maxCountperCohort
   integer(ESMF_KIND_I4), allocatable    :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
   logical                     :: isPresent
-  character(len=ESMF_MAXSTR)  :: filename='multi_schism.cfg', message,message2
+  character(len=ESMF_MAXSTR)  :: filename='schism_pdaf.cfg', message, message2
   type(ESMF_Config)           :: config
   type(ESMF_Config), allocatable :: configList(:)
 
@@ -100,8 +101,10 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
-  if(schismCount>999 .or. schismCount<1.or.schismCount>petCount*ncohort.or.schismCount<ncohort) then
-    write(message, '(A,I3,I6,A)') 'Number of instances,cohort ',schismCount,ncohort, &
+  if(schismCount>999 .or. schismCount<1 .or. schismCount>petCount*ncohort &
+    .or. schismCount<ncohort) then
+    write(message, '(A,I3,I6,A)') 'Number of instances, cohorts ', &
+      schismCount, ncohort, &
       'must be in the range [1,999]'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
@@ -171,8 +174,8 @@ program main
 
   write(message, '(A,I3,A)') 'Created ',schismCount,' instances of SCHISM'
 
-  allocate(schism_exports(schismCount))
-  allocate(schism_imports(schismCount))
+  allocate(exportStateList(schismCount))
+  allocate(importStateList(schismCount))
 
   esmf_loop1: do ii = 1,ncohort !schismCount
     do j=1,maxCountperCohort
@@ -185,11 +188,11 @@ program main
 
       write(message, '(A,I3.3)') 'schism_', i
 
-      schism_exports(i) = ESMF_StateCreate( &
+      exportStateList(i) = ESMF_StateCreate( &
         name='schismExport_'//trim(adjustl(message)), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      schism_imports(i) = ESMF_StateCreate( &
+       importStateList(i) = ESMF_StateCreate( &
         name='schismImport_'//trim(adjustl(message)), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo !j
@@ -201,8 +204,8 @@ program main
       i=(ii-1)*maxCountperCohort+j !component #
       if(i>schismCount) exit esmf_loop2
 
-      call ESMF_GridCompInitialize(schism_components(i), importState=schism_imports(i), &
-        exportState=schism_exports(i), phase=0, clock=clock, rc=localrc)
+      call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
+        exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo !j
   end do esmf_loop2 !ii
@@ -218,8 +221,8 @@ program main
       i=(ii-1)*maxCountperCohort+j !component #
       if(i>schismCount) exit esmf_loop3
 
-      call ESMF_GridCompInitialize(schism_components(i), importState=schism_imports(i), &
-      exportState=schism_exports(i), phase=1, clock=clock, rc=localrc)
+      call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
+      exportState=exportStateList(i), phase=1, clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo !j
   end do esmf_loop3 !ii
@@ -229,10 +232,10 @@ program main
       i=(ii-1)*maxCountperCohort+j !component #
       if(i>schismCount) exit esmf_loop4
 
-      call ESMF_StateReconcile(schism_imports(i), vm=vm, rc=localrc)
+      call ESMF_StateReconcile( importStateList(i), vm=vm, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateReconcile(schism_exports(i), vm=vm, rc=localrc)
+      call ESMF_StateReconcile(exportStateList(i), vm=vm, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo !j
   end do esmf_loop4 !ii
@@ -250,8 +253,8 @@ program main
         i=(ii-1)*maxCountperCohort+j !component #
         if(i>schismCount) exit esmf_loop6
 
-        call ESMF_GridCompRun(schism_components(i), importState=schism_imports(i), &
-         exportState=schism_exports(i), clock=clock, rc=localrc)
+        call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
+         exportState=exportStateList(i), clock=clock, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
         !> I am not so sure what you want to do here, but let me just play
@@ -291,14 +294,14 @@ program main
       i=(ii-1)*maxCountperCohort+j !component #
       if(i>schismCount) exit esmf_loop5
 
-      call ESMF_GridCompFinalize(schism_components(i), importState=schism_imports(i), &
-        exportState=schism_exports(i), clock=clock, rc=localrc)
+      call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &
+        exportState=exportStateList(i), clock=clock, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateDestroy(schism_imports(i), rc=localrc)
+      call ESMF_StateDestroy( importStateList(i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateDestroy(schism_exports(i), rc=localrc)
+      call ESMF_StateDestroy(exportStateList(i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       call ESMF_GridCompDestroy(schism_components(i), rc=localrc)
@@ -306,8 +309,8 @@ program main
     enddo !j
   end do esmf_loop5 !i
 
-  deallocate(schism_exports)
-  deallocate(schism_imports)
+  deallocate(exportStateList)
+  deallocate( importStateList)
   deallocate(schism_components)
 !  deallocate(configList)
 
