@@ -51,7 +51,7 @@ program main
 
   type(ESMF_TimeInterval) :: timestep
   type(ESMF_Time)         :: start_time, stop_time
-  type(ESMF_Clock)        :: clock
+  type(ESMF_Clock)        :: clock, childClock
 
   type(ESMF_Vm)           :: vm
   type(ESMF_Log)          :: log
@@ -176,7 +176,7 @@ program main
 
   esmf_loop1: do ii = 1,ncohort !schismCount
     do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component # 
+      i=(ii-1)*maxCountperCohort+j !component #
       if(i>schismCount) exit esmf_loop1
 
       call ESMF_GridCompSetServices(schism_components(i), &
@@ -216,7 +216,7 @@ program main
   esmf_loop3: do ii = 1,1 !ncohort
     do j=1,maxCountperCohort
       i=(ii-1)*maxCountperCohort+j !component #
-      if(i>schismCount) exit esmf_loop3 
+      if(i>schismCount) exit esmf_loop3
 
       call ESMF_GridCompInitialize(schism_components(i), importState=schism_imports(i), &
       exportState=schism_exports(i), phase=1, clock=clock, rc=localrc)
@@ -240,6 +240,10 @@ program main
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
+    !> Save the time step of the current component
+    call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
     !Advance model to next coupling step
     esmf_loop6: do ii = 1,ncohort
       do j=1,maxCountperCohort
@@ -249,7 +253,33 @@ program main
         call ESMF_GridCompRun(schism_components(i), importState=schism_imports(i), &
          exportState=schism_exports(i), clock=clock, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        !> I am not so sure what you want to do here, but let me just play
+        !> around:
+        !> Reset each of these clocks
+        call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        call ESMF_ClockAdvance(childClock, timeStep=-timeStep, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
       enddo !j
+
+      !> call something with pdaf on this cohort ???, if not on this cohort
+      !> then the whole clock resetting business should be moved to outer loop.
+
+      do j=1,maxCountperCohort
+        i=(ii-1)*maxCountperCohort+j
+
+        !> Reset each of these clocks
+        call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        call ESMF_ClockAdvance(childClock, timeStep=timeStep, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      enddo !j
+
     end do esmf_loop6 !ii
 
     call ESMF_ClockAdvance(clock, rc=localrc)
