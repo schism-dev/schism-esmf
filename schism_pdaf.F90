@@ -57,7 +57,7 @@ program main
   type(ESMF_Log)          :: log
 
   integer(ESMF_KIND_I4)       :: petCountLocal, schismCount
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc,ii
+  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc, ii, icohort
   integer(ESMF_KIND_I4)       :: ncohort, maxCountperCohort
   integer(ESMF_KIND_I4), allocatable    :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
@@ -97,7 +97,8 @@ program main
       default=min(petCount,8), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ConfigGetAttribute(config, value=ncohort, label='ncohort:', rc=localrc)
+    call ESMF_ConfigGetAttribute(config, value=ncohort, label='ncohort:', &
+      default=max(petCount/schismCount,1), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
@@ -128,24 +129,24 @@ program main
 !  allocate(configList(schismCount), stat=localrc)
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !max # of instances per corhort (may be smaller)
-  maxCountperCohort=schismCount/ncohort
+  !max # of instances per cohort (may be smaller for the later instances)
+  maxCountperCohort=ceiling(schismCount*1.0/ncohort)
+
+  !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, ncohort, maxCountperCohort
   do i = 1, schismCount
 
-    petCountLocal = petCount*ncohort/schismCount
+    icohort = (i-1)/maxCountperCohort
+    petCountLocal = min(maxCountperCohort, petCount - icohort*maxCountperCohort)
+
     allocate(petlist(petCountLocal), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    !Multiple cohort may use same PET
+    ! Instances within the same cohort use the same PET
     do j=1, petCountLocal
-      petList(j)=mod(i-1,maxCountperCohort)*petCountLocal + j - 1 ! PET #; 0 based
-      if(petList(j)>petCount-1) then
-        write(message2,*) 'Exceeded max PET:',petList(j),petCount-1
-        call ESMF_LogWrite(trim(message2), ESMF_LOGMSG_ERROR)
-        localrc = ESMF_RC_VAL_OUTOFRANGE
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-      endif
+      petList(j)=icohort*maxCountperCohort + (j-1)
     end do !j
+
+    !write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in cohort ', icohort, 'list is ',  petlist
 
     write(message, '(A,I3.3)') 'schism_', i
     !write(0, *) trim(message), 'list=', petList, 'petCount=', petCount, petCountLocal
@@ -166,10 +167,11 @@ program main
       value=trim(message), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    deallocate(petList)
+
     !call ESMF_GridCompSet(schism_components(i), config=configList(i), rc=localrc)
     !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    deallocate(petList)
   end do ! loop over schismCount
 
   write(message, '(A,I3,A)') 'Created ',schismCount,' instances of SCHISM'
@@ -177,68 +179,57 @@ program main
   allocate(exportStateList(schismCount))
   allocate(importStateList(schismCount))
 
-  esmf_loop1: do ii = 1,ncohort !schismCount
-    do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component #
-      if(i>schismCount) exit esmf_loop1
+  ! Create export states for all instances and register them
+  register_loop:  do i = 1, schismCount
 
-      call ESMF_GridCompSetServices(schism_components(i), &
-        schismSetServices, rc=localrc)
+    call ESMF_GridCompSetServices(schism_components(i), &
+      schismSetServices, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message, '(A,I3.3)') 'schism_', i
+
+    exportStateList(i) = ESMF_StateCreate( &
+      name='schismExport_'//trim(adjustl(message)), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      write(message, '(A,I3.3)') 'schism_', i
+    importStateList(i) = ESMF_StateCreate( &
+      name='schismImport_'//trim(adjustl(message)), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  enddo register_loop
 
-      exportStateList(i) = ESMF_StateCreate( &
-        name='schismExport_'//trim(adjustl(message)), rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! Initialize phase 1 and set attribute for calling init
+  init0_loop: do i = 1, schismCount
 
-       importStateList(i) = ESMF_StateCreate( &
-        name='schismImport_'//trim(adjustl(message)), rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !j
-  end do esmf_loop1 !ii
+    call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
+      exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !Init phase 0
-  esmf_loop2: do ii = 1,ncohort
-    do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component #
-      if(i>schismCount) exit esmf_loop2
-
-      call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
-        exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !j
-  end do esmf_loop2 !ii
+    call ESMF_AttributeSet(schism_components(i), 'cohort_member_instance', &
+      mod(i-1, maxCountperCohort))
+  enddo init0_loop
 
   !Get info on simulation period
   filename = './global.nml'
   clock = clockCreateFrmParam(filename, localrc)
 
-  !Init phase 1: assuming all ensemble members share same parameters and i.c.
-  !Only do 1st cohort to avoid reallocate array error
-  esmf_loop3: do ii = 1,1 !ncohort
-    do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component #
-      if(i>schismCount) exit esmf_loop3
+  ! Init phase 1: assuming all ensemble members share same parameters and i.c.
+  init1_loop: do i = 1, schismCount
 
-      call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
+    call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
       exportState=exportStateList(i), phase=1, clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !j
-  end do esmf_loop3 !ii
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  esmf_loop4: do ii = 1,ncohort
-    do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component #
-      if(i>schismCount) exit esmf_loop4
+  enddo init1_loop
 
-      call ESMF_StateReconcile( importStateList(i), vm=vm, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  reconcile_loop: do i = 1, schismCount
 
-      call ESMF_StateReconcile(exportStateList(i), vm=vm, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !j
-  end do esmf_loop4 !ii
+    call ESMF_StateReconcile( importStateList(i), vm=vm, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_StateReconcile(exportStateList(i), vm=vm, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  enddo reconcile_loop
 
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
@@ -247,43 +238,45 @@ program main
     call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    !Advance model to next coupling step
-    esmf_loop6: do ii = 1,ncohort
-      do j=1,maxCountperCohort
-        i=(ii-1)*maxCountperCohort+j !component #
-        if(i>schismCount) exit esmf_loop6
+    ! Run each model for one timestep and reset each time step
+    do i = 1, schismCount
 
-        call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
-         exportState=exportStateList(i), clock=clock, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
+        exportState=exportStateList(i), clock=clock, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-        !> I am not so sure what you want to do here, but let me just play
-        !> around:
-        !> Reset each of these clocks
-        call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      call ESMF_GridCompGet(schism_components(i), clockIsPresent=isPresent, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-        call ESMF_ClockAdvance(childClock, timeStep=-timeStep, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      if (.not.isPresent) then
+        ! We can only access the clock object from the PET where it was created on,
+        ! so we just skip those access that get .not.isPresent()
+        cycle
+      endif
 
-      enddo !j
+      call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      !> call something with pdaf on this cohort ???, if not on this cohort
-      !> then the whole clock resetting business should be moved to outer loop.
+      call ESMF_ClockAdvance(childClock, timeStep=-timeStep, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      do j=1,maxCountperCohort
-        i=(ii-1)*maxCountperCohort+j
+    enddo
 
-        !> Reset each of these clocks
-        call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    do icohort = 1, ncohort
 
-        call ESMF_ClockAdvance(childClock, timeStep=timeStep, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      !> @todo analyze each cohort, do something
+      ! Do something with PDAF within each cohort
 
-      enddo !j
+    enddo
 
-    end do esmf_loop6 !ii
+    ! Run all models again after PDAF
+    do i = 1, schismCount
+
+      call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
+        exportState=exportStateList(i), clock=clock, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    enddo
 
     call ESMF_ClockAdvance(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -336,8 +329,8 @@ function clockCreateFrmParam(filename, rc) result(clock)
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2
-  namelist /global/ start_year, start_month, start_day, start_hour, runhours
+  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2, rnday=2 ! not used
+  namelist /global/ start_year, start_month, start_day, start_hour, runhours, rnday
 
   inquire(file=filename, exist=isPresent)
   if (isPresent) then
