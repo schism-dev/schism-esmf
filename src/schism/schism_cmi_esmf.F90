@@ -154,7 +154,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet
+  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, cohortMemberInstance
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -218,12 +218,18 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   if (isPresent) then
     call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  else
+  endif
+
+  if ((isPresent .and. .not.ESMF_ClockIsCreated(schismClock)) .or. &
+  (.not. isPresent)) then
     schismClock = ESMF_ClockCreate(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_GridCompSet(comp, clock=schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message, '(A)') trim(compName)//' created clock as copy of parent clock'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
   ! Get VM for this component
@@ -242,34 +248,46 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
-  !> The input directory is by default '.'.  If present as an attribute,
-  !> this one is used, and if also present in the config file, the latter
-  !> one is used.
-  call ESMF_AttributeGet(comp, name='input_directory', &
-    value=simulationDirectory, defaultValue='.', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> If we run cohorts that share a PET, we don't want to initialize schism
+  !> for each member of a cohort but only for the first one.  To detect this,
+  !> we ask for an attribute of the component
+  call ESMF_AttributeGet(comp, name='cohort_member_instance', &
+    value=cohortMemberInstance, defaultValue=0, rc=localrc)
 
-  call ESMF_ConfigGetAttribute(config, simulationDirectory, &
-    label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (cohortMemberInstance == 0) then
+    !> The input directory is by default '.'.  If present as an attribute,
+    !> this one is used, and if also present in the config file, the latter
+    !> one is used.
+    call ESMF_AttributeGet(comp, name='input_directory', &
+      value=simulationDirectory, defaultValue='.', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Construct the full path to the simulation directory if it is not an
-  ! absolute path starting with slash or backslash
-  call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    call ESMF_ConfigGetAttribute(config, simulationDirectory, &
+      label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
-    simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
+    ! Construct the full path to the simulation directory if it is not an
+    ! absolute path starting with slash or backslash
+    call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
+      simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
+    endif
+
+    ! call initialize model with parameters iths=0, ntime=0
+    write(message, '(A,I4,A,A)') trim(compName)//' initializing science model on ', &
+      petCount, ' PET in ', trim(simulationDirectory)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+    call schism_init(trim(simulationDirectory), iths, ntime)
+    write(message, '(A)') trim(compName)//' initialized science model'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  else
+    write(message, '(A)') trim(compName)//' did not initialize science model'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
-
-  ! call initialize model with parameters iths=0, ntime=0
-  write(message, '(A,I4,A,A)') trim(compName)//' initializing science model on ', &
-    petCount, ' PET in ', trim(simulationDirectory)
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  call schism_init(trim(simulationDirectory), iths, ntime)
-  write(message, '(A)') trim(compName)//' initialized science model'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Use schism time interval
   call ESMF_TimeIntervalSet(schism_dt, s_r8=dt, rc=localrc)
