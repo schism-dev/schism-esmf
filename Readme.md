@@ -43,6 +43,14 @@ Earth System Modeling Framework cap for SCHISM
     on Cyclops:
       setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.cyclops
 
+3. PDAF:
+
+   on WW:
+      setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Whirlwind
+
+   on Cyclops:
+      setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Cyclops
+
 ## Compilation
 
     make distclean

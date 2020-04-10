@@ -34,6 +34,11 @@ ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
 
+# add PDAF libraries
+ifndef PDAF_BUILD_DIR
+$(error PDAF_BUILD_DIR has to be set in environment.)
+endif
+
 SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
 
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
@@ -42,9 +47,9 @@ endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lschism_esmf -lparmetis -lmetis
+LIBS+= -lschism_esmf -lparmetis -lmetis 
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/model -I src/schism
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L.
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR) -lpdaf-d
 
 EXPAND_TARGETS= expand_schismlibs
 
@@ -67,6 +72,7 @@ test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 
 # Internal make targets
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
+PDAF_OBJS=$(parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o)
 MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
 
 concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
@@ -78,7 +84,7 @@ triple_schism: $(SCHISM_OBJS) $(MODEL_OBJS) triple_schism.o
 multi_schism: $(SCHISM_OBJS) $(MODEL_OBJS) multi_schism.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-schism_pdaf: $(SCHISM_OBJS) $(MODEL_OBJS) schism_pdaf.o
+schism_pdaf: $(SCHISM_OBJS) $(MODEL_OBJS) $(PDAF_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
@@ -103,6 +109,9 @@ expand_fabmlibs:
 $(SCHISM_OBJS):
 	make -C src/schism esmf
 
+#$(PDAF_OBJS):
+#	make -C src/PDAF_bindings esmf
+
 $(MODEL_OBJS):
 	make -C src/model esmf
 
@@ -114,7 +123,7 @@ $(MODEL_OBJS):
 
 clean:
 	$(RM) *.o *.mod
-	$(RM) $(SCHISM_OBJS) $(MODEL_OBJS)
+	$(RM) $(SCHISM_OBJS) $(MODEL_OBJS) $(PDAF_OBJS)
 
 distclean: clean
 	$(RM) -rf .objs

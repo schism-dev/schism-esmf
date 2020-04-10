@@ -65,8 +65,8 @@ program main
   type(ESMF_Config)           :: config
   type(ESMF_Config), allocatable :: configList(:)
 
-  integer(ESMF_KIND_I4)       :: concurrentCount, maxLocalSchismCount
-  integer(ESMF_KIND_I4)       :: sequenceIndex, concurrentIndex, maxLocalPetCount
+  integer(ESMF_KIND_I4)       :: concurrentCount, ncohort
+  integer(ESMF_KIND_I4)       :: sequenceIndex
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -102,6 +102,8 @@ program main
       default=min(petCount,8), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    !Components in a cohort are run concurrently on differen PETs. Some components in different
+    !cohorts share same PETs
     call ESMF_ConfigGetAttribute(config, value=concurrentCount, label='concurrent_count:', &
       default=max(petCount/schismCount,1), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -119,16 +121,15 @@ program main
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  elseif (schismCount>petCount*concurrentCount) then
+  elseif (petCount<concurrentCount) then
     write(message, '(A,I3,A,I3,A,I6,A)') 'Cannot run ', &
-      schismCount, ' instances as ', concurrentCount, &
-      ' on ', petCount, ' PET'
+      concurrentCount, ' instances on ', petCount, ' PET'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   else
     write(message, '(A,I3,A,I3,A)') 'Running ', schismCount, &
-    ' schism instances in ', concurrentCount, ' concurrent cohorts'
+    ' schism instances in ', concurrentCount, ' concurrent tasks '
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
@@ -141,52 +142,50 @@ program main
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Here, we partition the schismCount on the concurrentCount
-  !> concurrent environments.  As an example, we assume
+  !> concurrent runs.  As an example, we assume
   !> petCount=48, schismCount=14, concurrentCount=5
-  !> We integer divide petCount by concurrentCount with remainder
-  !> and obtain the petLists {0..9} {10..19} {20..29}
-  !> {30..39} {40..47}, with respective petCountLocal [10,10,10,10,8]
+  !> We integer divide petCount by concurrentCount 
+  !> and obtain the petLists {0..8} {9..17} {18..26}
+  !> {27..35} {36..44}, i.e. 9 cores for each task. 
+  !> NOTE that # of cores must be
+  !> equal as we do not want to repartition the grid etc. 
 
   !> We distribute the schismCount instances on the concurrentCount
-  !> to obtain the maximum number of cohorts that run sequentially,
-  !> and obtain maxLocalSchismCount=3 in our example, and
-  !> maxLocalPetCount=10
-  maxLocalSchismCount = ceiling(schismCount*1.0/concurrentCount)
-  maxLocalPetCount = ceiling(petCount*1.0/concurrentCount)
+  !> to obtain the number of cohorts that run sequentially,
+  !> and obtain ncohort=3 in our example
+  ncohort = ceiling(real(schismCount)/concurrentCount)
+  petCountLocal = petCount/concurrentCount 
 
-  !> Thus, we obtain the sets of instances that run sequentially
-  !> within their set and concurrently between sets {0..2} {3..5}
-  !> {6..8} {9..11} {12..13} with localSchismCounts [3,3,3,3,2]
+  !> Thus, we obtain the sets of instances that run concurrently: {1..5} {6..10}
+  !> {11..14}
 
-  !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, maxLocalSchismCount
+  !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, ncohort
   do i = 1, schismCount
 
     ! Determine the sequence  and concurrent index of each
     ! instance
-    sequenceIndex = mod(i-1, concurrentCount)
-    concurrentIndex = (i-1) / maxLocalSchismCount
-    petCountLocal = min(maxlocalPetCount, petCount -concurrentIndex*maxLocalPetCount)
+    sequenceIndex = mod(i-1, concurrentCount) !local index in a cohort (0- based)
 
     allocate(petlist(petCountLocal), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! Instances within the same cohort use the same PET
+    ! Instances within the same cohort use different PET
     do j=1, petCountLocal
-      petList(j)=concurrentIndex*maxLocalPetCount + j-1
+      petList(j)=sequenceIndex*petCountLocal+ j-1 !points to global PET #
     end do !j
 
     !write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in sequence  ', sequenceIndex, 'list is ',  petlist
 
-    write(message, '(A,I3.3)') 'schism_', i
-    !write(0, *) trim(message), 'list=', petList, 'petCount=', petCount, petCountLocal
+    write(message2, '(A,I3.3)') 'schism_', i
+    !write(0, *) trim(message2), 'list=', petList, 'petCount=', petCount, petCountLocal
 
-    schism_components(i) = ESMF_GridCompCreate(name=trim(adjustl(message)), &
+    schism_components(i) = ESMF_GridCompCreate(name=trim(adjustl(message2)), &
       petList=petlist, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     write(message, '(A,I3.3,A,I3.3,A,I6.6,A,I6.6,A,I6.6)') 'Instance schism_', i, &
       ' with sequence number ', sequenceIndex, ' created on ', petCountLocal, &
-      ' PET  ', petList(1), '..', petList(petCountLocal)
+      ' PET  ', petList(1), '..', petList(petCountLocal) !,message2
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     !configList(i) = ESMF_ConfigCreate(rc=localrc)
@@ -197,8 +196,9 @@ program main
     !call ESMF_ConfigSetAttribute(configList(i), value=i, &
     !  label='schismInstance:', rc=localrc)
 
+    !Put input dir name into attribute to pass onto init P1
     call ESMF_AttributeSet(schism_components(i), name='input_directory', &
-      value=trim(message), rc=localrc)
+      value=trim(message2), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     deallocate(petList)
@@ -231,15 +231,16 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo register_loop
 
-  ! Initialize phase 1 and set attribute for calling init
+  ! Initialize phase 0 and set attribute for calling init
   init0_loop: do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
       exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_AttributeSet(schism_components(i), 'sequence_index', &
-      mod(i-1, maxLocalSchismCount))
+    !Put sequence_index into attribute to pass onto init P1
+    call ESMF_AttributeSet(schism_components(i), 'cohort_index', &
+      (i-1)/concurrentCount)
   enddo init0_loop
 
   !Get info on simulation period
@@ -247,6 +248,7 @@ program main
   clock = clockCreateFrmParam(filename, localrc)
 
   ! Init phase 1: assuming all ensemble members share same parameters and i.c.
+  ! and use same # of PETs
   init1_loop: do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
@@ -274,10 +276,12 @@ program main
 
     do i = 1, schismCount
 
+      !Add: get_state
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+      !Add: put_state
     enddo
 
     ! Do something with PDAF, be careful that each instances' clock
@@ -289,9 +293,9 @@ program main
 
   end do !do while
 
-  esmf_loop5: do ii = 1,concurrentCount
-    do j=1,maxLocalSchismCount
-      i=(ii-1)*maxLocalSchismCount+j !component #
+  esmf_loop5: do j=1,ncohort
+    do ii = 1,concurrentCount
+      i=(j-1)*ncohort+ii !component #
       if(i>schismCount) exit esmf_loop5
 
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &
@@ -306,8 +310,8 @@ program main
 
       call ESMF_GridCompDestroy(schism_components(i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !j
-  end do esmf_loop5 !i
+    enddo !ii
+  end do esmf_loop5 !j
 
   deallocate(exportStateList)
   deallocate( importStateList)
@@ -336,7 +340,7 @@ function clockCreateFrmParam(filename, rc) result(clock)
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2, rnday=2 ! not used
+  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2, rnday=2 ! rnday not used
   namelist /global/ start_year, start_month, start_day, start_hour, runhours, rnday
 
   inquire(file=filename, exist=isPresent)

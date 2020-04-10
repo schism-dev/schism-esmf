@@ -154,7 +154,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, sequenceIndex
+  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, cohortIndex
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -248,19 +248,31 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
+!Debug
+!    write(message,*) trim(compName)//' reached here'
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   !> If we run cohorts concurrently on different PET, we don't want to initialize schism
   !> for each member of a sequence but only for the first one.  To detect this,
   !> we ask for an attribute of the component
-  call ESMF_AttributeGet(comp, name='sequence_index', &
-    value=sequenceIndex, defaultValue=0, rc=localrc)
+  call ESMF_AttributeGet(comp, name='cohort_index', &
+    value=cohortIndex, defaultValue=0, rc=localrc)
 
-  if (sequenceIndex == 0) then
+!Debug
+!    write(message,*) trim(compName)//' cohort_index=',cohortIndex
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (cohortIndex == 0) then !First task in the sequence that uses same PETs; init
     !> The input directory is by default '.'.  If present as an attribute,
     !> this one is used, and if also present in the config file, the latter
     !> one is used.
     call ESMF_AttributeGet(comp, name='input_directory', &
       value=simulationDirectory, defaultValue='.', rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!Debug
+!    write(message,'(A)')simulationDirectory
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     call ESMF_ConfigGetAttribute(config, simulationDirectory, &
       label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
@@ -284,7 +296,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     write(message, '(A)') trim(compName)//' initialized science model'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  else
+  else !not first task
     write(message, '(A)') trim(compName)//' did not initialize science model'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
