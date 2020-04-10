@@ -154,7 +154,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, cohortMemberInstance
+  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, sequenceIndex
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -248,13 +248,13 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call parallel_init(communicator=schism_mpi_comm)
 #endif
 
-  !> If we run cohorts that share a PET, we don't want to initialize schism
-  !> for each member of a cohort but only for the first one.  To detect this,
+  !> If we run cohorts concurrently on different PET, we don't want to initialize schism
+  !> for each member of a sequence but only for the first one.  To detect this,
   !> we ask for an attribute of the component
-  call ESMF_AttributeGet(comp, name='cohort_member_instance', &
-    value=cohortMemberInstance, defaultValue=0, rc=localrc)
+  call ESMF_AttributeGet(comp, name='sequence_index', &
+    value=sequenceIndex, defaultValue=0, rc=localrc)
 
-  if (cohortMemberInstance == 0) then
+  if (sequenceIndex == 0) then
     !> The input directory is by default '.'.  If present as an attribute,
     !> this one is used, and if also present in the config file, the latter
     !> one is used.

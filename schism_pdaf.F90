@@ -238,7 +238,7 @@ program main
       exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_AttributeSet(schism_components(i), 'cohort_member_instance', &
+    call ESMF_AttributeSet(schism_components(i), 'sequence_index', &
       mod(i-1, maxLocalSchismCount))
   enddo init0_loop
 
