@@ -56,9 +56,8 @@ program main
   type(ESMF_Vm)           :: vm
   type(ESMF_Log)          :: log
 
-  integer(ESMF_KIND_I4)       :: petCountLocal, schismCount
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc, ii, icohort
-  integer(ESMF_KIND_I4)       :: ncohort, maxCountperCohort
+  integer(ESMF_KIND_I4)       :: petCountLocal, schismCount=8
+  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum,localrc, ii
   integer(ESMF_KIND_I4), allocatable    :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
   logical                     :: isPresent
@@ -66,9 +65,14 @@ program main
   type(ESMF_Config)           :: config
   type(ESMF_Config), allocatable :: configList(:)
 
+  integer(ESMF_KIND_I4)       :: concurrentCount, maxLocalSchismCount
+  integer(ESMF_KIND_I4)       :: sequenceIndex, concurrentIndex, maxLocalPetCount
+
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo for performance reasons, this should be disabled,
+  !> preferentially with an #ifdef DEBUG or cmake variable
   call ESMF_LogSet(flush=.true., rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -79,11 +83,13 @@ program main
   call ESMF_VMGetGlobal(vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !PET is persistent globally
+  ! PET is persistent globally
   call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !Get config info (# of schism instances). Always specify
+  ! Get config for number of schism instances and size of cohorts
+  ! A cohort is defined as the set of instances that run
+  ! concurrently, i.e. on different petLists.
   inquire(file=filename, exist=isPresent)
   if (isPresent) then
     config = ESMF_ConfigCreate(rc=localrc)
@@ -92,32 +98,37 @@ program main
     call ESMF_ConfigLoadFile(config, filename=filename, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ConfigGetAttribute(config, value=schismCount, label='schism_instances:', &
-      !default: value used if label is not found
+    call ESMF_ConfigGetAttribute(config, value=schismCount, label='schism_count:', &
       default=min(petCount,8), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ConfigGetAttribute(config, value=ncohort, label='ncohort:', &
+    call ESMF_ConfigGetAttribute(config, value=concurrentCount, label='concurrent_count:', &
       default=max(petCount/schismCount,1), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
-  if(schismCount>999 .or. schismCount<1 .or. schismCount>petCount*ncohort &
-    .or. schismCount<ncohort) then
-    write(message, '(A,I3,I6,A)') 'Number of instances, cohorts ', &
-      schismCount, ncohort, &
-      'must be in the range [1,999]'
+  if (schismCount>999 .or. schismCount<1) then
+    write(message, '(A,I3,A)') 'Number of instances ', &
+      schismCount, 'must be in the range [1,999]'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  elseif (schismCount > petCount) then
-!    write(message, '(A)') 'Requested number of instances exceeds available PETs'
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-!    write(message, '(A,I3,A,I3)') 'Reduced from ',schismCount, ' to ', petCount
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-!    schismCount = petCount
+  elseif (concurrentCount > schismCount .or. concurrentCount < 1) then
+    write(message, '(A,I3,A,I3,A)') 'Number of cohorts ', &
+      concurrentCount, 'must be in the range [1,', schismCount, ']'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  elseif (schismCount>petCount*concurrentCount) then
+    write(message, '(A,I3,A,I3,A,I6,A)') 'Cannot run ', &
+      schismCount, ' instances as ', concurrentCount, &
+      ' on ', petCount, ' PET'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   else
-    write(message, '(A,I3,I6)') 'Number of SCHISM instances & cohort= ',schismCount,ncohort
+    write(message, '(A,I3,A,I3,A)') 'Running ', schismCount, &
+    ' schism instances in ', concurrentCount, ' concurrent cohorts'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
@@ -129,24 +140,42 @@ program main
 !  allocate(configList(schismCount), stat=localrc)
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !max # of instances per cohort (may be smaller for the later instances)
-  maxCountperCohort=ceiling(schismCount*1.0/ncohort)
+  !> Here, we partition the schismCount on the concurrentCount
+  !> concurrent environments.  As an example, we assume
+  !> petCount=48, schismCount=14, concurrentCount=5
+  !> We integer divide petCount by concurrentCount with remainder
+  !> and obtain the petLists {0..9} {10..19} {20..29}
+  !> {30..39} {40..47}, with respective petCountLocal [10,10,10,10,8]
 
-  !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, ncohort, maxCountperCohort
+  !> We distribute the schismCount instances on the concurrentCount
+  !> to obtain the maximum number of cohorts that run sequentially,
+  !> and obtain maxLocalSchismCount=3 in our example, and
+  !> maxLocalPetCount=10
+  maxLocalSchismCount = ceiling(schismCount*1.0/concurrentCount)
+  maxLocalPetCount = ceiling(petCount*1.0/concurrentCount)
+
+  !> Thus, we obtain the sets of instances that run sequentially
+  !> within their set and concurrently between sets {0..2} {3..5}
+  !> {6..8} {9..11} {12..13} with localSchismCounts [3,3,3,3,2]
+
+  !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, maxLocalSchismCount
   do i = 1, schismCount
 
-    icohort = (i-1)/maxCountperCohort
-    petCountLocal = min(maxCountperCohort, petCount - icohort*maxCountperCohort)
+    ! Determine the sequence  and concurrent index of each
+    ! instance
+    sequenceIndex = mod(i-1, concurrentCount)
+    concurrentIndex = (i-1) / maxLocalSchismCount
+    petCountLocal = min(maxlocalPetCount, petCount -concurrentIndex*maxLocalPetCount)
 
     allocate(petlist(petCountLocal), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     ! Instances within the same cohort use the same PET
     do j=1, petCountLocal
-      petList(j)=icohort*maxCountperCohort + (j-1)
+      petList(j)=concurrentIndex*maxLocalPetCount + j-1
     end do !j
 
-    !write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in cohort ', icohort, 'list is ',  petlist
+    !write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in sequence  ', sequenceIndex, 'list is ',  petlist
 
     write(message, '(A,I3.3)') 'schism_', i
     !write(0, *) trim(message), 'list=', petList, 'petCount=', petCount, petCountLocal
@@ -155,9 +184,14 @@ program main
       petList=petlist, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    write(message, '(A,I3.3,A,I3.3,A,I6.6,A,I6.6,A,I6.6)') 'Instance schism_', i, &
+      ' with sequence number ', sequenceIndex, ' created on ', petCountLocal, &
+      ' PET  ', petList(1), '..', petList(petCountLocal)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
     !configList(i) = ESMF_ConfigCreate(rc=localrc)
 
-    !> @todo  the SetAttribute implementation is buggy and thus not enabled, we
+    !> @todo  the ESMF_ConfigSetAttribute implementation is buggy and thus not enabled, we
     !> use for now the attribute of the component.
     !>
     !call ESMF_ConfigSetAttribute(configList(i), value=i, &
@@ -205,7 +239,7 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_AttributeSet(schism_components(i), 'cohort_member_instance', &
-      mod(i-1, maxCountperCohort))
+      mod(i-1, maxLocalSchismCount))
   enddo init0_loop
 
   !Get info on simulation period
@@ -238,38 +272,6 @@ program main
     call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! Run each model for one timestep and reset each time step
-    do i = 1, schismCount
-
-      call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
-        exportState=exportStateList(i), clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      call ESMF_GridCompGet(schism_components(i), clockIsPresent=isPresent, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      if (.not.isPresent) then
-        ! We can only access the clock object from the PET where it was created on,
-        ! so we just skip those access that get .not.isPresent()
-        cycle
-      endif
-
-      call ESMF_GridCompGet(schism_components(i), clock=childClock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      call ESMF_ClockAdvance(childClock, timeStep=-timeStep, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    enddo
-
-    do icohort = 1, ncohort
-
-      !> @todo analyze each cohort, do something
-      ! Do something with PDAF within each cohort
-
-    enddo
-
-    ! Run all models again after PDAF
     do i = 1, schismCount
 
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
@@ -278,13 +280,18 @@ program main
 
     enddo
 
+    ! Do something with PDAF, be careful that each instances' clock
+    ! have already advanced
+
+    ! Advance coupling clock to next timestep
     call ESMF_ClockAdvance(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   end do !do while
 
-  esmf_loop5: do ii = 1,ncohort
-    do j=1,maxCountperCohort
-      i=(ii-1)*maxCountperCohort+j !component #
+  esmf_loop5: do ii = 1,concurrentCount
+    do j=1,maxLocalSchismCount
+      i=(ii-1)*maxLocalSchismCount+j !component #
       if(i>schismCount) exit esmf_loop5
 
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &
