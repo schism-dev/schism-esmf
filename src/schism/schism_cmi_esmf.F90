@@ -203,7 +203,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
       write(message,'(A)')  trim(compName)//' read configuration from '//trim(configFileName)
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
     else
-      write(message,'(A)')  trim(compName)//' has no configuration'
+      write(message,'(A)')  trim(compName)//' has no configuration; use global config'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
     endif
 
@@ -241,7 +241,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifndef ESMF_MPIUNI
-    ! initialize schism's MPI
+    ! Not serial mode; initialize schism's MPI
     call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -262,44 +262,44 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  if (cohortIndex == 0) then !First task in the sequence that uses same PETs; init
-    !> The input directory is by default '.'.  If present as an attribute,
-    !> this one is used, and if also present in the config file, the latter
-    !> one is used.
-    call ESMF_AttributeGet(comp, name='input_directory', &
+  !> The input directory is by default '.'.  If present as an attribute,
+  !> this one is used, and if also present in the config file, the latter
+  !> one is used.
+  call ESMF_AttributeGet(comp, name='input_directory', &
       value=simulationDirectory, defaultValue='.', rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 !Debug
-!    write(message,'(A)')simulationDirectory
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!  write(message,'(A)')'Input dir='//trim(simulationDirectory)
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-    call ESMF_ConfigGetAttribute(config, simulationDirectory, &
-      label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_ConfigGetAttribute(config, simulationDirectory, &
+    label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! Construct the full path to the simulation directory if it is not an
-    ! absolute path starting with slash or backslash
-    call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+! Construct the full path to the simulation directory if it is not an
+! absolute path starting with slash or backslash
+  call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
-      simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
-    endif
-
-    ! call initialize model with parameters iths=0, ntime=0
-    write(message, '(A,I4,A,A)') trim(compName)//' initializing science model on ', &
-      petCount, ' PET in ', trim(simulationDirectory)
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-    call schism_init(trim(simulationDirectory), iths, ntime)
-    write(message, '(A)') trim(compName)//' initialized science model'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  else !not first task
-    write(message, '(A)') trim(compName)//' did not initialize science model'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
+    simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
   endif
+
+  ! call initialize model with parameters iths=0, ntime=0
+  write(message, '(A,I4,A,A)') trim(compName)//' initializing science model on ', &
+    petCount, ' PET in ', trim(simulationDirectory)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (cohortIndex == 0) then !First task in the sequence that uses same PETs; init
+    call schism_init(0,trim(simulationDirectory), iths, ntime)
+  else !not first task
+    !Bypass alloc and decomp
+    call schism_init(1,trim(simulationDirectory), iths, ntime)
+  endif
+
+  write(message, '(A)') trim(compName)//' initialized science model'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Use schism time interval
   call ESMF_TimeIntervalSet(schism_dt, s_r8=dt, rc=localrc)
@@ -796,7 +796,8 @@ end subroutine InitializeP1
 #define ESMF_METHOD "Run"
 subroutine Run(comp, importState, exportState, parentClock, rc)
 
-  use schism_glbl, only: dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2
+  use schism_glbl, only: dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2, &
+     &in_dir,out_dir,len_in_dir,len_out_dir
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -815,10 +816,11 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   integer, save           :: it=1
   type(ESMF_Field)        :: field
   real(ESMF_KIND_R8), pointer :: ptr2d(:)
-  character(len=ESMF_MAXSTR)  :: message, name, compName
-  integer(ESMF_KIND_I4)   :: localrc
+  character(len=ESMF_MAXSTR)  :: message,name,compName,simulationDirectory,currentDirectory
+  integer(ESMF_KIND_I4)   :: localrc,cohortIndex
   integer(ESMF_KIND_I8)   :: advanceCount
   real(ESMF_KIND_R8)      :: dt_coupling
+  type(ESMF_Config)           :: config
 
   rc = ESMF_SUCCESS
 
@@ -859,10 +861,48 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call ESMF_ClockSet(schismClock, stopTime=nextTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call ESMF_AttributeGet(comp, name='cohort_index', &
+    value=cohortIndex, defaultValue=0, rc=localrc)
+
+  !Reinit input dir in case same PETs are doing a different run
+  call ESMF_AttributeGet(comp, name='input_directory', &
+      value=simulationDirectory, defaultValue='.', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!  call ESMF_GridCompGet(comp, config=config, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_ConfigGetAttribute(config, simulationDirectory, &
+!    label='simulationDirectory:', default=trim(simulationDirectory), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+! Construct the full path to the simulation directory if it is not an
+! absolute path starting with slash or backslash
+  call ESMF_UtilIOGetCWD(currentDirectory, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (simulationDirectory(1:1) /= '/' .and. simulationDirectory(1:1) /= '\\') then
+    simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
+  endif
+
+  !Update in/outdir
+  in_dir=adjustl(trim(adjustl(simulationDirectory))//'/')
+  len_in_dir=len_trim(in_dir)
+  out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
+  len_out_dir=len_trim(out_dir)
+
+  it=advanceCount+1
+  !Rewind clock for forcing
+  call other_hot_init(dble(it-1)*dt)
+
+  !TODO: get_state
+
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    write(0,'(A5,I4,A,F0.2,A1)') 'it = ',it,', elapsed  ',it*dt,'s'
+    write(message,*) 'it = ',it,', elapsed  ',it*dt,'s'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
     call schism_step(it)
 
     call ESMF_ClockAdvance(schismClock, rc=localrc)
@@ -870,6 +910,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
     it=it+1
   end do
+
+  !TODO: put_state
 
   !> Do a clock correction for non-integer internal timesteps and issue
   !> a warning.  We could improve this somewhat by choosing to optionally

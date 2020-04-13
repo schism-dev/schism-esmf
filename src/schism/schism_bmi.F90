@@ -43,8 +43,9 @@ module schism_bmi
       implicit none
     end subroutine parallel_finalize
 
-    subroutine schism_init(indir,iths,ntime)
+    subroutine schism_init(iorder,indir,iths,ntime)
       implicit none
+      integer, intent(in)         :: iorder
       character(len=*), intent(in) :: indir
       integer, intent(out)         :: iths,ntime
     end subroutine schism_init

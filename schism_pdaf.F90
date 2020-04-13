@@ -1,5 +1,7 @@
 ! This code is a main driver for coupled SCHISM and PDAF
-! program for running multiple schism components concurrently
+! program for running multiple schism components concurrently in flexible mode
+! (i.e. multiple tasks can share same PET list). The coupling model interface is
+! schism_cmi_esmf.F90 (and interfaces are defined in schism_bmi.F90)
 !
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister
@@ -271,8 +273,8 @@ program main
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
     !> Save the time step of the current component
-    call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!    call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     do i = 1, schismCount
 
