@@ -973,7 +973,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   ptr2d(1:np) = vv2(nvrt,1:np)
 
-  write(0,*) '  Ended Run from SCHISM'
+!  write(0,*) '  Ended Run from SCHISM'
   write(message, '(A)') trim(compName)//' ran.'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 

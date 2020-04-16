@@ -38,6 +38,8 @@ program main
 
   implicit none
 
+  include 'mpif.h'
+
   !> @todo use this routine from schism_esmf_util, delete local one
   interface
     function clockCreateFrmParam(filename, rc)
@@ -277,14 +279,13 @@ program main
 !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     do i = 1, schismCount
-
-      !Add: get_state
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      !Add: put_state
     enddo
+
+    call MPI_barrier(MPI_COMM_WORLD,ii)
+    if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
 
     ! Do something with PDAF, be careful that each instances' clock
     ! have already advanced
@@ -295,10 +296,11 @@ program main
 
   end do !do while
 
-  esmf_loop5: do j=1,ncohort
-    do ii = 1,concurrentCount
-      i=(j-1)*ncohort+ii !component #
-      if(i>schismCount) exit esmf_loop5
+!  esmf_loop5: do j=1,ncohort
+!    do ii = 1,concurrentCount
+    do i = 1,schismCount
+!      i=(j-1)*ncohort+ii !component #
+!      if(i>schismCount) exit esmf_loop5
 
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
@@ -312,8 +314,8 @@ program main
 
       call ESMF_GridCompDestroy(schism_components(i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo !ii
-  end do esmf_loop5 !j
+    enddo !i
+!  end do esmf_loop5 !j
 
   deallocate(exportStateList)
   deallocate( importStateList)
