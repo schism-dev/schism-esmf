@@ -23,6 +23,8 @@
 ! This version accounts for halo(ghost) zone, because ESMF by default
 ! partitions among nodes instead of elements
 
+!TODO: search for new28
+
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
