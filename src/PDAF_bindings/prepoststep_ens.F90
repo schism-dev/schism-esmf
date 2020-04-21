@@ -72,7 +72,7 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! ****************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE prepoststep_ens.F90: Implement prepoststep here!'
+!  WRITE (*,*) 'TEMPLATE prepoststep_ens.F90: Implement prepoststep here!'
 
 
 END SUBROUTINE prepoststep_ens

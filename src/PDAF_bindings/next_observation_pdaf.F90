@@ -26,6 +26,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! Later revisions - see svn log
 !
 ! !USES:
+  use schism_glbl, only : time_stamp
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -44,7 +45,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! *************************************************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE next_observation_pdaf.F90: Set number of time step in forecast!'
+!  WRITE (*,*) 'TEMPLATE next_observation_pdaf.F90: Set number of time step in forecast!'
 
 !   nsteps = ???
 
@@ -52,12 +53,12 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! *** Set current physical time ***
 ! *********************************
 
-!   time = ??
+   time = time_stamp
 
 ! *********************
 ! *** Set exit flag ***
 ! *********************
 
-!   doexit = ??
+   doexit = 1
 
 END SUBROUTINE next_observation_pdaf

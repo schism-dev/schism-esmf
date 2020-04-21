@@ -43,7 +43,7 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! ***************************************************************
   
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_obs_pdaf.F90: Initialize observation vector here!'
+!  WRITE (*,*) 'TEMPLATE init_obs_pdaf.F90: Initialize observation vector here!'
 
 !   observation_p = ?
 

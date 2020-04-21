@@ -23,7 +23,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! !USES:
 !   USE mod_model, &        ! Model variables
 !        ONLY: nx, ny
-  use schism_glbl, only: errmsg
+  use schism_glbl, only: errmsg,nea,nsa,npa,nvrt,ntracers
   use schism_msgp, only: parallel_abort
   USE mod_parallel_pdaf, &     ! Parallelization variables
        ONLY: mype_world, n_modeltasks, task_id, &
@@ -77,8 +77,10 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 
   ! *** Define state dimension (state var is a long 1D array)
 !  dim_state = ?
-!new28
-!  dim_state_p =npa+...
+
+  !Order of arrays:
+  !idry_e,we,tr_el, idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+  dim_state_p=nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+6*nvrt)
 
 
 ! **********************************************************
@@ -237,7 +239,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! ******************************'***
 ! *** Prepare ensemble forecasts ***
 ! ******************************'***
-! This is mainly to init obs
+!new28: This is mainly to init obs
 
 !  CALL PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
 !       distribute_state_pdaf, prepoststep_ens, status_pdaf)
