@@ -252,7 +252,8 @@ program main
   clock = clockCreateFrmParam(filename, localrc)
 
   ! Init phase 1: assuming all ensemble members share same parameters and i.c.
-  ! and use same # of PETs
+  ! and use same # of PETs. The PETs seem to 'block' when doing a task until
+  ! it's done so the latter tasks that use same PETs will wait
   init1_loop: do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
@@ -270,6 +271,14 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   enddo reconcile_loop
+
+! Init PDAF env
+  call init_parallel_pdaf(0,1,schismCount,petCountLocal,concurrentCount)
+  call init_pdaf(schismCount,j)
+  if(j/=0) then
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))

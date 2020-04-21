@@ -798,6 +798,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   use schism_glbl, only: dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2, &
      &in_dir,out_dir,len_in_dir,len_out_dir
+!  USE PDAF_interfaces_module
+
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -821,6 +823,17 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   integer(ESMF_KIND_I8)   :: advanceCount
   real(ESMF_KIND_R8)      :: dt_coupling
   type(ESMF_Config)           :: config
+
+  INTEGER :: doexit, steps,status_pdaf
+  REAL    :: timenow
+! External subroutines
+  EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
+                                       ! and dimension of next observation
+       distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
+       prepoststep_ens, &            ! User supplied pre/poststep routine
+       collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+       init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
+
 
   rc = ESMF_SUCCESS
 
@@ -895,7 +908,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
-  !TODO: get_state
+!new28
+  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
+       distribute_state_pdaf, prepoststep_ens, status_pdaf)
 
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -911,7 +926,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     it=it+1
   end do
 
-  !TODO: put_state
+!new28: add filtertype
+  call PDAF_put_state_seik(collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+                init_obs_pdaf, prepoststep_ens,prodRinvA_pdaf,init_obsvar_pdaf,localrc)
+  write(message,*)'Run PDAF_put_state_seik'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Do a clock correction for non-integer internal timesteps and issue
   !> a warning.  We could improve this somewhat by choosing to optionally

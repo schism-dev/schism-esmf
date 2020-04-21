@@ -4,7 +4,7 @@
 ! !ROUTINE: init_parallel_pdaf --- Initialize communicators for PDAF
 !
 ! !INTERFACE:
-SUBROUTINE init_parallel_pdaf(dim_ens, screen)
+SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurrentCount)
 
 ! !DESCRIPTION:
 ! Parallelization routine for a model with 
@@ -79,6 +79,9 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
   ! is initialized later in the program. For dim_ens=0 no consistency check
   ! for ensemble size with number of model tasks is performed.
   INTEGER, INTENT(in)    :: screen ! Whether screen information is shown
+  INTEGER, INTENT(in)    :: schismCount !# of tasks
+  INTEGER, INTENT(in)    :: petCountLocal !# of cores for each task (constant across all tasks)
+  INTEGER, INTENT(in)    :: concurrentCount !# of tasks to be executed concurrently
 
 ! !CALLING SEQUENCE:
 ! Called by: main program
@@ -100,19 +103,22 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
 
 
   ! *** Initialize MPI if not yet initialized ***
-  CALL MPI_Initialized(iniflag, MPIerr)
-  IF (.not.iniflag) THEN
-     CALL MPI_Init(MPIerr)
-  END IF
+!  CALL MPI_Initialized(iniflag, MPIerr)
+!  IF (.not.iniflag) THEN
+!     CALL MPI_Init(MPIerr)
+!  END IF
 
   ! *** Initialize PE information on COMM_world ***
   CALL MPI_Comm_size(MPI_COMM_WORLD, npes_world, MPIerr)
   CALL MPI_Comm_rank(MPI_COMM_WORLD, mype_world, MPIerr)
 
   ! *** Parse number of model tasks ***
-  ! *** The module variable is N_MODELTASKS. 
-  handle = 'n_tasks'
-  CALL parse(handle, n_modeltasks)
+  ! *** The module variable is N_MODELTASKS. Read in from .cfg
+!  handle = 'n_tasks'
+!  CALL parse(handle, n_modeltasks)
+
+  !Only 1st cohort
+  n_modeltasks=concurrentCount
 
   ! *** Initialize communicators for ensemble evaluations ***
   IF (mype_world == 0) &
@@ -120,12 +126,13 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
 
 
   ! *** Check consistency of number of parallel ensemble tasks ***
-  consist1: IF (n_modeltasks > npes_world) THEN
-     ! *** # parallel tasks is set larger than available PEs ***
-     n_modeltasks = npes_world
-     IF (mype_world == 0) WRITE (*, '(3x, a)') &
-          '!!! Resetting number of parallel ensemble tasks to total number of PEs!'
-  END IF consist1
+!  consist1: IF (n_modeltasks > npes_world) THEN
+!     ! *** # parallel tasks is set larger than available PEs ***
+!     n_modeltasks = npes_world
+!     IF (mype_world == 0) WRITE (*, '(3x, a)') &
+!          '!!! Resetting number of parallel ensemble tasks to total number of PEs!'
+!  END IF consist1
+  !For dim_ens=0 (usual case), dim_ens=n_modeltasks later
   IF (dim_ens > 0) THEN
      ! Check consistency with ensemble size
      consist2: IF (n_modeltasks > dim_ens) THEN
@@ -151,17 +158,20 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
   ! *** of model communicators on other Pes      ***
   ALLOCATE(local_npes_model(n_modeltasks))
 
-  local_npes_model = FLOOR(REAL(npes_world) / REAL(n_modeltasks))
+  local_npes_model(:) = petCountLocal !FLOOR(REAL(npes_world) / REAL(n_modeltasks))
+
   !Assign remaining PEs to first few tasks (so #PEs for each task may not be
   !equal)
-  DO i = 1, (npes_world - n_modeltasks * local_npes_model(1))
-     local_npes_model(i) = local_npes_model(i) + 1
-  END DO
+!  DO i = 1, (npes_world - n_modeltasks * local_npes_model(1))
+!     local_npes_model(i) = local_npes_model(i) + 1
+!  END DO
   
 
   ! ***              COMM_MODEL               ***
   ! *** Generate communicators for model runs ***
   ! *** (Split COMM_ENSEMBLE)                 ***
+
+  !Define task_id. For flexible mode the task IDs of the 1st cohort are used
   pe_index = 0
   doens1: DO i = 1, n_modeltasks
      DO j = 1, local_npes_model(i)
@@ -173,20 +183,24 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
      END DO !j
   END DO doens1
 
+  !Copy from SCHISM (init'ed under ESMF). May be shared among >1 task
+  COMM_model=comm 
+  npes_model=nproc
+  mype_model=myrank
 
-  CALL MPI_Comm_split(COMM_ensemble, task_id, mype_ens, &
-       COMM_model, MPIerr)
-  if(MPIerr/=MPI_SUCCESS) call parallel_abort('Failed to split')
+!  CALL MPI_Comm_split(COMM_ensemble, task_id, mype_ens, &
+!       COMM_model, MPIerr)
+!  if(MPIerr/=MPI_SUCCESS) call parallel_abort('Failed to split')
   
   ! *** Re-initialize PE informations   ***
   ! *** according to model communicator ***
-  CALL MPI_Comm_Size(COMM_model, npes_model, MPIerr)
-  CALL MPI_Comm_Rank(COMM_model, mype_model, MPIerr)
+!  CALL MPI_Comm_Size(COMM_model, npes_model, MPIerr)
+!  CALL MPI_Comm_Rank(COMM_model, mype_model, MPIerr)
 
-  if (screen > 1) then
-    write (*,*) 'MODEL: mype(w)= ', mype_world, '; model task: ', task_id, &
-         '; mype(m)= ', mype_model, '; npes(m)= ', npes_model
-  end if
+!  if (screen > 1) then
+!    write (*,*) 'MODEL: mype(w)= ', mype_world, '; model task: ', task_id, &
+!         '; mype(m)= ', mype_model, '; npes(m)= ', npes_model
+!  end if
 
 
   ! Init flag FILTERPE (all PEs of model task 1)
@@ -198,8 +212,8 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
 
   ! ***         COMM_FILTER                 ***
   ! *** Generate communicator for filter    ***
-  ! *** For simplicity equal to COMM_couple ***
-  my_color = task_id
+  ! *** For simplicity equal to COMM_couple (model?) ***
+  my_color = task_id !same as model, but only PEs of Task 1 are really used?
 
   CALL MPI_Comm_split(MPI_COMM_WORLD, my_color, mype_world, &
        COMM_filter, MPIerr)
@@ -215,7 +229,7 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
   ! *** between model and filter PEs             ***
   ! *** (Split COMM_ENSEMBLE)                    ***
 
-  color_couple = mype_filter + 1
+  color_couple = mype_filter + 1 !shift ranks by 1 (not sure why)
 
   CALL MPI_Comm_split(MPI_COMM_WORLD, color_couple, mype_world, &
        COMM_couple, MPIerr)
@@ -226,6 +240,7 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
   CALL MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
 
   IF (screen > 0) THEN
+     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
      IF (mype_world == 0) THEN
         WRITE (*, '(/18x, a)') 'PE configuration:'
         WRITE (*, '(2x, a6, a9, a10, a14, a13, /2x, a5, a9, a7, a7, a7, a7, a7, /2x, a)') &
@@ -265,9 +280,8 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
 !  call parallel_init(COMM_model)
 
   !comm is a handle so value may not be meaningful
-  comm=COMM_model
-  nproc=npes_model
-  myrank=mype_model
-!  write(*,*)'comm, myrank=',comm,myrank,nproc,COMM_ensemble,n_modeltasks
+!  comm=COMM_model
+!  nproc=npes_model
+!  myrank=mype_model
 
 END SUBROUTINE init_parallel_pdaf

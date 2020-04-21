@@ -48,8 +48,8 @@ endif
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lschism_esmf -lparmetis -lmetis 
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/model -I src/schism
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR) -lpdaf-d
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism   ###-I src/model -I src/schism 
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR) -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 
 EXPAND_TARGETS= expand_schismlibs
 
@@ -59,7 +59,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_esmf_test concurrent_esmf_test schism_esmf_lib triple_schism multi_schism schism_pdaf
+.PHONY: all lib test schism_esmf_lib schism_pdaf
 default: all
 
 # User-callable make targets
@@ -68,27 +68,29 @@ all: lib test
 
 lib: schism_esmf_lib
 
-test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
+##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
+test: schism_pdaf
 
-# Internal make targets
+# Internal make targets for final linking
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
-PDAF_OBJS=$(parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o)
-MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
+PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
+            init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
+            distribute_state_pdaf.o prepoststep_ens.o init_enkf.o init_seek.o init_seik.o \
+            collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o) 
+#MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
 
-concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
+#concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
+#	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+
+schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-triple_schism: $(SCHISM_OBJS) $(MODEL_OBJS) triple_schism.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+#schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
+#	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
 
-multi_schism: $(SCHISM_OBJS) $(MODEL_OBJS) multi_schism.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
-
-schism_pdaf: $(SCHISM_OBJS) $(MODEL_OBJS) $(PDAF_OBJS) schism_pdaf.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
-
-schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
-	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
+schism_esmf_lib: $(SCHISM_OBJS) $(EXPAND_TARGETS)
+	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
@@ -106,14 +108,14 @@ expand_fabmlibs:
 	$(shell mkdir -p .objs/sf; cd .objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
 	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
-$(SCHISM_OBJS):
+$(PDAF_OBJS):
+	make -C src/PDAF_bindings esmf
+
+$(SCHISM_OBJS): $(PDAF_OBJS)
 	make -C src/schism esmf
 
-#$(PDAF_OBJS):
-#	make -C src/PDAF_bindings esmf
-
-$(MODEL_OBJS):
-	make -C src/model esmf
+#$(MODEL_OBJS):
+#	make -C src/model esmf
 
 %.o: %.F90
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
