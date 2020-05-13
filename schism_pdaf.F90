@@ -1,4 +1,4 @@
-! This code is a main driver for coupled SCHISM and PDAF
+! This code is a main driver for a coupled SCHISM and PDAF
 ! program for running multiple schism components concurrently in flexible mode
 ! (i.e. multiple tasks can share same PET list). The coupling model interface is
 ! schism_cmi_esmf.F90 (and interfaces are defined in schism_bmi.F90)
@@ -73,6 +73,11 @@ program main
 
   integer(ESMF_KIND_I4)       :: concurrentCount, ncohort
   integer(ESMF_KIND_I4)       :: sequenceIndex
+
+  integer(ESMF_KIND_I4)         :: alarmCount=0, ringingAlarmCount=0
+  type(ESMF_Alarm), allocatable :: alarmList(:)
+  logical                       :: hasAlarmRung = .false.
+  character(len=ESMF_MAXSTR)    :: alarmName
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -150,17 +155,17 @@ program main
   !> Here, we partition the schismCount on the concurrentCount
   !> concurrent runs.  As an example, we assume
   !> petCount=48, schismCount=14, concurrentCount=5
-  !> We integer divide petCount by concurrentCount 
+  !> We integer divide petCount by concurrentCount
   !> and obtain the petLists {0..8} {9..17} {18..26}
-  !> {27..35} {36..44}, i.e. 9 cores for each task. 
+  !> {27..35} {36..44}, i.e. 9 cores for each task.
   !> NOTE that # of cores must be
-  !> equal as we do not want to repartition the grid etc. 
+  !> equal as we do not want to repartition the grid etc.
 
   !> We distribute the schismCount instances on the concurrentCount
   !> to obtain the number of cohorts that run sequentially,
   !> and obtain ncohort=3 in our example
   ncohort = ceiling(real(schismCount)/concurrentCount)
-  petCountLocal = petCount/concurrentCount 
+  petCountLocal = petCount/concurrentCount
 
   !> Thus, we obtain the sets of instances that run concurrently: {1..5} {6..10}
   !> {11..14}
@@ -253,6 +258,18 @@ program main
   filename = './global.nml'
   clock = clockCreateFrmParam(filename, localrc)
 
+  ! Read some information on observation data availability and create
+  ! a list of alarms for the times that new data is available and should be
+  ! assimilated into the model.
+  ! filename = './alarmlist.csv'
+  ! call alarmListCreateFrmFile(filename, clock)
+  ! this function internally calls ESMF_AlarmCreate(clock,ringTime, &
+  !  ringInterval, name, rc=localrc)
+  ! for each alarm time present in the file
+  if (allocated(alarmList)) then
+    alarmCount=ubound(alarmList,1)
+  endif
+
   ! Init phase 1: assuming all ensemble members share same parameters and i.c.
   ! and use same # of PETs. The PETs seem to 'block' when doing a task until
   ! it's done so the latter tasks that use same PETs will wait
@@ -285,10 +302,6 @@ program main
   ! Loop over coupling timesteps until stopTime
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
 
-    !> Save the time step of the current component
-!    call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
     do i = 1, schismCount
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
@@ -298,14 +311,50 @@ program main
     call MPI_barrier(MPI_COMM_WORLD,ii)
     if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
 
-    ! Do something with PDAF, be careful that each instances' clock
-    ! have already advanced
-
-    ! Advance coupling clock to next timestep
-    call ESMF_ClockAdvance(clock, rc=localrc)
+    ! Advance coupling clock to next timestep, any alarms that are going off
+    ! during this timestep will be set to the ringing state
+    call ESMF_ClockAdvance(clock, ringingAlarmCount=ringingAlarmCount, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    if (ringingAlarmCount > 0) then
+      !call ESMF_ClockPrint(clock, options="currTime string", message, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      write(message,'(A,I4)') 'Number of ringing alarms = ', ringingAlarmCount
+      print *, trim(message)
+
+      do i = 1, alarmCount
+        if (ESMF_AlarmIsRinging(alarmList(i), rc=localrc)) then
+          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+          call ESMF_AlarmGet(alarmList(i), name=alarmName, rc=rc)
+          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+          print *, trim(alarmName), " is ringing!"
+          hasAlarmRung=.true.
+
+          call ESMF_AlarmRingerOff(alarmList(i), rc=rc)
+          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        end if !  alarm is ringing
+
+      enddo ! i = 1, alarmCount
+    endif
+    if (hasAlarmRung) then
+
+        ! Do something with PDAF, be careful that each instances' clock
+        ! have already advanced
+        ! @todo this is where we have to consider how we want to implement this,
+        ! pdaf usually does this in the timestep routine of the instance, but this
+        ! is more complex with sequential runs (which we have here).
+
+        hasAlarmRung = .false.
+    endif
+
   end do !do while
+
+  ! @todo also destroy the deep alarm objects
+  if (allocated(alarmList)) deallocate(alarmList)
 
 !  esmf_loop5: do j=1,ncohort
 !    do ii = 1,concurrentCount
