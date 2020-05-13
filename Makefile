@@ -33,24 +33,41 @@ LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
+SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
 
 # add PDAF libraries
+# @todo make optional
 ifndef PDAF_BUILD_DIR
 $(error PDAF_BUILD_DIR has to be set in environment.)
 endif
-
-SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
+PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
 
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
+ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
+$(error PDAF has to be compiled before ESMF-SCHISM.)
+endif
+
+# Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
+# compiler flag is already set
+ESMF_OPENMP := $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
+
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lschism_esmf -lparmetis -lmetis 
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism   ###-I src/model -I src/schism 
-##PDAF requires MKL (BLAS, LAPACK)
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR) -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
+LIBS+= -lschism_esmf -lparmetis -lmetis
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism   ###-I src/model -I src/schism
+##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
+
+ifeq ($(ESMF_COMPILER), intel)
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm
+else
+ifeq ($(ESMF_COMPILER), gfortran)
+# @todo still some lapack routines missing 
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -lpthread -lm -llapack
+endif
+endif
 
 EXPAND_TARGETS= expand_schismlibs
 
@@ -77,7 +94,7 @@ SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
             init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
             distribute_state_pdaf.o prepoststep_ens.o init_enkf.o init_seek.o init_seik.o \
-            collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o) 
+            collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o)
 #MODEL_OBJS=$(addprefix src/model/,atmosphere_cmi_esmf.o)
 
 #concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
