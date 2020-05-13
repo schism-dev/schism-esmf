@@ -75,7 +75,7 @@ program main
   integer(ESMF_KIND_I4)       :: sequenceIndex
 
   integer(ESMF_KIND_I4)         :: alarmCount=0, ringingAlarmCount=0
-  type(ESMF_Alarm), allocatable :: alarmList(:)
+  type(ESMF_Alarm), allocatable :: alarmList(:), ringingAlarmList(:)
   logical                       :: hasAlarmRung = .false.
   character(len=ESMF_MAXSTR)    :: alarmName
 
@@ -317,29 +317,35 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     if (ringingAlarmCount > 0) then
+
+      if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
+      allocate(ringingAlarmList(ringingAlarmCount))
+
       !call ESMF_ClockPrint(clock, options="currTime string", message, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       write(message,'(A,I4)') 'Number of ringing alarms = ', ringingAlarmCount
       print *, trim(message)
 
-      do i = 1, alarmCount
-        if (ESMF_AlarmIsRinging(alarmList(i), rc=localrc)) then
-          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      call ESMF_ClockGetAlarmList(clock, ESMF_ALARMLIST_RINGING, &
+        alarmList=ringingAlarmList, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-          call ESMF_AlarmGet(alarmList(i), name=alarmName, rc=rc)
-          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      do i = 1, ringingAlarmCount
 
-          print *, trim(alarmName), " is ringing!"
-          hasAlarmRung=.true.
+        call ESMF_AlarmGet(ringingAlarmList(i), name=alarmName, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-          call ESMF_AlarmRingerOff(alarmList(i), rc=rc)
-          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+        print *, trim(alarmName), " is ringing!"
+        hasAlarmRung=.true.
 
-        end if !  alarm is ringing
+        call ESMF_AlarmRingerOff(ringingAlarmList(i), rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      enddo ! i = 1, alarmCount
+      enddo ! i = 1, ringinAlarmCount
     endif
+    if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
+
     if (hasAlarmRung) then
 
         ! Do something with PDAF, be careful that each instances' clock
