@@ -64,8 +64,11 @@ ifeq ($(ESMF_COMPILER), intel)
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
-# @todo still some lapack routines missing 
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -lpthread -lm -llapack
+# @todo still some lapack routines missing, so we need to link with either
+# OpenBLAS or vecLibFort (osx), this should be configured automatically ... we
+# really need to move to CMake
+#LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -lpthread -lm -lvecLibFort
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -lpthread -lm -lOpenBLAS
 endif
 endif
 
