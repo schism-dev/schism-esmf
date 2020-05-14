@@ -929,7 +929,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 !new28: add filtertype
   call PDAF_put_state_seik(collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
                 init_obs_pdaf, prepoststep_ens,prodRinvA_pdaf,init_obsvar_pdaf,localrc)
-  write(message,*)'Run PDAF_put_state_seik'
+  write(message,*)'Done PDAF_put_state_seik'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

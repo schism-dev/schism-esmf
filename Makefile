@@ -61,7 +61,7 @@ F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism   ###-I src/model -I src/
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
 ifeq ($(ESMF_COMPILER), intel)
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -L$(PDAF_BUILD_DIR)/lib -lpdaf-d -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
 # @todo still some lapack routines missing, so we need to link with either

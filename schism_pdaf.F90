@@ -322,10 +322,11 @@ program main
       allocate(ringingAlarmList(ringingAlarmCount))
 
       !call ESMF_ClockPrint(clock, options="currTime string", message, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       write(message,'(A,I4)') 'Number of ringing alarms = ', ringingAlarmCount
-      print *, trim(message)
+!      print *, trim(message)
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
       call ESMF_ClockGetAlarmList(clock, ESMF_ALARMLIST_RINGING, &
         alarmList=ringingAlarmList, rc=localrc)
@@ -343,7 +344,8 @@ program main
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       enddo ! i = 1, ringinAlarmCount
-    endif
+    endif !ringingAlarmCount > 0
+
     if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
 
     if (hasAlarmRung) then
