@@ -118,7 +118,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
-  use schism_glbl, only: dt, vv2, nvrt
+  use schism_glbl, only: dt, rnday, vv2, nvrt
   use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
 #ifdef USE_FABM
@@ -161,7 +161,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort
+  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort,runhours,schism_dt2
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -262,11 +262,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   !> If we run cohorts concurrently on different PET, we don't want to initialize schism
   !> for each member of a sequence but only for the first one.  To detect this,
   !> we ask for an attribute of the component
-  call ESMF_AttributeGet(comp, name='cohort_index', &
-    value=cohortIndex, defaultValue=0, rc=localrc)
-
-  call ESMF_AttributeGet(comp, name='ncohort', &
-    value=ncohort, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='cohort_index', value=cohortIndex, defaultValue=0, rc=localrc)
+  call ESMF_AttributeGet(comp, name='ncohort', value=ncohort, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='runhours', value=runhours, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='schism_dt2', value=schism_dt2, defaultValue=1, rc=localrc)
 
 !Debug
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
@@ -306,6 +305,14 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   else !not first task
     !Bypass alloc and decomp
     call schism_init(1,trim(simulationDirectory), iths, ntime)
+  endif
+
+  !Check consistency in inputs
+  if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
+    write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday,schism_dt2,dt
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
   !Save cohort states to prep for stepping
@@ -810,8 +817,9 @@ end subroutine InitializeP1
 #define ESMF_METHOD "Run"
 subroutine Run(comp, importState, exportState, parentClock, rc)
 
-  use schism_glbl, only: dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2, &
-     &in_dir,out_dir,len_in_dir,len_out_dir
+  use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2, &
+     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd
+  use schism_msgp, only: myrank,nproc
 !  USE PDAF_interfaces_module
 
 #ifdef USE_FABM
@@ -828,7 +836,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   type(ESMF_Clock)        :: schismClock
   type(ESMF_Time)         :: nextTime, currTime, parentCurrTime
   type(ESMF_TimeInterval) :: timeStep
-  integer                 :: i
+  integer                 :: i,num_schism_steps
   integer, save           :: it=1
   type(ESMF_Field)        :: field
   real(ESMF_KIND_R8), pointer :: ptr2d(:)
@@ -840,6 +848,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   INTEGER :: doexit, steps,status_pdaf
   REAL    :: timenow
+  character(len=72) :: fdb  
+  integer :: lfdb 
+
 ! External subroutines
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
@@ -921,7 +932,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
   len_out_dir=len_trim(out_dir)
 
-  it=advanceCount+1
+  num_schism_steps=rnday*86400.d0/dt+0.5d0
+  it=advanceCount+1 !SCHISM time step index
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
@@ -941,6 +953,32 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
     call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    ! Output
+    if(it==num_schism_steps) then
+      write(message,*) 'starting output...'
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+      fdb='SSST_0000'
+      lfdb=len_trim(fdb)
+      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
+      write(10,*)np,nproc
+      do i=1,np
+        write(10,'(i11,8(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(2,nvrt,i),tr_nd(1,nvrt,i)
+      enddo !i
+      close(10)
+
+      fdb='botS_0000'
+      lfdb=len_trim(fdb)
+      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
+      write(10,*)np,nproc
+      do i=1,np
+        write(10,'(i11,8(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(2,1,i),tr_nd(1,1,i)
+      enddo !i
+      close(10)
+    endif !it==
 
     it=it+1
   end do

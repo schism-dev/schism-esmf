@@ -68,3 +68,7 @@ should exactly match those produced from a `pschism` uncoupled executable.
 
 Please report bugs to <carsten.lemmen@hzg.de>.  You are very welcome to contribute
 to improving this cap. Fork on github, make changes, and file a pull request.
+
+---------------------------------------------------------------------------------
+Joseph's notes:
+1) param.nml: set large nspool, ihfskip to bypass outputs. rnday, dt must match global.nml 

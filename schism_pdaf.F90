@@ -80,7 +80,7 @@ program main
   logical                       :: hasAlarmRung = .false.
   character(len=ESMF_MAXSTR)    :: alarmName
 
-  integer(ESMF_KIND_I4) :: schism_dt,num_schism_dt_in_couple,num_obs_steps,it,unit,next_obs_step
+  integer(ESMF_KIND_I4) :: schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps,it,unit,next_obs_step
   integer(ESMF_KIND_I4), allocatable :: list_obs_steps(:)
   real(ESMF_KIND_R8), allocatable :: list_obs_times(:)
   namelist /obs_info/list_obs_times
@@ -226,12 +226,7 @@ program main
     !  label='schismInstance:', rc=localrc)
 
     !Put input dir name into attribute to pass onto init P1 etc
-    call ESMF_AttributeSet(schism_components(i), name='input_directory', &
-      value=trim(message2), rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_AttributeSet(schism_components(i), name='ncohort', &
-      value=ncohort, rc=localrc)
+    call ESMF_AttributeSet(schism_components(i), name='input_directory', value=trim(message2), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     deallocate(petList)
@@ -264,38 +259,17 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo register_loop
 
-  ! Initialize phase 0 and set attribute for calling init
-  init0_loop: do i = 1, schismCount
-
-    call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
-      exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    !Put sequence_index (0-based) into attribute to pass onto init P1
-    cohortIndex=(i-1)/concurrentCount
-    call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
-
-    if(cohortIndex>ncohort-1) then
-      write(message,*) 'cohortIndex>ncohort-1:',cohortIndex,ncohort 
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-      localrc = ESMF_RC_VAL_OUTOFRANGE
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    endif
-  enddo init0_loop
-
   !Get info on simulation period
 !  filename = './global.nml'
 !  clock = clockCreateFrmParam(filename, localrc)
-  call clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_steps)
+  call clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps)
 
   !Read in obs times
   allocate(list_obs_steps(num_obs_steps),list_obs_times(num_obs_steps))
   call ESMF_UtilIOUnitGet(unit, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   open(unit, file='global.nml', iostat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   read(unit, nml=obs_info, iostat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   close(unit)
@@ -315,6 +289,35 @@ program main
   
   write(message,*)'List of obs steps:',list_obs_steps
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  ! Initialize phase 0 and set attribute for calling init
+  init0_loop: do i = 1, schismCount
+
+    call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
+      exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    !Put sequence_index (0-based) into attribute to pass onto init P1 etc
+    cohortIndex=(i-1)/concurrentCount
+    call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
+
+    if(cohortIndex>ncohort-1) then
+      write(message,*) 'cohortIndex>ncohort-1:',cohortIndex,ncohort 
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
+
+    call ESMF_AttributeSet(schism_components(i), name='ncohort', value=ncohort, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='runhours',value=runhours, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='schism_dt2',value=schism_dt, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  enddo init0_loop
 
   ! Read some information on observation data availability and create
   ! a list of alarms for the times that new data is available and should be
@@ -475,7 +478,7 @@ program main
 
 end program main
 
-subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_steps) 
+subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps) 
   use esmf
   implicit none
 
@@ -483,7 +486,7 @@ subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_s
 !  integer(ESMF_KIND_I4), intent(out)     :: rc
   type(ESMF_Clock), intent(out)          :: clock
   !SCHISM dt (sec) must be int
-  integer(ESMF_KIND_I4), intent(out) :: schism_dt,num_schism_dt_in_couple,num_obs_steps
+  integer(ESMF_KIND_I4), intent(out) :: schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps
 
   logical               :: isPresent
   integer(ESMF_KIND_I4) :: unit, localrc,rc
@@ -491,7 +494,7 @@ subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_s
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2,itmp
+  integer(ESMF_KIND_I4) :: start_hour=0, itmp
   namelist /sim_time/ start_year,start_month,start_day,start_hour,runhours, &
  &schism_dt,num_schism_dt_in_couple,num_obs_steps
 
