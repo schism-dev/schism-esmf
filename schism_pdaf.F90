@@ -273,11 +273,11 @@ program main
   read(unit, nml=obs_info, iostat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   close(unit)
- 
+
   !Make sure the list is ascending
   do i=1,num_obs_steps-1
     if(list_obs_times(i+1)<=list_obs_times(i).or.list_obs_times(i)<=0) then
-      write(message,*) 'Check obs times:',i,list_obs_times 
+      write(message,*) 'Check obs times:',i,list_obs_times
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
       localrc = ESMF_RC_VAL_OUTOFRANGE
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -286,7 +286,7 @@ program main
   !Calculate SCHISM time steps for DA
   list_obs_steps=nint(list_obs_times/schism_dt)
   where(list_obs_steps<1) list_obs_steps=1
-  
+
   write(message,*)'List of obs steps:',list_obs_steps
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
@@ -302,7 +302,7 @@ program main
     call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
 
     if(cohortIndex>ncohort-1) then
-      write(message,*) 'cohortIndex>ncohort-1:',cohortIndex,ncohort 
+      write(message,*) 'cohortIndex>ncohort-1:',cohortIndex,ncohort
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
       localrc = ESMF_RC_VAL_OUTOFRANGE
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -369,25 +369,28 @@ program main
     !call PDAF_get_state
 
     !Check if it's analysis step in PDAF
-    it=it+num_schism_dt_in_couple !SCHISM step # 
-    if(it==list_obs_steps(next_obs_step)) then !DA step
-      !Let Run know it's analysis step
-!new28: need to remove or update attribute first?
-!      call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-!      value=1, rc=localrc)
-!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
-
-      next_obs_step=min(num_obs_steps,next_obs_step+1)
-    else
-!      call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-!      value=0, rc=localrc)
-!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
-    endif !DA step
+    it=it+num_schism_dt_in_couple !SCHISM step #
 
     do i = 1, schismCount
+
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      if (it==list_obs_steps(next_obs_step)) then !DA step
+        !Let Run know it's analysis step
+  !new28: need to remove or update attribute first?
+        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+        value=1, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        next_obs_step=min(num_obs_steps,next_obs_step+1)
+      else
+        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+        value=0, rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
+      endif !DA step
+
     enddo
 
 
@@ -478,7 +481,7 @@ program main
 
 end program main
 
-subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps) 
+subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps)
   use esmf
   implicit none
 
