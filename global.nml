@@ -1,0 +1,14 @@
+&sim_time
+  start_year=2000
+  start_month=1
+  start_day=1
+  start_hour=0
+  runhours=24 !total run time in hours
+  schism_dt=120 !SCHISM dt in sec (must be int)
+  num_schism_dt_in_couple=1 !# of SCHISM steps used in the ESMF main stepping
+  num_obs_steps=10 !# of obs times/steps
+/
+
+&obs_info
+  list_obs_times=1000.,2000. !sec
+/

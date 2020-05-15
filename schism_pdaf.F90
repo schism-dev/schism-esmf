@@ -43,14 +43,15 @@ program main
   include 'mpif.h'
 
   !> @todo use this routine from schism_esmf_util, delete local one
-  interface
-    function clockCreateFrmParam(filename, rc)
-      use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
-    end function clockCreateFrmParam
-  end interface
+!  interface
+!    subroutine clockCreateFrmParam(filename,rc,clock,schism_dt,num_schism_dt_in_couple)
+!      use esmf
+!        character(len=ESMF_MAXSTR), intent(in) :: filename
+!        integer(ESMF_KIND_I4), intent(out)     :: rc
+!        type(ESMF_Clock), intent(out)          :: clock !clockCreateFrmParam
+!        integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple
+!    end subroutine clockCreateFrmParam
+!  end interface
 
   type(ESMF_GridComp), allocatable :: schism_components(:)
   type(ESMF_State), allocatable    ::  importStateList(:), exportStateList(:)
@@ -71,13 +72,18 @@ program main
   type(ESMF_Config)           :: config
   type(ESMF_Config), allocatable :: configList(:)
 
-  integer(ESMF_KIND_I4)       :: concurrentCount, ncohort
+  integer(ESMF_KIND_I4)       :: concurrentCount, ncohort,cohortIndex
   integer(ESMF_KIND_I4)       :: sequenceIndex
 
   integer(ESMF_KIND_I4)         :: alarmCount=0, ringingAlarmCount=0
   type(ESMF_Alarm), allocatable :: alarmList(:), ringingAlarmList(:)
   logical                       :: hasAlarmRung = .false.
   character(len=ESMF_MAXSTR)    :: alarmName
+
+  integer(ESMF_KIND_I4) :: schism_dt,num_schism_dt_in_couple,num_obs_steps,it,unit,next_obs_step
+  integer(ESMF_KIND_I4), allocatable :: list_obs_steps(:)
+  real(ESMF_KIND_R8), allocatable :: list_obs_times(:)
+  namelist /obs_info/list_obs_times
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -117,6 +123,11 @@ program main
     !cohorts share same PETs
     call ESMF_ConfigGetAttribute(config, value=concurrentCount, label='concurrent_count:', &
       default=max(petCount/schismCount,1), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    write(message,*)'Please supply .cfg'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
@@ -167,6 +178,13 @@ program main
   ncohort = ceiling(real(schismCount)/concurrentCount)
   petCountLocal = petCount/concurrentCount
 
+  if(ncohort<1) then
+    write(message,*) 'ncohort<1:',ncohort
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
   !> Thus, we obtain the sets of instances that run concurrently: {1..5} {6..10}
   !> {11..14}
 
@@ -207,9 +225,13 @@ program main
     !call ESMF_ConfigSetAttribute(configList(i), value=i, &
     !  label='schismInstance:', rc=localrc)
 
-    !Put input dir name into attribute to pass onto init P1
+    !Put input dir name into attribute to pass onto init P1 etc
     call ESMF_AttributeSet(schism_components(i), name='input_directory', &
       value=trim(message2), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='ncohort', &
+      value=ncohort, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     deallocate(petList)
@@ -249,14 +271,50 @@ program main
       exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    !Put sequence_index into attribute to pass onto init P1
-    call ESMF_AttributeSet(schism_components(i), 'cohort_index', &
-      (i-1)/concurrentCount)
+    !Put sequence_index (0-based) into attribute to pass onto init P1
+    cohortIndex=(i-1)/concurrentCount
+    call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
+
+    if(cohortIndex>ncohort-1) then
+      write(message,*) 'cohortIndex>ncohort-1:',cohortIndex,ncohort 
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
   enddo init0_loop
 
   !Get info on simulation period
-  filename = './global.nml'
-  clock = clockCreateFrmParam(filename, localrc)
+!  filename = './global.nml'
+!  clock = clockCreateFrmParam(filename, localrc)
+  call clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_steps)
+
+  !Read in obs times
+  allocate(list_obs_steps(num_obs_steps),list_obs_times(num_obs_steps))
+  call ESMF_UtilIOUnitGet(unit, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  open(unit, file='global.nml', iostat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  read(unit, nml=obs_info, iostat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  close(unit)
+ 
+  !Make sure the list is ascending
+  do i=1,num_obs_steps-1
+    if(list_obs_times(i+1)<=list_obs_times(i).or.list_obs_times(i)<=0) then
+      write(message,*) 'Check obs times:',i,list_obs_times 
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
+  enddo !i
+  !Calculate SCHISM time steps for DA
+  list_obs_steps=nint(list_obs_times/schism_dt)
+  where(list_obs_steps<1) list_obs_steps=1
+  
+  write(message,*)'List of obs steps:',list_obs_steps
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Read some information on observation data availability and create
   ! a list of alarms for the times that new data is available and should be
@@ -266,9 +324,9 @@ program main
   ! this function internally calls ESMF_AlarmCreate(clock,ringTime, &
   !  ringInterval, name, rc=localrc)
   ! for each alarm time present in the file
-  if (allocated(alarmList)) then
-    alarmCount=ubound(alarmList,1)
-  endif
+!  if (allocated(alarmList)) then
+!    alarmCount=ubound(alarmList,1)
+!  endif
 
   ! Init phase 1: assuming all ensemble members share same parameters and i.c.
   ! and use same # of PETs. The PETs seem to 'block' when doing a task until
@@ -300,7 +358,28 @@ program main
   endif
 
   ! Loop over coupling timesteps until stopTime
+  it=0
+  next_obs_step=1 !init next obs step
   do while ( .not. (ESMF_ClockIsStopTime(clock)))
+
+    !new28: this is mostly to init analysis routines
+    !call PDAF_get_state
+
+    !Check if it's analysis step in PDAF
+    it=it+num_schism_dt_in_couple !SCHISM step # 
+    if(it==list_obs_steps(next_obs_step)) then !DA step
+      !Let Run know it's analysis step
+!new28: need to remove or update attribute first?
+!      call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+!      value=1, rc=localrc)
+!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
+
+      next_obs_step=min(num_obs_steps,next_obs_step+1)
+    else
+!      call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+!      value=0, rc=localrc)
+!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
+    endif !DA step
 
     do i = 1, schismCount
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
@@ -308,68 +387,68 @@ program main
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo
 
+
     call MPI_barrier(MPI_COMM_WORLD,ii)
     if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
 
-    ! Advance coupling clock to next timestep, any alarms that are going off
-    ! during this timestep will be set to the ringing state
-    call ESMF_ClockAdvance(clock, ringingAlarmCount=ringingAlarmCount, rc=localrc)
+    ! Advance coupling clock to next timestep
+    call ESMF_ClockAdvance(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    if (ringingAlarmCount > 0) then
-
-      if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
-      allocate(ringingAlarmList(ringingAlarmCount))
-
-      !call ESMF_ClockPrint(clock, options="currTime string", message, rc=localrc)
+!    ! Advance coupling clock to next timestep, any alarms that are going off
+!    ! during this timestep will be set to the ringing state
+!    call ESMF_ClockAdvance(clock, ringingAlarmCount=ringingAlarmCount, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!    if (ringingAlarmCount > 0) then
+!
+!      if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
+!      allocate(ringingAlarmList(ringingAlarmCount))
+!
+!      !call ESMF_ClockPrint(clock, options="currTime string", message, rc=localrc)
+!!      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!      write(message,'(A,I4)') 'Number of ringing alarms = ', ringingAlarmCount
+!!      print *, trim(message)
+!      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!      call ESMF_ClockGetAlarmList(clock, ESMF_ALARMLIST_RINGING, &
+!        alarmList=ringingAlarmList, rc=localrc)
 !      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      write(message,'(A,I4)') 'Number of ringing alarms = ', ringingAlarmCount
-!      print *, trim(message)
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-      call ESMF_ClockGetAlarmList(clock, ESMF_ALARMLIST_RINGING, &
-        alarmList=ringingAlarmList, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      do i = 1, ringingAlarmCount
-
-        call ESMF_AlarmGet(ringingAlarmList(i), name=alarmName, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-        print *, trim(alarmName), " is ringing!"
-        hasAlarmRung=.true.
-
-        call ESMF_AlarmRingerOff(ringingAlarmList(i), rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-      enddo ! i = 1, ringinAlarmCount
-    endif !ringingAlarmCount > 0
-
-    if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
-
-    if (hasAlarmRung) then
-
-        ! Do something with PDAF, be careful that each instances' clock
-        ! have already advanced
-        ! @todo this is where we have to consider how we want to implement this,
-        ! pdaf usually does this in the timestep routine of the instance, but this
-        ! is more complex with sequential runs (which we have here).
-
-        hasAlarmRung = .false.
-    endif
+!
+!      do i = 1, ringingAlarmCount
+!
+!        call ESMF_AlarmGet(ringingAlarmList(i), name=alarmName, rc=localrc)
+!        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!        print *, trim(alarmName), " is ringing!"
+!        hasAlarmRung=.true.
+!
+!        call ESMF_AlarmRingerOff(ringingAlarmList(i), rc=localrc)
+!        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!      enddo ! i = 1, ringinAlarmCount
+!    endif !ringingAlarmCount > 0
+!
+!    if (allocated(ringingAlarmList)) deallocate(ringingAlarmList)
+!
+!    if (hasAlarmRung) then
+!
+!        ! Do something with PDAF, be careful that each instances' clock
+!        ! have already advanced
+!        ! @todo this is where we have to consider how we want to implement this,
+!        ! pdaf usually does this in the timestep routine of the instance, but this
+!        ! is more complex with sequential runs (which we have here).
+!
+!        hasAlarmRung = .false.
+!    endif
 
   end do !do while
 
   ! @todo also destroy the deep alarm objects
-  if (allocated(alarmList)) deallocate(alarmList)
+!  if (allocated(alarmList)) deallocate(alarmList)
 
-!  esmf_loop5: do j=1,ncohort
-!    do ii = 1,concurrentCount
     do i = 1,schismCount
-!      i=(j-1)*ncohort+ii !component #
-!      if(i>schismCount) exit esmf_loop5
-
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &
         exportState=exportStateList(i), clock=clock, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -383,7 +462,6 @@ program main
       call ESMF_GridCompDestroy(schism_components(i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     enddo !i
-!  end do esmf_loop5 !j
 
   deallocate(exportStateList)
   deallocate( importStateList)
@@ -397,38 +475,39 @@ program main
 
 end program main
 
-function clockCreateFrmParam(filename, rc) result(clock)
-
+subroutine clockCreateFrmParam(clock,schism_dt,num_schism_dt_in_couple,num_obs_steps) 
   use esmf
   implicit none
 
-  character(len=ESMF_MAXSTR), intent(in) :: filename
-  integer(ESMF_KIND_I4), intent(out)     :: rc
-  type(ESMF_Clock)                       :: clock
+!  character(len=ESMF_MAXSTR), intent(in) :: filename
+!  integer(ESMF_KIND_I4), intent(out)     :: rc
+  type(ESMF_Clock), intent(out)          :: clock
+  !SCHISM dt (sec) must be int
+  integer(ESMF_KIND_I4), intent(out) :: schism_dt,num_schism_dt_in_couple,num_obs_steps
 
   logical               :: isPresent
-  integer(ESMF_KIND_I4) :: unit, localrc
+  integer(ESMF_KIND_I4) :: unit, localrc,rc
   type(ESMF_Time)       :: stopTime, startTime
   type(ESMF_TimeInterval) :: timeStep
 
   integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2, rnday=2 ! rnday not used
-  namelist /global/ start_year, start_month, start_day, start_hour, runhours, rnday
+  integer(ESMF_KIND_I4) :: start_hour=0, runhours=2,itmp
+  namelist /sim_time/ start_year,start_month,start_day,start_hour,runhours, &
+ &schism_dt,num_schism_dt_in_couple,num_obs_steps
 
-  inquire(file=filename, exist=isPresent)
-  if (isPresent) then
+!  inquire(file='global.nml', exist=isPresent)
+!  if (isPresent) then
+  call ESMF_UtilIOUnitGet(unit, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_UtilIOUnitGet(unit, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  open(unit, file='global.nml', iostat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    open(unit, file=filename, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  read(unit, nml=sim_time, iostat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    read(unit, nml=global, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    close(unit)
-  endif
+  close(unit)
+!  endif
 
   ! Set day as timestep temporarily to count later to stop time
   call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
@@ -443,10 +522,15 @@ function clockCreateFrmParam(filename, rc) result(clock)
 
   ! Only now define the coupling timestep as fraction of full timeStep (24
   ! coupling steps in total here)
-  timeStep = timeStep / 24
+!  timeStep = timeStep / 24
+
+  !Set time interval in sec, used in ESMF main stepping
+  itmp=schism_dt*num_schism_dt_in_couple !has to be int
+  call ESMF_TimeIntervalSet(timeStep, s=itmp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
     name='main clock', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-end function clockCreateFrmParam
+end subroutine clockCreateFrmParam

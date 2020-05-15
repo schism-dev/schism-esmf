@@ -36,6 +36,13 @@ module schism_cmi_esmf
 
   public SetServices
 
+  !Saved cohort arrays for schism_get and _save
+  integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:)
+  real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
+ &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
+ &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:)
+  
+
 contains
 
 #undef  ESMF_METHOD
@@ -154,7 +161,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount, localPet, cohortIndex
+  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -258,6 +265,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_AttributeGet(comp, name='cohort_index', &
     value=cohortIndex, defaultValue=0, rc=localrc)
 
+  call ESMF_AttributeGet(comp, name='ncohort', &
+    value=ncohort, defaultValue=1, rc=localrc)
+
 !Debug
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -297,6 +307,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     !Bypass alloc and decomp
     call schism_init(1,trim(simulationDirectory), iths, ntime)
   endif
+
+  !Save cohort states to prep for stepping
+  call schism_alloc_arrays(ncohort)
+  call schism_save_state(cohortIndex)
 
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -819,7 +833,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   type(ESMF_Field)        :: field
   real(ESMF_KIND_R8), pointer :: ptr2d(:)
   character(len=ESMF_MAXSTR)  :: message,name,compName,simulationDirectory,currentDirectory
-  integer(ESMF_KIND_I4)   :: localrc,cohortIndex
+  integer(ESMF_KIND_I4)   :: localrc,cohortIndex,analysis_step
   integer(ESMF_KIND_I8)   :: advanceCount
   real(ESMF_KIND_R8)      :: dt_coupling
   type(ESMF_Config)           :: config
@@ -877,6 +891,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call ESMF_AttributeGet(comp, name='cohort_index', &
     value=cohortIndex, defaultValue=0, rc=localrc)
 
+  call ESMF_AttributeGet(comp, name='analysis_step', &
+    value=analysis_step, defaultValue=0, rc=localrc)
+
   !Reinit input dir in case same PETs are doing a different run
   call ESMF_AttributeGet(comp, name='input_directory', &
       value=simulationDirectory, defaultValue='.', rc=localrc)
@@ -898,7 +915,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     simulationDirectory = trim(currentDirectory)//'/'//trim(simulationDirectory)
   endif
 
-  !Update in/outdir
+  !Update in/outdir for correct dir under same PETs
   in_dir=adjustl(trim(adjustl(simulationDirectory))//'/')
   len_in_dir=len_trim(in_dir)
   out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
@@ -908,9 +925,11 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
-!new28
-  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
-       distribute_state_pdaf, prepoststep_ens, status_pdaf)
+!new28: not sure needed
+!!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
+!!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
+
+  call schism_get_state(cohortIndex)
 
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -926,12 +945,17 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     it=it+1
   end do
 
-!new28: add filtertype
-  call PDAF_put_state_seik(collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
-                init_obs_pdaf, prepoststep_ens,prodRinvA_pdaf,init_obsvar_pdaf,localrc)
-  write(message,*)'Done PDAF_put_state_seik'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call schism_save_state(cohortIndex)
+
+  !Check if it's time for analysis
+!new28
+  if(analysis_step/=0) then
+!    call PDAF_put_state_seik(collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+!                init_obs_pdaf, prepoststep_ens,prodRinvA_pdaf,init_obsvar_pdaf,localrc)
+!    write(message,*)'Done PDAF_put_state_seik'
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif !analysis_step/=0
 
   !> Do a clock correction for non-integer internal timesteps and issue
   !> a warning.  We could improve this somewhat by choosing to optionally
@@ -1255,5 +1279,83 @@ subroutine addCIM(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine addCIM
+
+subroutine schism_alloc_arrays(ncohort)
+  use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,nea2
+  implicit none
+
+  integer(ESMF_KIND_I4), intent(in) :: ncohort
+
+  !ncohort>=1 checked
+  if(.not.allocated(idry_e_c)) allocate(idry_e_c(nea,0:ncohort-1))  
+  if(.not.allocated(idry_s_c)) allocate(idry_s_c(nsa,0:ncohort-1))  
+  if(.not.allocated(idry_c)) allocate(idry_c(npa,0:ncohort-1))  
+
+  if(.not.allocated(we_c)) allocate(we_c(nvrt,nea,0:ncohort-1))  
+  if(.not.allocated(tr_el_c)) allocate(tr_el_c(ntracers,nvrt,nea2,0:ncohort-1))  
+  if(.not.allocated(su2_c)) allocate(su2_c(nvrt,nsa,0:ncohort-1))  
+  if(.not.allocated(sv2_c)) allocate(sv2_c(nvrt,nsa,0:ncohort-1))  
+  if(.not.allocated(eta2_c)) allocate(eta2_c(npa,0:ncohort-1))  
+  if(.not.allocated(tr_nd_c)) allocate(tr_nd_c(ntracers,nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(tr_nd0_c)) allocate(tr_nd0_c(ntracers,nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(q2_c)) allocate(q2_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(xl_c)) allocate(xl_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(dfv_c)) allocate(dfv_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(dfh_c)) allocate(dfh_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(dfq1_c)) allocate(dfq1_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(dfq2_c)) allocate(dfq2_c(nvrt,npa,0:ncohort-1))  
+end subroutine schism_alloc_arrays
+
+subroutine schism_save_state(ci)
+  use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
+ &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+  implicit none  
+  integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
+
+  idry_e_c(:,ci)=idry_e
+  idry_s_c(:,ci)=idry_s
+  idry_c(:,ci)=idry
+
+  we_c(:,:,ci)=we
+  tr_el_c(:,:,:,ci)=tr_el
+  su2_c(:,:,ci)=su2
+  sv2_c(:,:,ci)=sv2
+  eta2_c(:,ci)=eta2
+  tr_nd_c(:,:,:,ci)=tr_nd
+  tr_nd0_c(:,:,:,ci)=tr_nd0
+  q2_c(:,:,ci)=q2
+  xl_c(:,:,ci)=xl
+  dfv_c(:,:,ci)=dfv
+  dfh_c(:,:,ci)=dfh
+  dfq1_c(:,:,ci)=dfq1
+  dfq2_c(:,:,ci)=dfq2
+
+end subroutine schism_save_state
+
+subroutine schism_get_state(ci)
+  use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
+ &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+  implicit none  
+  integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
+
+  idry_e=idry_e_c(:,ci)
+  idry_s=idry_s_c(:,ci)
+  idry=idry_c(:,ci)
+
+  we=we_c(:,:,ci)
+  tr_el=tr_el_c(:,:,:,ci)
+  su2=su2_c(:,:,ci)
+  sv2=sv2_c(:,:,ci)
+  eta2=eta2_c(:,ci)
+  tr_nd=tr_nd_c(:,:,:,ci)
+  tr_nd0=tr_nd0_c(:,:,:,ci)
+  q2=q2_c(:,:,ci)
+  xl=xl_c(:,:,ci)
+  dfv=dfv_c(:,:,ci)
+  dfh=dfh_c(:,:,ci)
+  dfq1=dfq1_c(:,:,ci)
+  dfq2=dfq2_c(:,:,ci)
+
+end subroutine schism_get_state
 
 end module schism_cmi_esmf
