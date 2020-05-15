@@ -368,31 +368,32 @@ program main
     !new28: this is mostly to init analysis routines
     !call PDAF_get_state
 
-    !Check if it's analysis step in PDAF
     it=it+num_schism_dt_in_couple !SCHISM step #
 
     do i = 1, schismCount
 
-      call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
-        exportState=exportStateList(i), clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
+      !Check if it's analysis step in PDAF
       if (it==list_obs_steps(next_obs_step)) then !DA step
         !Let Run know it's analysis step
-  !new28: need to remove or update attribute first?
         call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
         value=1, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-        next_obs_step=min(num_obs_steps,next_obs_step+1)
+!        next_obs_step=min(num_obs_steps,next_obs_step+1)
       else
         call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
         value=0, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
       endif !DA step
 
-    enddo
+      call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &
+        exportState=exportStateList(i), clock=clock, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    enddo !i
+
+!new28
+    if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
 
     call MPI_barrier(MPI_COMM_WORLD,ii)
     if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
