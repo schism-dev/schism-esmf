@@ -40,7 +40,7 @@ module schism_cmi_esmf
   integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:)
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
  &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
- &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:)
+ &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
   
 
 contains
@@ -309,7 +309,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
-    write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday,schism_dt2,dt
+    write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday*24,schism_dt2,dt
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -817,8 +817,8 @@ end subroutine InitializeP1
 #define ESMF_METHOD "Run"
 subroutine Run(comp, importState, exportState, parentClock, rc)
 
-  use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp, idry, uu2, vv2, &
-     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd
+  use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp,idry,uu2,vv2,eta2,&
+     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy
   use schism_msgp, only: myrank,nproc
 !  USE PDAF_interfaces_module
 
@@ -937,6 +937,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
+
 !new28: not sure needed
 !!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
 !!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
@@ -951,6 +952,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
     call schism_step(it)
 
+!Debug
+!    if(it==advanceCount+1) then
+!      write(message,*) trim(compName)//' wind before:',cohortIndex,it,minval(windx),maxval(windx)
+!      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!    endif
+ 
     call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -959,23 +966,23 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
       write(message,*) 'starting output...'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-      fdb='SSST_0000'
+      fdb='surface_0000'
       lfdb=len_trim(fdb)
       write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
       open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(10,*)np,nproc
       do i=1,np
-        write(10,'(i11,8(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(2,nvrt,i),tr_nd(1,nvrt,i)
+        write(10,'(i11,100(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(1:2,nvrt,i),uu2(nvrt,i),vv2(nvrt,i),eta2(i)
       enddo !i
       close(10)
 
-      fdb='botS_0000'
+      fdb='bottom_0000'
       lfdb=len_trim(fdb)
       write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
       open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(10,*)np,nproc
       do i=1,np
-        write(10,'(i11,8(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(2,1,i),tr_nd(1,1,i)
+        write(10,'(i11,100(1x,e20.12))')iplg(i),xnd(i),ynd(i),tr_nd(1:2,1,i),uu2(2,i),vv2(2,i),eta2(i)
       enddo !i
       close(10)
     endif !it==
@@ -985,6 +992,10 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   call schism_save_state(cohortIndex)
 
+!Debug
+!  write(message,*) trim(compName)//' wind after:',minval(windx),maxval(windx),minval(windy),maxval(windy)
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+ 
   !Check if it's time for analysis
 !new28
   if(analysis_step/=0) then
@@ -1342,13 +1353,29 @@ subroutine schism_alloc_arrays(ncohort)
   if(.not.allocated(dfh_c)) allocate(dfh_c(nvrt,npa,0:ncohort-1))  
   if(.not.allocated(dfq1_c)) allocate(dfq1_c(nvrt,npa,0:ncohort-1))  
   if(.not.allocated(dfq2_c)) allocate(dfq2_c(nvrt,npa,0:ncohort-1))  
+
+  !Extra: somehow this helps
+  if(.not.allocated(uu2_c)) allocate(uu2_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(vv2_c)) allocate(vv2_c(nvrt,npa,0:ncohort-1))  
 end subroutine schism_alloc_arrays
 
 subroutine schism_save_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+ &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
+ &uu2,vv2
   implicit none  
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
+
+  character(len=ESMF_MAXSTR)  :: message
+  integer(ESMF_KIND_I4)              :: localrc,rc
+
+!Debug
+!  if(ci<0.or.ci>1) then
+!    write(message,*) 'cohort index exceeded:',ci
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+!    localrc = ESMF_RC_VAL_OUTOFRANGE
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  endif
 
   idry_e_c(:,ci)=idry_e
   idry_s_c(:,ci)=idry_s
@@ -1368,13 +1395,27 @@ subroutine schism_save_state(ci)
   dfq1_c(:,:,ci)=dfq1
   dfq2_c(:,:,ci)=dfq2
 
+  uu2_c(:,:,ci)=uu2
+  vv2_c(:,:,ci)=vv2
 end subroutine schism_save_state
 
 subroutine schism_get_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+ &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
+ &uu2,vv2
   implicit none  
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
+
+  character(len=ESMF_MAXSTR)  :: message
+  integer(ESMF_KIND_I4)              :: localrc,rc
+
+!Debug
+!  if(ci<0.or.ci>1) then
+!    write(message,*) 'cohort index exceeded:',ci
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+!    localrc = ESMF_RC_VAL_OUTOFRANGE
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  endif
 
   idry_e=idry_e_c(:,ci)
   idry_s=idry_s_c(:,ci)
@@ -1394,6 +1435,8 @@ subroutine schism_get_state(ci)
   dfq1=dfq1_c(:,:,ci)
   dfq2=dfq2_c(:,:,ci)
 
+  uu2=uu2_c(:,:,ci)
+  vv2=vv2_c(:,:,ci)
 end subroutine schism_get_state
 
 end module schism_cmi_esmf

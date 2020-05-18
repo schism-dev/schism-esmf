@@ -378,8 +378,6 @@ program main
         call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
         value=1, rc=localrc)
         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-!        next_obs_step=min(num_obs_steps,next_obs_step+1)
       else
         call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
         value=0, rc=localrc)
@@ -392,7 +390,6 @@ program main
 
     enddo !i
 
-!new28
     if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
 
     call MPI_barrier(MPI_COMM_WORLD,ii)
