@@ -287,6 +287,16 @@ program main
   list_obs_steps=nint(list_obs_times/schism_dt)
   where(list_obs_steps<1) list_obs_steps=1
 
+  !Make sure obs steps are multiples of num_schism_dt_in_couple
+  do i=1,num_obs_steps
+    if(mod(list_obs_steps(i),num_schism_dt_in_couple)/=0) then
+      write(message,*) 'Obs steps must be divisible by num_schism_dt_in_couple:',i,list_obs_steps(i)
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
+  enddo !i
+
   write(message,*)'List of obs steps:',list_obs_steps
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
