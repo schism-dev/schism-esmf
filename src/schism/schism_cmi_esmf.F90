@@ -315,7 +315,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
-  !Save cohort states to prep for stepping
+  !Save init cohort states to prep for stepping
   call schism_alloc_arrays(ncohort)
   call schism_save_state(cohortIndex)
 
@@ -934,15 +934,15 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   num_schism_steps=rnday*86400.d0/dt+0.5d0
   it=advanceCount+1 !SCHISM time step index
-  !Rewind clock for forcing
-  call other_hot_init(dble(it-1)*dt)
-
 
 !new28: not sure needed
 !!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
 !!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
 
   call schism_get_state(cohortIndex)
+
+  !Rewind clock for forcing
+  call other_hot_init(dble(it-1)*dt)
 
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
