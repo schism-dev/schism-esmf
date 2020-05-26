@@ -36,8 +36,9 @@ module schism_cmi_esmf
 
   public SetServices
 
-  !Saved cohort arrays for schism_get and _save
-  integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:)
+  !Saved cohort arrays for schism_get and _save, and all that require resetting
+  !among different cohorts
+  integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:), istack(:)
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
  &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
  &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
@@ -118,9 +119,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
-  use schism_glbl, only: dt, rnday, vv2, nvrt
+  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile
   use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
+!  use schism_io, only: ncid
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -318,6 +320,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   !Save init cohort states to prep for stepping
   call schism_alloc_arrays(ncohort)
   call schism_save_state(cohortIndex)
+
+  !Save output stack ID to avoid jumbled outputs
+  if(.not.allocated(istack)) allocate(istack(0:ncohort-1))
+  istack(cohortIndex)=ifile
 
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -818,8 +824,9 @@ end subroutine InitializeP1
 subroutine Run(comp, importState, exportState, parentClock, rc)
 
   use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp,idry,uu2,vv2,eta2,&
-     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy
+     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy,ifile
   use schism_msgp, only: myrank,nproc
+!  use schism_io, only: ncid
 !  USE PDAF_interfaces_module
 
 #ifdef USE_FABM
@@ -944,6 +951,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
+  !Reset stack #
+  ifile=istack(cohortIndex)
+
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -988,9 +998,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     endif !it==
 
     it=it+1
-  end do
+  end do !while
 
   call schism_save_state(cohortIndex)
+
+  !Save stack #
+  istack(cohortIndex)=ifile
 
 !Debug
 !  write(message,*) trim(compName)//' wind after:',minval(windx),maxval(windx),minval(windy),maxval(windy)
