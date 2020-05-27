@@ -143,7 +143,8 @@ program main
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  elseif (petCount<concurrentCount) then
+  !elseif (petCount<concurrentCount) then
+  elseif (mod(petCount,concurrentCount)/=0) then !PDAF requires this
     write(message, '(A,I3,A,I3,A,I6,A)') 'Cannot run ', &
       concurrentCount, ' instances on ', petCount, ' PET'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
