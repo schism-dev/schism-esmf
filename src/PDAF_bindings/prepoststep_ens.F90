@@ -52,6 +52,9 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL, INTENT(inout) :: ens_p(dim_p, dim_ens)      ! PE-local state ensemble
   INTEGER, INTENT(in) :: flag        ! PDAF status flag
 
+! Local vars
+  integer i,member
+
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_get_state       (as U_prepoststep)
 ! Called by: PDAF_seik_update     (as U_prepoststep)
@@ -66,6 +69,7 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! Called by: PDAF_lnetf_analysis  (as U_prepoststep)
 !EOP
 
+ write(*,*) 'In prepoststep_ens, check!',step
 
 ! ****************************
 ! *** Perform pre/poststep ***
@@ -73,6 +77,17 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 
   ! Template reminder - delete when implementing functionality
 !  WRITE (*,*) 'TEMPLATE prepoststep_ens.F90: Implement prepoststep here!'
+
+!     *** Compute mean state ***
+
+  state_p = 0.0
+  DO member = 1, dim_ens
+     DO i = 1, dim_p
+        state_p(i) = state_p(i) + ens_p(i, member)
+     END DO
+  END DO
+  state_p(:) = state_p(:)/real(dim_ens)
+
 
 
 END SUBROUTINE prepoststep_ens

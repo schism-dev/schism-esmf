@@ -29,9 +29,13 @@ MODULE mod_assimilation
 
   INTEGER :: dim_obs_p                    ! Process-local number of observations
   REAL, ALLOCATABLE    :: obs_p(:)        ! Vector holding process-local observations
-  INTEGER, ALLOCATABLE :: obs_index_p(:)  ! Vector holding state-vector indices of observations
+! INTEGER, ALLOCATABLE :: obs_index_p(:)  ! Vector holding state-vector indices of observations
   REAL, ALLOCATABLE    :: obs_f(:)        ! Vector holding full vector of observations
-  REAL, ALLOCATABLE :: coords_obs_f(:,:)  ! Array for full observation coordinates
+  integer, allocatable :: iep_obs_mod(:)  ! parent element for process-local observations
+  character(len=1), allocatable :: obstype_mod(:)  ! obs type to store z/s/t/u/v for process-local observations
+  real, allocatable :: arco_obs_mod(:,:)    ! weighting for process-local observations
+  REAL, ALLOCATABLE :: obs_coords_p(:,:)  ! Array for process-local observation coordinates
+  REAL, ALLOCATABLE :: obs_coords_f(:,:)  ! Array for full observation coordinates
   INTEGER, ALLOCATABLE :: obs_index_l(:)  ! Vector holding local state-vector indices of observations
   REAL, ALLOCATABLE    :: distance_l(:)   ! Vector holding distances of local observations
 

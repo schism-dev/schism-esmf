@@ -50,8 +50,8 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 default: all
 all: nuopc esmf
 esmf: parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o \
-      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o prepoststep_ens.o init_enkf.o init_seek.o init_seik.o \
-      collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o
+      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
+      collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o assimilate_pdaf.o
 nuopc: schism_cmi_nuopc.o
 
 clean:

@@ -83,6 +83,14 @@ program main
   integer(ESMF_KIND_I4) :: schism_dt,num_schism_dt_in_couple,runhours,num_obs_steps,it,unit,next_obs_step
   integer(ESMF_KIND_I4), allocatable :: list_obs_steps(:)
   real(ESMF_KIND_R8), allocatable :: list_obs_times(:)
+
+  integer doexit,status_pdaf ! PDAF vars
+  real time_PDAF
+  EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
+                                       ! and dimension of next observation
+       distribute_state_pdaf, &        ! Routine to distribute a state vector to  model fields
+       prepoststep_ens                 ! User supplied pre/poststep routine
+
   namelist /obs_info/list_obs_times
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
@@ -401,10 +409,20 @@ program main
 
     enddo !i
 
-    if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
+!   if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
 
     call MPI_barrier(MPI_COMM_WORLD,ii)
     if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
+
+!   DA step
+    if (it==list_obs_steps(next_obs_step)) then ! DA step (update ens field)  
+!       time_PDAF=list_obs_steps(next_obs_step)
+        write(*,*) 'Before PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF
+        call PDAF_get_state(it,time_PDAF, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
+        write(*,*) 'After PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF
+        next_obs_step=min(num_obs_steps,next_obs_step+1)
+    endif ! DA step
+
 
     ! Advance coupling clock to next timestep
     call ESMF_ClockAdvance(clock, rc=localrc)

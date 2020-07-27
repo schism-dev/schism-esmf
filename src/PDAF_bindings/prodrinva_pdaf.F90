@@ -23,6 +23,7 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+  USE mod_assimilation, ONLY: rms_obs
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -41,13 +42,14 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! Called by: PDAF_estkf_analysis       (as U_prodRinvA)
 !EOP
 
+! write(*,*) 'In prodRinvA_pdaf, check!'
 
 ! **********************
 ! *** INITIALIZATION ***
 ! **********************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE prodrinva_pdaf.F90: Implement multiplication here!'
+!  WRITE (*,*) 'TEMPLATE prodrinva_pdaf.F90: Implement multiplication here!'
 
 
 ! *************************************
@@ -60,5 +62,7 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! *************************************
 
 ! C_p = ?
+
+  C_p = A_p/rms_obs
 
 END SUBROUTINE prodRinvA_pdaf

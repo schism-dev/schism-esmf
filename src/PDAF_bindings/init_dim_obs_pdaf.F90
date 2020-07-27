@@ -22,11 +22,25 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+! SCHISM module
+  use schism_glbl, only: nea,ics,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,rkind
+  use schism_msgp, only: parallel_abort
+! PDAF user define
+! new28 add in mod_assimilation, add in some schism_interpolation required here
+  use mod_assimilation, only: obs_p,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
   INTEGER, INTENT(in)  :: step       ! Current time step
   INTEGER, INTENT(out) :: dim_obs_p  ! Dimension of observation vector
+
+! Local vars
+  character(len=17) fnDA
+  character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
+  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:)
+  integer nobs,i,l,itmp,ifl,iobs,istat
+  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_seek_analysis    (as U_init_dim_obs)
@@ -37,15 +51,116 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! Called by: PDAF_netf_analysis
 !EOP
 
+! write(*,*) 'In init_dim_obs_pdaf, check!'
 
 ! ******************************************************************
 ! *** Initialize observation dimension for PE-local model domain ***
 ! ******************************************************************
 
-  ! Template reminder - delete when implementing functionality
-!  WRITE (*,*) 'TEMPLATE init_dim_obs_pdaf.F90: Initialize observation dimension here!'
 
-!   dim_obs_p = ??
+! Data inputs
+! Specify i8 as steps
+  write(fnDA,'(a5,i8.8,a4)') 'data_',step,'.dat'
+
+  open(31,file='./DA_data/'//fnDA,status='old')
+
+  read(31,*) nobs
+  allocate(xobs(nobs),yobs(nobs),zobs(nobs),obsval(nobs),obstype(nobs),&
+          &iep_obs(nobs),arco_obs(nobs,4),stat=istat)
+  if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
+
+  do i=1,nobs
+     read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+     zobs(i)=0.-zobs(i) !negtive
+     if(ics==2) then
+        xtmp=xobs(i)/180.d0*pi
+        ytmp=yobs(i)/180.d0*pi
+        xobs(i)=rearth_eq*cos(ytmp)*cos(xtmp)
+        yobs(i)=rearth_eq*cos(ytmp)*sin(xtmp)
+        zobs(i)=rearth_pole*sin(ytmp)
+     endif !ics
+  end do
+  close(31)
+
+! Find parent elements in argumented
+  iep_obs=0 !flag for no-parent
+  do i=1,nea ! search in argumented
+     do l=1,nobs
+          if(iep_obs(l)/=0) cycle
+
+          if(ics==1) then
+             xobsl=xobs(l)
+             yobsl=yobs(l)
+          else !to eframe
+             call project_pt('g2l',xobs(l),yobs(l),zobs(l), &
+             &(/xctr(i),yctr(i),zctr(i)/),eframe(:,:,i),xobsl,yobsl,tmp)
+          endif
+
+          if(i34(i)==3) then
+             call area_coord(0,i,(/xctr(i),yctr(i),zctr(i)/),eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3))
+             tmp=minval(arco_obs(l,1:3))
+             if(tmp>-small2) then
+                iep_obs(l)=i
+                if(tmp<0) call area_coord(1,i,(/xctr(i),yctr(i),zctr(i)/), &
+                  &eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3)) !fix A.C.
+             endif
+          else !quad
+             call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
+             if(itmp/=0) iep_obs(l)=i
+          endif !i34
+      enddo !l; build pts
+
+      ifl=0 !flag
+      do l=1,nobs
+         if(iep_obs(l)==0) then
+            ifl=1
+            exit
+         endif
+      end do !l
+      if(ifl==0) exit
+   enddo !i=1,nea
+
+!  Count obs points in each sub domain
+   iobs=0
+   do l=1,nobs
+      if (iep_obs(l).ne.0) iobs=iobs+1
+   end do
+   dim_obs_p=iobs
+
+!  Allocate mod assimilation vars (obs_p,iep_obs_mod,obstype_mod,arco_obs_mod) 
+   if (allocated(obs_p)) deallocate(obs_p)
+   if (allocated(iep_obs_mod)) deallocate(iep_obs_mod)
+   if (allocated(obstype_mod)) deallocate(obstype_mod)
+   if (allocated(arco_obs_mod)) deallocate(arco_obs_mod)
+   if (allocated(obs_coords_p)) deallocate(obs_coords_p)
+   allocate(obs_p(iobs))
+   allocate(iep_obs_mod(iobs))
+   allocate(obstype_mod(iobs))
+   allocate(arco_obs_mod(iobs,4))
+   allocate(obs_coords_p(3,iobs)) !3 dim, store x,y,z
+   
+!  We can Put simple QA/QC here, do this later
+!   call qaqc(obsval,obstype) 
+
+!  Fill assimilation vars with local, and pass them to obs_op to do vertical interpolation
+!  new28:  if model shows -9999, can we omit this values in obs_op?
+   iobs=0
+   do l=1,nobs
+      if (iep_obs(l).ne.0) then
+         iobs=iobs+1
+         obs_p(iobs)=obsval(l)
+         iep_obs_mod(iobs)=iep_obs(l)
+         obstype_mod(iobs)=obstype(l)
+         arco_obs_mod(iobs,:)=arco_obs(l,:)
+         obs_coords_p(1,iobs)=xobs(l)
+         obs_coords_p(2,iobs)=yobs(l)
+         obs_coords_p(3,iobs)=zobs(l)
+!        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l)
+      end if
+   end do
+
+!  Clean-up
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs)
 
 END SUBROUTINE init_dim_obs_pdaf
 

@@ -42,13 +42,11 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
 ! Called by: PDAF_assimilate_X   (as U_coll_state)
 !EOP
   
+! write(*,*) 'In collect_state_pdaf, check!'
 
 ! *************************************************
 ! *** Initialize state vector from model fields ***
 ! *************************************************
-
-  ! Template reminder - delete when implementing functionality
-  !WRITE (*,*) 'TEMPLATE collect_state_pdaf.F90: Implement initialization of state vector here!'
 
 !   Assign state vars to state_p in the resident domains
 

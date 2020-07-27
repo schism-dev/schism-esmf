@@ -73,7 +73,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
      WRITE (*,'(/1x,a)') 'INITIALIZE PDAF - ONLINE MODE'
   END IF
 
-  WRITE (*,*) 'TEMPLATE init_pdaf.F90: Initialize state dimension here!'
+! WRITE (*,*) 'TEMPLATE init_pdaf.F90: Initialize state dimension here!'
 
   ! *** Define state dimension (state var is a long 1D array)
 !  dim_state = ?
@@ -141,7 +141,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! *********************************************************************
 
 ! *** Forecast length (time interval between analysis steps) ***
-  delt_obs = 2     ! Number of time steps between analysis/assimilation steps
+  delt_obs = 36     ! Number of time steps between analysis/assimilation steps
 
 ! *** specifications for observations ***
   rms_obs = 0.5    ! Observation error standard deviation
@@ -240,10 +240,11 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! *** Prepare ensemble forecasts ***
 ! ******************************'***
 !new28: This is mainly to init obs
+! This must to open
 
-!  CALL PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
-!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
-!
+   CALL PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
+        distribute_state_pdaf, prepoststep_ens, status_pdaf)
+ 
 !  IF (status_pdaf /= 0) THEN
 !     ierr=1
 !     WRITE (errmsg,*)'init_pdaf error ', status_pdaf, &

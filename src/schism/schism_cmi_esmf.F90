@@ -54,6 +54,7 @@ subroutine SetServices(comp, rc)
   integer(ESMF_KIND_I4), intent(out) :: rc
 
   integer(ESMF_KIND_I4)              :: localrc
+! integer                            :: pdaf_stat
 
   rc = ESMF_SUCCESS
 
@@ -859,12 +860,13 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   integer :: lfdb 
 
 ! External subroutines
-  EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
+! comment out --> into generic interface (assimilate_pdaf)
+! EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
-       distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-       prepoststep_ens, &            ! User supplied pre/poststep routine
-       collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
-       init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
+!      distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
+!      prepoststep_ens, &            ! User supplied pre/poststep routine
+!      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+!      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
 
 
   rc = ESMF_SUCCESS
@@ -1012,14 +1014,16 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   !Check if it's time for analysis
 !new28
   if(analysis_step/=0) then
-!    write(message,*)trim(compName)//' entering PDAF_put_state_seik, ',it
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+     write(message,*)trim(compName)//' entering PDAF assimilate, ',it
+     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!    Using assimilate PDAF interface 
+     call assimilate_pdaf() ! 
+!    call assimilate_pdaf(pdaf_stat)
+!    localrc=pdaf_stat !pdaf_stat is using i2, localrc is i4
+     write(message,*)'Done PDAF assimilate'
+     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!    call PDAF_put_state_seik(collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
-!                init_obs_pdaf, prepoststep_ens,prodRinvA_pdaf,init_obsvar_pdaf,localrc)
-!    write(message,*)'Done PDAF_put_state_seik'
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif !analysis_step/=0
 
   !> Do a clock correction for non-integer internal timesteps and issue

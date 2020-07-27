@@ -32,6 +32,8 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
 ! Later revisions - see svn log
 !
 ! !USES:
+  USE mod_assimilation, ONLY: rms_obs
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -44,14 +46,16 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
 ! Called by: PDAF_set_forget    (as U_init_init_obs_covar)
 !EOP
 
+  write(*,*) 'In init_obsvar_pdaf, check!'
 
 ! *****************************
 ! *** Compute mean variance ***
 ! *****************************
 
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_obsvar_pdaf.F90: Set mean observation variance here!'
 
-!  meanvar = ?
+  ! Here the mean variance is simply the
+  ! error variance of each single observation.
+
+  meanvar = rms_obs**2
 
 END SUBROUTINE init_obsvar_pdaf

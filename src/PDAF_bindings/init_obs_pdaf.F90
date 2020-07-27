@@ -21,6 +21,8 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+   USE mod_assimilation, ONLY: obs_p
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -36,16 +38,18 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! Called by: PDAF_estkf_analysis
 ! Called by: PDAF_netf_analysis
 !EOP
+  write(*,*) 'In init_obs_pdaf, check!'
 
 
 ! ***************************************************************
 ! *** Initialize observation vector for PE-local model domain ***
 ! ***************************************************************
   
-  ! Template reminder - delete when implementing functionality
-!  WRITE (*,*) 'TEMPLATE init_obs_pdaf.F90: Initialize observation vector here!'
+     ! This is generic because it is just using
+     ! the vector obs filled in init_dim_obs_f
 
-!   observation_p = ?
+  observation_p(:) = obs_p(:)
+
 
 END SUBROUTINE init_obs_pdaf
 

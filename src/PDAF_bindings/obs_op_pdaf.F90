@@ -25,6 +25,12 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+! SCHISM module
+  use schism_glbl,only : eta2,tr_nd,uu2,vv2,elnode,i34,nvrt,idry_e,kbp,znl,nsa,ntracers,errmsg !,&
+!                       & in_dir,out_dir,len_in_dir,len_out_dir               
+  use schism_msgp, only: parallel_abort,myrank
+! PDAF module
+  use mod_assimilation, only: obs_p,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -34,21 +40,108 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
   REAL, INTENT(in)    :: state_p(dim_p)     ! PE-local model state
   REAL, INTENT(out) :: m_state_p(dim_obs_p) ! PE-local observed state
 
+! Local vars
+  integer i,m,nd,k0,ie,k,ibad
+  real swild(max(100,nsa+nvrt+12+ntracers)),swild2(nvrt,12) ! not yet finished
+  real zrat
+  character(len=72) :: fdb
+  integer :: lfdb
+
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_seek_analysis   (as U_obs_op)
 ! Called by: PDAF_seik_analysis, PDAF_seik_analysis_newT
 ! Called by: PDAF_enkf_analysis_rlm, PDAF_enkf_analysis_rsm
 !EOP
 
+! write(*,*) 'In obs_op_pdaf, check!'
 
 ! *********************************************
 ! *** Perform application of measurement    ***
 ! *** operator H on vector or matrix column ***
 ! *********************************************
 
-  ! Template reminder - delete when implementing functionality
-!  WRITE (*,*) 'TEMPLATE obs_op_pdaf.F90: Implement application of observation operator here!'
-
 !   m_state_p = ??
-  
+
+! new28: can we collect m_state_p base on model values,  not using values from
+!        state_p by obs index, we need to do interpolation, so index method may
+!        not good enough!
+!        If m_state_p=-999, We can remove obs_p record here?!
+
+  do i=1,dim_obs_p
+     ie=iep_obs_mod(i)
+     if ((obstype_mod(i).eq.'z').or.(obstype_mod(i).eq.'Z')) then
+        swild2(1,1:i34(ie))=eta2(elnode(1:i34(ie),ie))
+     elseif ((obstype_mod(i).eq.'t').or.(obstype_mod(i).eq.'T')) then
+        swild2(1:nvrt,1:i34(ie))=tr_nd(1,1:nvrt,elnode(1:i34(ie),ie))
+     elseif ((obstype_mod(i).eq.'s').or.(obstype_mod(i).eq.'S')) then
+        swild2(1:nvrt,1:i34(ie))=tr_nd(2,1:nvrt,elnode(1:i34(ie),ie))
+     elseif ((obstype_mod(i).eq.'u').or.(obstype_mod(i).eq.'U')) then
+        swild2(1:nvrt,1:i34(ie))=uu2(1:nvrt,elnode(1:i34(ie),ie))
+     elseif ((obstype_mod(i).eq.'v').or.(obstype_mod(i).eq.'V')) then
+        swild2(1:nvrt,1:i34(ie))=vv2(1:nvrt,elnode(1:i34(ie),ie))
+     else
+        call parallel_abort('PDAF: unknown DA data input')
+     end if
+!    Start to interpolation
+     if ((obstype_mod(i).eq.'z').or.(obstype_mod(i).eq.'Z')) then
+        m_state_p(i)=sum(arco_obs_mod(i,1:i34(ie))*swild2(1,1:i34(ie)))
+     else !3D vars
+        if(idry_e(ie)==1) then !dry
+            m_state_p(i)=-999.d0
+        else !wet
+            do m=1,i34(ie) !wet nodes
+               nd=elnode(m,ie)
+               !Vertical interplation
+               if(obs_coords_p(3,i)<=znl(kbp(nd),nd)) then
+                  k0=kbp(nd); zrat=0.d0
+               else if(obs_coords_p(3,i)>=znl(nvrt,nd)) then
+                  k0=nvrt-1; zrat=1.d0
+               else
+                  k0=0
+                  do k=kbp(nd),nvrt-1
+                     if(obs_coords_p(3,i)>=znl(k,nd).and.obs_coords_p(3,i)<=znl(k+1,nd)) then
+                       k0=k
+                       zrat=(obs_coords_p(3,i)-znl(k,nd))/(znl(k+1,nd)-znl(k,nd))
+                       exit
+                     endif
+                  enddo !k
+                  if(k0==0) then
+                    write(errmsg,*)'PDAF: DA data depth error',i,obs_coords_p(3,i)
+                    call parallel_abort(errmsg)
+                  endif
+               endif !obs_coords_p(3,i)
+               swild(m)=swild2(k0,m)*(1.d0-zrat)+swild2(k0+1,m)*zrat
+            enddo !m
+
+            !Horizonal interplation
+            m_state_p(i)=sum(arco_obs_mod(i,1:i34(ie))*swild(1:i34(ie)))
+!           write(*,*) 'Vert itp check',i,m_state_p(i),arco_obs_mod(i,1:i34(ie)),swild(1:i34(ie))
+        end if
+     end if !itp if
+  end do   
+
+! Check -999 for m_state_p & delete obs_p record if neceressary
+! Do this later
+  ibad=0
+  do i=1,dim_obs_p
+     if (m_state_p(i)<-900.) ibad=ibad+1
+  end do
+  if (ibad.ne.0) call parallel_abort('PDAF: Some model values at obs pts are at dry region!')
+
+! Check for m_state_p & obs_p for each member
+! Not work yet!
+! out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
+! len_out_dir=len_trim(out_dir)
+
+! fdb='DA_data_check'
+! lfdb=len_trim(fdb)
+! write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+! open(31,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
+! open(31,file=trim(adjustl(fdb)),status='old')
+
+  do i=1,dim_obs_p
+     write(*,*) 'in obs_op_pdaf',step,i,m_state_p(i),obs_p(i),myrank
+  end do
+! close(31)
+
 END SUBROUTINE obs_op_pdaf

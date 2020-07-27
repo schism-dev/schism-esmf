@@ -37,6 +37,9 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   REAL, INTENT(out)   :: ens_p(dim_p, dim_ens)   ! PE-local state ensemble
   INTEGER, INTENT(inout) :: flag                 ! PDAF status flag
 
+! Local variables
+  INTEGER ::  member  ! Counters
+
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_init       (as U_init_ens)
 ! Calls: init_seik
@@ -44,23 +47,33 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Calls: init_enkf
 !EOP
 
+! *** Read ensemble 
+  CALL collect_state_pdaf(dim_p, state_p)
+  
+! *** Initialize ens_p
+  DO member = 1,dim_ens
+        ens_p(1:dim_p,member) = state_p(1:dim_p)
+  END DO
 
+
+
+! Disable, just collect
 ! *******************************************************
 ! *** Call initialization routine for selected filter ***
 ! *******************************************************
 
-  IF (filtertype == 0) THEN
-     ! EOF initialization for SEEK
-     CALL init_seek(filtertype, dim_p, dim_ens, state_p, Uinv, &
-          ens_p, flag)
-  ELSE IF (filtertype == 2) THEN
-     ! Use random sampling initialization
-     CALL init_enkf(filtertype, dim_p, dim_ens, state_p, Uinv, &
-          ens_p, flag)
-  ELSE
-     ! Use 2nd-order exact sampling
-     CALL init_seik(filtertype, dim_p, dim_ens, state_p, Uinv, &
-          ens_p, flag)
-  END IF
+! IF (filtertype == 0) THEN
+!    ! EOF initialization for SEEK
+!    CALL init_seek(filtertype, dim_p, dim_ens, state_p, Uinv, &
+!         ens_p, flag)
+! ELSE IF (filtertype == 2) THEN
+!    ! Use random sampling initialization
+!    CALL init_enkf(filtertype, dim_p, dim_ens, state_p, Uinv, &
+!         ens_p, flag)
+! ELSE
+!    ! Use 2nd-order exact sampling
+!    CALL init_seik(filtertype, dim_p, dim_ens, state_p, Uinv, &
+!         ens_p, flag)
+! END IF
 
 END SUBROUTINE init_ens_pdaf

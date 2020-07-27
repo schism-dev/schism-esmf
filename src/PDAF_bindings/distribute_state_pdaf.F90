@@ -53,6 +53,7 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
 !  Assign state_p to eta2, su2 etc; exchange ghost
 !  ? = state_p
+! write(*,*) 'In distribute_state_pdaf, check!'
    
    !Elem
    itot=0
