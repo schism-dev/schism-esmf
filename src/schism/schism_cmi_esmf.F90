@@ -250,18 +250,6 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#ifndef ESMF_MPIUNI
-    ! Not serial mode; initialize schism's MPI
-    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call parallel_init(communicator=schism_mpi_comm)
-#endif
-
-!Debug
-!    write(message,*) trim(compName)//' reached here'
-!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
   !> If we run cohorts concurrently on different PET, we don't want to initialize schism
   !> for each member of a sequence but only for the first one.  To detect this,
   !> we ask for an attribute of the component
@@ -272,6 +260,20 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
 !Debug
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+#ifndef ESMF_MPIUNI
+  if (cohortIndex == 0) then
+    ! Not serial mode; initialize schism's MPI
+    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call parallel_init(communicator=schism_mpi_comm)
+  endif !cohortIndex
+#endif
+
+!Debug
+!    write(message,*) trim(compName)//' reached here'
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> The input directory is by default '.'.  If present as an attribute,

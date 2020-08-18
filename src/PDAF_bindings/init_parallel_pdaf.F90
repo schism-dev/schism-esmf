@@ -176,7 +176,7 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
   doens1: DO i = 1, n_modeltasks
      DO j = 1, local_npes_model(i)
         IF (mype_ens == pe_index) THEN
-           task_id = i
+           task_id = i !similar to our sequence index (shared among multiple tasks)
            EXIT doens1
         END IF
         pe_index = pe_index + 1
