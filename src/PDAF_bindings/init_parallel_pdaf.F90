@@ -185,6 +185,7 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
 
   !Copy from SCHISM (init'ed under ESMF). May be shared among >1 task
   COMM_model=comm 
+!  call mpi_comm_dup(comm,COMM_model,MPIerr)
   npes_model=nproc
   mype_model=myrank
 

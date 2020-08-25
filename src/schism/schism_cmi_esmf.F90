@@ -121,7 +121,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
   use schism_glbl, only: dt, rnday, vv2, nvrt,ifile
-  use schism_msgp, only: schism_mpi_comm=>comm
+!  use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
 !  use schism_io, only: ncid
 #ifdef USE_FABM
@@ -265,10 +265,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 #ifndef ESMF_MPIUNI
   if (cohortIndex == 0) then
     ! Not serial mode; initialize schism's MPI
-    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call parallel_init(communicator=schism_mpi_comm)
+    call parallel_init(communicator=mpi_comm)
   endif !cohortIndex
 #endif
 
