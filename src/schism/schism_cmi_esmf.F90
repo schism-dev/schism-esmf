@@ -1,4 +1,4 @@
-! This code is part of the SCHISM-ESMF interface
+ ! This code is part of the SCHISM-ESMF interface
 !
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 ! @author Carsten Lemmen carsten.lemmen@hzg.de
@@ -42,7 +42,7 @@ module schism_cmi_esmf
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
  &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
  &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
-  
+
 
 contains
 
@@ -858,8 +858,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   INTEGER :: doexit, steps,status_pdaf
   REAL    :: timenow
-  character(len=72) :: fdb  
-  integer :: lfdb 
+  character(len=72) :: fdb
+  integer :: lfdb
 
 ! External subroutines
 ! comment out --> into generic interface (assimilate_pdaf)
@@ -971,7 +971,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 !      write(message,*) trim(compName)//' wind before:',cohortIndex,it,minval(windx),maxval(windx)
 !      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 !    endif
- 
+
     call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -1012,14 +1012,15 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 !Debug
 !  write(message,*) trim(compName)//' wind after:',minval(windx),maxval(windx),minval(windy),maxval(windy)
 !  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
- 
+
   !Check if it's time for analysis
 !new28
+#ifdef USE_PDAF
   if(analysis_step/=0) then
      write(message,*)trim(compName)//' entering PDAF assimilate, ',it
      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!    Using assimilate PDAF interface 
-     call assimilate_pdaf() ! 
+!    Using assimilate PDAF interface
+     call assimilate_pdaf() !
 !    call assimilate_pdaf(pdaf_stat)
 !    localrc=pdaf_stat !pdaf_stat is using i2, localrc is i4
      write(message,*)'Done PDAF assimilate'
@@ -1027,6 +1028,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   endif !analysis_step/=0
+#endif
 
   !> Do a clock correction for non-integer internal timesteps and issue
   !> a warning.  We could improve this somewhat by choosing to optionally
@@ -1358,34 +1360,34 @@ subroutine schism_alloc_arrays(ncohort)
   integer(ESMF_KIND_I4), intent(in) :: ncohort
 
   !ncohort>=1 checked
-  if(.not.allocated(idry_e_c)) allocate(idry_e_c(nea,0:ncohort-1))  
-  if(.not.allocated(idry_s_c)) allocate(idry_s_c(nsa,0:ncohort-1))  
-  if(.not.allocated(idry_c)) allocate(idry_c(npa,0:ncohort-1))  
+  if(.not.allocated(idry_e_c)) allocate(idry_e_c(nea,0:ncohort-1))
+  if(.not.allocated(idry_s_c)) allocate(idry_s_c(nsa,0:ncohort-1))
+  if(.not.allocated(idry_c)) allocate(idry_c(npa,0:ncohort-1))
 
-  if(.not.allocated(we_c)) allocate(we_c(nvrt,nea,0:ncohort-1))  
-  if(.not.allocated(tr_el_c)) allocate(tr_el_c(ntracers,nvrt,nea2,0:ncohort-1))  
-  if(.not.allocated(su2_c)) allocate(su2_c(nvrt,nsa,0:ncohort-1))  
-  if(.not.allocated(sv2_c)) allocate(sv2_c(nvrt,nsa,0:ncohort-1))  
-  if(.not.allocated(eta2_c)) allocate(eta2_c(npa,0:ncohort-1))  
-  if(.not.allocated(tr_nd_c)) allocate(tr_nd_c(ntracers,nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(tr_nd0_c)) allocate(tr_nd0_c(ntracers,nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(q2_c)) allocate(q2_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(xl_c)) allocate(xl_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(dfv_c)) allocate(dfv_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(dfh_c)) allocate(dfh_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(dfq1_c)) allocate(dfq1_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(dfq2_c)) allocate(dfq2_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(we_c)) allocate(we_c(nvrt,nea,0:ncohort-1))
+  if(.not.allocated(tr_el_c)) allocate(tr_el_c(ntracers,nvrt,nea2,0:ncohort-1))
+  if(.not.allocated(su2_c)) allocate(su2_c(nvrt,nsa,0:ncohort-1))
+  if(.not.allocated(sv2_c)) allocate(sv2_c(nvrt,nsa,0:ncohort-1))
+  if(.not.allocated(eta2_c)) allocate(eta2_c(npa,0:ncohort-1))
+  if(.not.allocated(tr_nd_c)) allocate(tr_nd_c(ntracers,nvrt,npa,0:ncohort-1))
+  if(.not.allocated(tr_nd0_c)) allocate(tr_nd0_c(ntracers,nvrt,npa,0:ncohort-1))
+  if(.not.allocated(q2_c)) allocate(q2_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(xl_c)) allocate(xl_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(dfv_c)) allocate(dfv_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(dfh_c)) allocate(dfh_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(dfq1_c)) allocate(dfq1_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(dfq2_c)) allocate(dfq2_c(nvrt,npa,0:ncohort-1))
 
   !Extra: somehow this helps
-  if(.not.allocated(uu2_c)) allocate(uu2_c(nvrt,npa,0:ncohort-1))  
-  if(.not.allocated(vv2_c)) allocate(vv2_c(nvrt,npa,0:ncohort-1))  
+  if(.not.allocated(uu2_c)) allocate(uu2_c(nvrt,npa,0:ncohort-1))
+  if(.not.allocated(vv2_c)) allocate(vv2_c(nvrt,npa,0:ncohort-1))
 end subroutine schism_alloc_arrays
 
 subroutine schism_save_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
  &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
  &uu2,vv2
-  implicit none  
+  implicit none
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
 
   character(len=ESMF_MAXSTR)  :: message
@@ -1425,7 +1427,7 @@ subroutine schism_get_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
  &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
  &uu2,vv2
-  implicit none  
+  implicit none
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
 
   character(len=ESMF_MAXSTR)  :: message

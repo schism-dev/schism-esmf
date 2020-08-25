@@ -105,7 +105,7 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_as
 
 
 schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) schism_pdaf.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+	$(F90) -DUSE_PDAF $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 #schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
 #	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
