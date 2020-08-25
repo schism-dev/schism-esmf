@@ -45,7 +45,7 @@ module schism_bmi
 
     subroutine schism_init(iorder,indir,iths,ntime)
       implicit none
-      integer, intent(in)         :: iorder
+      integer, intent(in)          :: iorder
       character(len=*), intent(in) :: indir
       integer, intent(out)         :: iths,ntime
     end subroutine schism_init

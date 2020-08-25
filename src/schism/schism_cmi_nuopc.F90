@@ -133,7 +133,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call ESMF_UtilIOMkDir ('./outputs',  relaxedFlag=.true., rc=localrc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  call schism_init('./', iths, ntime)
+  call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
