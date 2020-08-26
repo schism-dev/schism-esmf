@@ -36,20 +36,22 @@ program main
 
   implicit none
 
-  integer                 :: localrc, userRc, rc
-  type(ESMF_GridComp)     :: topComp
+  integer                     :: localrc, userRc, rc
+  type(ESMF_GridComp)         :: topComp
   character(len=ESMF_MAXSTR)  :: filename
-  type(ESMF_Clock)        :: clock
-  character(len=ESMF_MAXSTR) :: message, string
+  type(ESMF_Clock)            :: clock
+  character(len=ESMF_MAXSTR)  :: message, string
 
   ! Initialize ESMF
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, &
     defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_FieldDictionarySetup("field_dictionary.yaml", rc=localrc)
+  !> @todo sugarglider crashes on the call with filename argument
+  !call NUOPC_FieldDictionarySetup("field_dictionary.yaml", rc=localrc)
+  call NUOPC_FieldDictionarySetup(rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
+  !
   ! @todo find out why this does not work
   !call FieldDictionaryLog("field_dictionary.yaml.out", iofmt=ESMF_IOFMT_YAML, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)

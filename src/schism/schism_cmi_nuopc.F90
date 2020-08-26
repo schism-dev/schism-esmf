@@ -215,6 +215,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
 
   !> @todo replace by NUOPC_CompGet()
+!  NUOPC_GridCompGet(comp, name, verbosity, profiling, diagnostic, rc)
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
