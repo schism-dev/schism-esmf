@@ -219,10 +219,10 @@ program main
       petList(j)=sequenceIndex*petCountLocal+ j-1 !points to global PET #
     end do !j
 
-    !write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in sequence  ', sequenceIndex, 'list is ',  petlist
+!   write(0,*) 'Instance ', i, ' uses ', petCountLocal, ' PET in sequence  ', sequenceIndex, 'list is ',  petlist
 
     write(message2, '(A,I3.3)') 'schism_', i
-    !write(0, *) trim(message2), 'list=', petList, 'petCount=', petCount, petCountLocal
+!   write(0, *) trim(message2), 'list=', petList, 'petCount=', petCount, petCountLocal
 
     schism_components(i) = ESMF_GridCompCreate(name=trim(adjustl(message2)), &
       petList=petlist, rc=localrc)
@@ -317,6 +317,7 @@ program main
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Initialize phase 0 and set attribute for calling init
+! write(0, *) 'Before init0_loop, ESMF_GridCompInitialize'
   init0_loop: do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
@@ -324,7 +325,8 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     !Put sequence_index (0-based) into attribute to pass onto init P1 etc
-    cohortIndex=(i-1)/concurrentCount
+!   cohortIndex=(i-1)/concurrentCount
+    cohortIndex=mod(i-1,ncohort) ! correct this to match PDAF task-ID
     call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
 
     if(cohortIndex>ncohort-1) then
@@ -360,6 +362,7 @@ program main
   ! Init phase 1: assuming all ensemble members share same parameters and i.c.
   ! and use same # of PETs. The PETs seem to 'block' when doing a task until
   ! it's done so the latter tasks that use same PETs will wait
+! write(0, *) 'Before schism_init, ESMF_GridCompInitialize'
   init1_loop: do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState= importStateList(i), &
@@ -368,6 +371,7 @@ program main
 
   enddo init1_loop
 
+! write(0, *) 'Before ESMF_StateReconcile'
   reconcile_loop: do i = 1, schismCount
 
     call ESMF_StateReconcile( importStateList(i), vm=vm, rc=localrc)
@@ -379,7 +383,9 @@ program main
   enddo reconcile_loop
 
 ! Init PDAF env
+! write(0, *) 'Before init_parelle_pdaf'
   call init_parallel_pdaf(0,1,schismCount,petCountLocal,concurrentCount)
+! write(0, *) 'Before init_pdaf'
   call init_pdaf(schismCount,j)
   if(j/=0) then
     localrc = ESMF_RC_VAL_OUTOFRANGE
