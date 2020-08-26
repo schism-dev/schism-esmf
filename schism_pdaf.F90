@@ -208,7 +208,8 @@ program main
 
     ! Determine the sequence  and concurrent index of each
     ! instance
-    sequenceIndex = mod(i-1, concurrentCount) !local index in a cohort (0- based)
+!    sequenceIndex = mod(i-1, concurrentCount) !local index in a cohort (0- based); task ID-1 in PDAF
+    sequenceIndex=(i-1)/ncohort
 
     allocate(petlist(petCountLocal), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
