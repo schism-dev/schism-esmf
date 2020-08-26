@@ -112,13 +112,23 @@ end subroutine SetServices
 #define ESMF_METHOD "InitializeP0"
 subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
 
+!  phase 0: Set Initialize Phase Definition Version (REQUIRED, NUOPC PROVIDED)
+!  – Initialize the InitializePhaseMap Attribute according to the NUOPC Initialize Phase Definition (IPD) version 00
+! ∗ IPDv00p1 = 1: (REQUIRED, IMPLEMENTOR PROVIDED) · Advertise Fields in import and export States.
+! ∗ IPDv00p2 = 2: (REQUIRED, IMPLEMENTOR PROVIDED)
+! · Realize the advertised Fields in import and export States.
+! ∗ IPDv00p3 = 3: (REQUIRED, NUOPC PROVIDED)
+! · Check compatibility of the Fields’ Connected status.
+! ∗ IPDv00p4 = 4: (REQUIRED, NUOPC PROVIDED)
+! · Handle Field data initialization. Time stamp the export Fields.
+
   type(ESMF_GridComp)   :: comp
   type(ESMF_State)      :: importState
   type(ESMF_State)      :: exportState
   type(ESMF_Clock)      :: parentClock
   integer, intent(out)  :: rc
 
-  character(len=10)           :: InitializePhaseMap(1)
+  character(len=10)           :: InitializePhaseMap(4)
   integer                     :: localrc
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, compName
@@ -127,7 +137,15 @@ subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
 
   rc=ESMF_SUCCESS
 
-  InitializePhaseMap(1) = "IPDv00p1=1"
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A)') trim(compName)//' initializing (p=0) component ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  InitializePhaseMap = (/"IPDv00p1=1","IPDv00p2=2", &
+    "IPDv00p3=3","IPDv00p4=4"/)
+
   call ESMF_AttributeAdd(comp, convention="NUOPC", &
     purpose="General", &
     attrList=(/"InitializePhaseMap"/), rc=localrc)
@@ -136,22 +154,6 @@ subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
   call ESMF_AttributeSet(comp, name="InitializePhaseMap", valueList=InitializePhaseMap, &
     convention="NUOPC", purpose="General", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A)') trim(compName)//' initializing (p=0) component ...'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  if (.not.ESMF_StateIsCreated(importState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Import', rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif
-
-  if (.not.ESMF_StateIsCreated(exportState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Export', rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif
 
   ! Read the configuration for this component from file if not
   ! already present in the component
