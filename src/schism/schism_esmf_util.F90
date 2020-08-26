@@ -44,14 +44,14 @@ subroutine addSchismMesh(comp, rc)
   !> @todo apply only filter to 'use schism_glbl'
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
-  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, lreadll
+  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only:  nvrt
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Mesh)       :: mesh2d, mesh3d
-  type(ESMF_DistGrid)   :: elementDistgrid, distgrid
+  type(ESMF_Mesh)          :: mesh2d, mesh3d
+  type(ESMF_DistGrid)      :: elementDistgrid, distgrid
   type(ESMF_CoordSys_Flag) :: coordsys
   integer, dimension(:), allocatable            :: nodeids, elementids, nv
   real(ESMF_KIND_R8), dimension(:), allocatable :: nodecoords2d, nodecoords3d
@@ -92,33 +92,13 @@ subroutine addSchismMesh(comp, rc)
   numNodeHaloIdx=0
   numLocalNodes=np
 
-  allocate(tmpIdx(npa-np), stat=localrc)
+  allocate(localNodes(numLocalNodes), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(tmpIdx2(npa), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  do i=1,numLocalNodes
+    localNodes(i)=i
+  end do
 
-  do i=1,np
-    tmpIdx2(i)=i
-  end do
-  do i=np+1,npa-np
-    ! check existence in local elements
-    do ie=1,ne
-      if (any(elnode(1:i34(ie),ie)==i)) then
-        numLocalNodes = numLocalNodes+1
-        tmpIdx2(numLocalNodes)=i
-      else
-        numNodeHaloIdx = numNodeHaloIdx+1
-        tmpIdx(numNodeHaloIdx)=i
-      end if
-    end do
-  end do
-  allocate(nodeHaloIdx(numNodeHaloIdx))
-  nodeHaloIdx(:)=tmpIdx(1:numNodeHaloIdx)
-  deallocate(tmpIdx)
-  allocate(localNodes(numLocalNodes))
-  localNodes(:)=tmpIdx2(1:numLocalNodes)
-  deallocate(tmpIdx2)
   ! get inverse matching
   allocate(schismToLocalNodes(npa))
   schismToLocalNodes(:) = -1 ! initialize to -1
@@ -159,16 +139,20 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
-  if (lreadll) then
+  if (ics==2) then
     coordsys=ESMF_COORDSYS_SPH_DEG
   else
+    write(message, '(A)') trim(compName)//' uses a cartesian coordinate system'// &
+       ' which may not be suitable for coupling'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     coordsys=ESMF_COORDSYS_CART
   endif
 
-  do ip=1,numLocalNodes
+  do ip=1, numLocalNodes
     i = localNodes(ip)
+    ! iplg(i) is global node index of local node i in the augmented domain
     nodeids(ip)=iplg(i)
-    if (lreadll) then
+    if (ics==2) then
       ! if geographical coordinates present
       nodecoords2d(2*ip-1) = rad2deg*xlon(i)
       nodecoords2d(2*ip)   = rad2deg*ylat(i)
@@ -178,10 +162,14 @@ subroutine addSchismMesh(comp, rc)
       nodecoords2d(2*ip)   = ynd(i)
     end if
     if (i<=np) then
-      nodeowners(ip)       = ipgl(iplg(i))%rank
+      ! if iplg(i) is resident, ipgl(iplg(i))%rank=myrank
+      nodeowners(ip) = ipgl(iplg(i))%rank
     else
-      ! get owner of foreign node
+      ! get owner of foreign node, the SCHISM manual tells us to not use
+      ! ipgl for foreign nodes ???
+      ! ipgl%next%next%next.... is the linked list, with ranks in ascending order.  Unless ipgb is an interface node (i.e., resident in more than 1 process), the list has only 1 entry
       nextp => ipgl(iplg(i))
+      ! We here advance to the end of the list, Joseph suggested to just take the next element
       do while (associated(nextp%next))
         nextp => nextp%next
       end do
@@ -225,20 +213,19 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,nodeIds=nodeids, &
-    nodeCoords=nodecoords2d,nodeOwners=nodeowners, &
-    coordSys=coordsys, &
-    nodeMask=nodemask,elementMask=elementmask, &
-    elementIds=elementids, elementTypes=elementtypes, &
-    elementCoords=elementcoords2d, &
-    elementDistgrid=elementDistgrid, &
-    elementConn=nv(1:nvcount-1), rc=localrc)
+             nodeCoords=nodecoords2d,nodeOwners=nodeowners, &
+             coordSys=coordsys, &
+             nodeMask=nodemask,elementMask=elementmask, &
+             elementIds=elementids, elementTypes=elementtypes, &
+             elementCoords=elementcoords2d, &
+             elementDistgrid=elementDistgrid, &
+             elementConn=nv(1:nvcount-1), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #if 0
   ! output mesh information from schism and esmf
-  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp,numOwnedElements=myne, elementDistgrid=distgrid, rc=localrc)
+  call ESMF_MeshGet(mesh2d,numOwnedNodes=mynp,numOwnedElements=myne,elementDistgrid=distgrid,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   allocate(testids(myne))
   call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
