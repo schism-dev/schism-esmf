@@ -1,12 +1,12 @@
 # Namelist file for PDAF configuration
 &pdaf_nml
- screen = 3,
- filtertype = 7,
- subtype = 0,
- delt_obs = 36,
- rms_obs = 0.5,
- forget = 1.0,
- locweight = 4,
- local_range = 500.0,
+ screen = 3,      ! 0 is default, use 3 to debug 
+ filtertype = 7,  ! only accept 4(ETKF),5(LETKF),6(ESTKF),7(LESTKF)
+ subtype = 0,     ! subtype of filter, check details in http://pdaf.awi.de/trac/wiki/AvailableOptionsforInitPDAF
+ delt_obs = 36,   ! how many steps to do DA
+ rms_obs = 0.5,   ! observation error, will be vector later
+ forget = 1.0,    ! forgetting factor
+ locweight = 4,   ! localization weight type, 0:uniform, 1:Exponential, 2/3/4:5th-order polynomial, check prodrinva_l_pdaf
+ local_range = 500.0,  ! localization range, use lat/lon if ics=2
 /
 
