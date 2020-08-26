@@ -1,0 +1,12 @@
+# Namelist file for PDAF configuration
+&pdaf_nml
+ screen = 3,
+ filtertype = 7,
+ subtype = 0,
+ delt_obs = 36,
+ rms_obs = 0.5,
+ forget = 1.0,
+ locweight = 4,
+ local_range = 500.0,
+/
+
