@@ -91,17 +91,40 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   !  StandardName="surface_temperature", name="sst", rc=localrc)
   !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  if (.not.NUOPC_FieldDictionaryHasEntry("surface_air_pressure", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("surface_air_pressure", "N m-2", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   call NUOPC_Advertise(exportState, &
     StandardName="surface_air_pressure", name="pmsl", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (.not.NUOPC_FieldDictionaryHasEntry("surface_downwelling_photosynthetic_radiative_flux", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
       StandardName="surface_downwelling_photosynthetic_radiative_flux", name="rsns", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo expand fieldDict to correctly label this
+  if (.not.NUOPC_FieldDictionaryHasEntry("x_velocity_at_10m_above_sea_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("x_velocity_at_10m_above_sea_surface", "m s-1", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   call NUOPC_Advertise(exportState, &
       StandardName="x_velocity_at_10m_above_sea_surface", name="x_velocity_at_10m_above_sea_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (.not.NUOPC_FieldDictionaryHasEntry("y_velocity_at_10m_above_sea_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("y_velocity_at_10m_above_sea_surface", "m s-1", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
