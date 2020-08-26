@@ -863,10 +863,10 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
 ! External subroutines
 ! comment out --> into generic interface (assimilate_pdaf)
-! EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
+  EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
-!      distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-!      prepoststep_ens, &            ! User supplied pre/poststep routine
+       distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
+       prepoststep_ens !, &            ! User supplied pre/poststep routine
 !      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
 
@@ -952,6 +952,11 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   call schism_get_state(cohortIndex)
 
+!#ifdef USE_PDAF
+! Put PDAF_get_state here
+  call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
+!#endif
+
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
@@ -1004,19 +1009,14 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     it=it+1
   end do !while
 
-  call schism_save_state(cohortIndex)
-
-  !Save stack #
-  istack(cohortIndex)=ifile
-
 !Debug
 !  write(message,*) trim(compName)//' wind after:',minval(windx),maxval(windx),minval(windy),maxval(windy)
 !  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !Check if it's time for analysis
 !new28
-#ifdef USE_PDAF
-  if(analysis_step/=0) then
+!#ifdef USE_PDAF
+! if(analysis_step/=0) then
      write(message,*)trim(compName)//' entering PDAF assimilate, ',it
      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 !    Using assimilate PDAF interface
@@ -1027,8 +1027,15 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  endif !analysis_step/=0
-#endif
+! endif !analysis_step/=0
+!#endif
+
+! Move save_state after DA
+  call schism_save_state(cohortIndex)
+
+  !Save stack #
+  istack(cohortIndex)=ifile
+
 
   !> Do a clock correction for non-integer internal timesteps and issue
   !> a warning.  We could improve this somewhat by choosing to optionally

@@ -23,6 +23,7 @@ SUBROUTINE init_obs_l_pdaf(domain_p, step, dim_obs_l, observation_l)
 ! Later revisions - see svn log
 !
 ! !USES:
+  use mod_assimilation, only: obs_f,obs_index_l
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -30,6 +31,9 @@ SUBROUTINE init_obs_l_pdaf(domain_p, step, dim_obs_l, observation_l)
   INTEGER, INTENT(in) :: step       ! Current time step
   INTEGER, INTENT(in) :: dim_obs_l  ! Local dimension of observation vector
   REAL, INTENT(out)   :: observation_l(dim_obs_l) ! Local observation vector
+
+! Local vars
+  INTEGER :: i
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_analysis   (as U_init_obs_l)
@@ -44,9 +48,14 @@ SUBROUTINE init_obs_l_pdaf(domain_p, step, dim_obs_l, observation_l)
 ! *******************************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_obs_l_pdaf.F90: Initialize local observation vector here!'
+! WRITE (*,*) 'TEMPLATE init_obs_l_pdaf.F90: Initialize local observation vector here!'
 
 !   observation_l = ??
+
+  DO i = 1, dim_obs_l
+     observation_l(i) = obs_f(obs_index_l(i))
+  END DO
+
 
 END SUBROUTINE init_obs_l_pdaf
 

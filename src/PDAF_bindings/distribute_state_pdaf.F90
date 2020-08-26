@@ -28,7 +28,10 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 !
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+ &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
   
 ! !ARGUMENTS:
@@ -53,56 +56,17 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
 !  Assign state_p to eta2, su2 etc; exchange ghost
 !  ? = state_p
-! write(*,*) 'In distribute_state_pdaf, check!'
+! write(*,*) 'In distribute_state_pdaf, check!',mype_world,task_id,filterpe
    
-   !Elem
+   !init count
    itot=0
-   do i=1,nea
-     itot=itot+1
-     idry_e(i)=nint(state_p(itot))
-   enddo !i
-   do i=1,nea
-     do k=1,nvrt
-       itot=itot+1
-       we(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
-   do i=1,nea
-     do k=1,nvrt
-       do j=1,ntracers
-         itot=itot+1
-         tr_el(j,k,i)=state_p(itot)
-       enddo !j
-     enddo !k
-   enddo !i
-  
-   !Side
-   do i=1,nsa
-     itot=itot+1
-     idry_s(i)=nint(state_p(itot))
-   enddo !i
-   do i=1,nsa
-     do k=1,nvrt
-       itot=itot+1
-       su2(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
-   do i=1,nsa
-     do k=1,nvrt
-       itot=itot+1
-       sv2(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
-
-   !node
-   do i=1,npa
-     itot=itot+1
-     idry(i)=nint(state_p(itot))
-   enddo !i
+   !node-base
+   ! Elev
    do i=1,npa
      itot=itot+1
      eta2(i)=state_p(itot)
    enddo !i
+   ! Tracer
    do i=1,npa
      do k=1,nvrt
        do j=1,ntracers
@@ -111,49 +75,30 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        enddo !j
      enddo !k
    enddo !i
+   ! U
    do i=1,npa
      do k=1,nvrt
-       do j=1,ntracers
-         itot=itot+1
-         tr_nd0(j,k,i)=state_p(itot)
-       enddo !j
+        itot=itot+1
+        uu2(k,i)=state_p(itot)
      enddo !k
    enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       q2(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
+   ! V
    do i=1,npa
      do k=1,nvrt
        itot=itot+1
-       xl(k,i)=state_p(itot)
+       vv2(k,i)=state_p(itot)
      enddo !k
    enddo !i
+   ! W
    do i=1,npa
      do k=1,nvrt
        itot=itot+1
-       dfv(k,i)=state_p(itot)
+       ww2(k,i)=state_p(itot)
      enddo !k
    enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       dfh(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       dfq1(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       dfq2(k,i)=state_p(itot)
-     enddo !k
-   enddo !i
+
+!  new28!!
+!  Here we need to update tr_el, su2,sv2 by node-base vars, do this later
+!  do i=1,nea ....   
 
 END SUBROUTINE distribute_state_pdaf

@@ -33,6 +33,9 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
 !
 ! !USES:
   USE mod_assimilation, ONLY: rms_obs
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
 
   IMPLICIT NONE
 
@@ -46,7 +49,7 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
 ! Called by: PDAF_set_forget    (as U_init_init_obs_covar)
 !EOP
 
-  write(*,*) 'In init_obsvar_pdaf, check!'
+! write(*,*) 'In init_obsvar_pdaf, check!',mype_world,task_id,filterpe
 
 ! *****************************
 ! *** Compute mean variance ***

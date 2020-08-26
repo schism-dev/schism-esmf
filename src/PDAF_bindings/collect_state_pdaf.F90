@@ -28,7 +28,10 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
 !
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
+ &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
   
 ! !ARGUMENTS:
@@ -42,7 +45,7 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
 ! Called by: PDAF_assimilate_X   (as U_coll_state)
 !EOP
   
-! write(*,*) 'In collect_state_pdaf, check!'
+! write(*,*) 'In collect_state_pdaf, check!',mype_world,task_id,filterpe
 
 ! *************************************************
 ! *** Initialize state vector from model fields ***
@@ -50,54 +53,16 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
 
 !   Assign state vars to state_p in the resident domains
 
-   !Elem
+   !init count
    itot=0
-   do i=1,nea
-     itot=itot+1
-     state_p(itot)=idry_e(i)
-   enddo !i
-   do i=1,nea
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=we(k,i)
-     enddo !k
-   enddo !i
-   do i=1,nea
-     do k=1,nvrt
-       do j=1,ntracers
-         itot=itot+1
-         state_p(itot)=tr_el(j,k,i) 
-       enddo !j
-     enddo !k
-   enddo !i
-  
-   !Side
-   do i=1,nsa
-     itot=itot+1
-     state_p(itot)=idry_s(i)
-   enddo !i
-   do i=1,nsa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=su2(k,i)
-     enddo !k
-   enddo !i
-   do i=1,nsa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=sv2(k,i)
-     enddo !k
-   enddo !i
 
-   !node
-   do i=1,npa
-     itot=itot+1
-     state_p(itot)=idry(i)
-   enddo !i
+   !node-base
+   ! Elev
    do i=1,npa
      itot=itot+1
      state_p(itot)=eta2(i)
    enddo !i
+   ! Tracer
    do i=1,npa
      do k=1,nvrt
        do j=1,ntracers
@@ -106,48 +71,25 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
        enddo !j
      enddo !k
    enddo !i
+   ! U
    do i=1,npa
      do k=1,nvrt
-       do j=1,ntracers
-         itot=itot+1
-         state_p(itot)=tr_nd0(j,k,i)
-       enddo !j
+        itot=itot+1
+        state_p(itot)=uu2(k,i)
      enddo !k
    enddo !i
+   ! V
    do i=1,npa
      do k=1,nvrt
        itot=itot+1
-       state_p(itot)=q2(k,i)
+       state_p(itot)=vv2(k,i)
      enddo !k
    enddo !i
+   ! W
    do i=1,npa
      do k=1,nvrt
        itot=itot+1
-       state_p(itot)=xl(k,i)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=dfv(k,i)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=dfh(k,i)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=dfq1(k,i)
-     enddo !k
-   enddo !i
-   do i=1,npa
-     do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=dfq2(k,i)
+       state_p(itot)=ww2(k,i)
      enddo !k
    enddo !i
 

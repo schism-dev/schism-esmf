@@ -37,6 +37,11 @@ program main
 
   use esmf
   use schism_cmi_esmf, only: schismSetServices => SetServices
+! use schism_msgp, only: parallel_abort,myrank
+! use schism_glbl, only: errmsg,tr_el
+! USE mod_assimilation, &      ! Variables for assimilation
+!      ONLY: filtertype
+! use PDAF_mod_filter, only: dim_p,state
 
   implicit none
 
@@ -84,12 +89,13 @@ program main
   integer(ESMF_KIND_I4), allocatable :: list_obs_steps(:)
   real(ESMF_KIND_R8), allocatable :: list_obs_times(:)
 
-  integer doexit,status_pdaf ! PDAF vars
-  real time_PDAF
-  EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
-                                       ! and dimension of next observation
-       distribute_state_pdaf, &        ! Routine to distribute a state vector to  model fields
-       prepoststep_ens                 ! User supplied pre/poststep routine
+! PDAF vars & external routines
+! integer doexit,status_pdaf ! PDAF vars
+! real time_PDAF
+! EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
+!                                      ! and dimension of next observation
+!      distribute_state_pdaf, &        ! Routine to distribute a state vector to  model fields
+!      prepoststep_ens                 ! User supplied pre/poststep routine
 
   namelist /obs_info/list_obs_times
 
@@ -374,6 +380,8 @@ program main
 ! Init PDAF env
   call init_parallel_pdaf(0,1,schismCount,petCountLocal,concurrentCount)
   call init_pdaf(schismCount,j)
+! call collect_state_pdaf(dim_p, state)
+! write(*,*) 'in schism_pdaf, dim,state',schismCount,dim_p,maxval(state)
   if(j/=0) then
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -386,6 +394,7 @@ program main
 
     !new28: this is mostly to init analysis routines
     !call PDAF_get_state
+    !call PDAF_get_state(it,time_PDAF, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
 
     it=it+num_schism_dt_in_couple !SCHISM step #
 
@@ -409,19 +418,45 @@ program main
 
     enddo !i
 
-!   if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
+    if (it==list_obs_steps(next_obs_step)) next_obs_step=min(num_obs_steps,next_obs_step+1)
 
     call MPI_barrier(MPI_COMM_WORLD,ii)
     if(ii/=MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD,0,j)
 
+!   Move PDAF_put_state here to match flexible mode
+!   Disable local filter for dev
+!   IF (filtertype == 4) THEN
+!      CALL PDAF_put_state_etkf_si(status_pdaf)
+!   ELSEIF (filtertype == 5) THEN
+!      CALL PDAF_put_state_letkf_si(status_pdaf)
+!   ELSEIF (filtertype == 6) THEN
+!      CALL PDAF_put_state_estkf_si(status_pdaf)
+!   ELSEIF (filtertype == 7) THEN
+!      CALL PDAF_put_state_lestkf_si(status_pdaf)
+!   ELSE
+!      WRITE (errmsg,*) 'PDAF Filtertype only accept 4,6, please specify right one!'
+!      CALL parallel_abort(errmsg)
+!   END IF
+
+!   IF (status_pdaf /= 0) THEN
+!      WRITE (errmsg,*) &
+!           'ERROR ', status_pdaf, &
+!           ' in PDAF_put_state(assimilate_pdaf) - stopping! '
+!      CALL parallel_abort(errmsg)
+!   END IF
+!   new28!
+!   Can we add "call schism_save_state(cohortIndex)" here to update state_p?
+!   write(*,*) 'in schism_pdaf:',tr_el(1,1,1),myrank
+
+
 !   DA step
-    if (it==list_obs_steps(next_obs_step)) then ! DA step (update ens field)  
+!   if (it==list_obs_steps(next_obs_step)) then ! DA step (update ens field)  
 !       time_PDAF=list_obs_steps(next_obs_step)
-        write(*,*) 'Before PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF
-        call PDAF_get_state(it,time_PDAF, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
-        write(*,*) 'After PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF
-        next_obs_step=min(num_obs_steps,next_obs_step+1)
-    endif ! DA step
+!       write(*,*) 'Before PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF,doexit
+!       call PDAF_get_state(it,time_PDAF, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
+!       write(*,*) 'After PDAF_get_state in schism_pdaf!', it,next_obs_step,num_obs_steps,time_PDAF,doexit
+!       next_obs_step=min(num_obs_steps,next_obs_step+1)
+!   endif ! DA step
 
 
     ! Advance coupling clock to next timestep
@@ -480,6 +515,10 @@ program main
 
   ! @todo also destroy the deep alarm objects
 !  if (allocated(alarmList)) deallocate(alarmList)
+
+! PDAF finalize
+    call finalize_pdaf()
+
 
     do i = 1,schismCount
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &

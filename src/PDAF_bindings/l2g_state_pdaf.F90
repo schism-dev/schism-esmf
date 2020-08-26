@@ -4,7 +4,7 @@
 ! !ROUTINE: l2g_state_pdaf --- Initialize full state from local analysis
 !
 ! !INTERFACE:
-SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
+SUBROUTINE l2g_state_pdaf(step, domain_p, dim_l, state_l, dim_p, state_p)
 
 ! !DESCRIPTION:
 ! User-supplied routine for PDAF.
@@ -25,15 +25,21 @@ SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+  USE mod_assimilation, ONLY: offset_field_p
+  use schism_glbl,only : nvrt,ntracers,npa
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
   INTEGER, INTENT(in) :: step           ! Current time step
-  INTEGER, INTENT(in) :: domain         ! Current local analysis domain
+  INTEGER, INTENT(in) :: domain_p         ! Current local analysis domain
   INTEGER, INTENT(in) :: dim_l          ! Local state dimension
   INTEGER, INTENT(in) :: dim_p          ! PE-local full state dimension
   REAL, INTENT(in)    :: state_l(dim_l) ! State vector on local analysis domain
   REAL, INTENT(inout) :: state_p(dim_p) ! PE-local full state vector 
+
+! Local vars
+  integer iid,cnt,nfield,k
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update    (as U_l2g_state)
@@ -48,8 +54,22 @@ SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 ! **************************************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE l2g_state_pdaf.F90: Set part of global state vector here!'
+!  WRITE (*,*) 'TEMPLATE l2g_state_pdaf.F90: Set part of global state vector here!'
 
 !  state_p = ?
+
+  nfield=5 ! z+tracer(s/t)+u+v+w
+
+! elev
+  state_p(domain_p)=state_l(1)
+! 3D field
+  cnt=2
+  do iid=2,nfield
+     do k=1,nvrt
+        state_p(domain_p + offset_field_p(iid) + (k-1)*npa) = state_l(cnt) 
+        cnt=cnt+1
+     end do !k
+  end do !iid
+
 
 END SUBROUTINE l2g_state_pdaf

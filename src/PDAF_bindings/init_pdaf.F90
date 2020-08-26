@@ -32,7 +32,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        ONLY: dim_state_p, screen, filtertype, subtype, dim_ens, &
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
-       filename, type_trans, type_sqrt, delt_obs
+       filename, type_trans, type_sqrt, delt_obs,offset_field_p
+! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
 
@@ -55,6 +56,9 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   REAL    :: timenow           ! Not used in this implementation
   character(len=72) :: indir
 
+! temp-add
+! real :: state_p(dim_p)
+
   ! External subroutines
   EXTERNAL :: init_ens_pdaf         ! Ensemble initialization
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time, 
@@ -62,6 +66,11 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
        prepoststep_ens            ! User supplied pre/poststep routine
   
+  NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
+           delt_obs, rms_obs, &
+           type_forget, forget, type_trans, type_sqrt, &
+           locweight, local_range, srange 
+
 
 ! ***************************
 ! ***   Initialize PDAF   ***
@@ -79,8 +88,39 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 !  dim_state = ?
 
   !Order of arrays:
+  !old setting
   !idry_e,we,tr_el, idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
-  dim_state_p=nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+6*nvrt)
+!  dim_state_p=nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+6*nvrt)
+
+  !New setting
+  !eta2,tr_nd,uu2,vv2,ww2 --> choose npa vars, and convert them back in distribute routine
+  dim_state_p=npa*(1+nvrt*ntracers+3*nvrt)
+
+! Define process-local offsets in local state vector
+  allocate(offset_field_p(5)) ! Set 5
+  offset_field_p(1) = 0   ! eta2
+  offset_field_p(2) = npa ! tr_nd
+  offset_field_p(3) = npa*(1+nvrt*ntracers) ! uu2
+  offset_field_p(4) = npa*(1+nvrt*ntracers+nvrt) ! vv2
+  offset_field_p(5) = npa*(1+nvrt*ntracers+2*nvrt) ! ww2
+
+! The followings are old setting for all hotstart vars
+! offset_field_p(1) = 0                                ! idry_e
+! offset_field_p(2) = nea                              ! we
+! offset_field_p(3) = nea*(1+nvrt)                     ! tr_el
+! offset_field_p(4) = nea*(1+nvrt+nvrt*ntracers)              ! idry_s
+! offset_field_p(5) = nea*(1+nvrt+nvrt*ntracers)+nsa          ! su2
+! offset_field_p(6) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+nvrt) ! sv2
+! offset_field_p(7) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)         ! idry
+! offset_field_p(8) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa     ! eta2
+! offset_field_p(9) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*2   ! tr_nd
+! offset_field_p(10) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+nvrt*ntracers)   ! tr_nd0
+! offset_field_p(11) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers)        ! q2
+! offset_field_p(12) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+nvrt)   ! xl
+! offset_field_p(13) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+2*nvrt) ! dfv
+! offset_field_p(14) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+3*nvrt) ! dfh
+! offset_field_p(15) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+4*nvrt) ! dfq1
+! offset_field_p(16) = nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+5*nvrt) ! dfq2
 
 
 ! **********************************************************
@@ -88,7 +128,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! **********************************************************
 
 ! *** IO options ***
-  screen      = 2  ! Write screen output (1) for output, (2) add timings
+  screen      = 3  ! Write screen output (1) for output, (2) add timings
 
 ! *** Filter specific variables
   filtertype = 6    ! Type of filter
@@ -160,6 +200,11 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! *** File names
   filename = 'output.dat'
 
+! Read pdaf.nml to control filtertype & other parameters
+  OPEN (500,file='pdaf.nml')
+  READ (500,NML=pdaf_nml)
+  CLOSE (500)
+
 
 ! ***********************************
 ! *** Some optional functionality ***
@@ -226,6 +271,10 @@ SUBROUTINE init_pdaf(schismCount,ierr)
          screen, status_pdaf)
  END IF whichinit
 
+! Call collect_state_pdaf to initialize state_p for each member
+! call collect_state_pdaf(dim_p,state)
+! state_p=state
+! write(*,*) 'in init_pdaf, state_p:',maxval(state_p),mype_world,task_id,filterpe
 
 ! *** Check whether initialization of PDAF was successful ***
   IF (status_pdaf /= 0) THEN
@@ -240,10 +289,10 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! *** Prepare ensemble forecasts ***
 ! ******************************'***
 !new28: This is mainly to init obs
-! This must to open
+! This must to open for flexible mode initialization
 
-   CALL PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
-        distribute_state_pdaf, prepoststep_ens, status_pdaf)
+!  CALL PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
+!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
  
 !  IF (status_pdaf /= 0) THEN
 !     ierr=1

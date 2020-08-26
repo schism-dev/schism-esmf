@@ -21,7 +21,10 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-   USE mod_assimilation, ONLY: obs_p
+  USE mod_assimilation, ONLY: obs_p
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
 
   IMPLICIT NONE
 
@@ -38,7 +41,7 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! Called by: PDAF_estkf_analysis
 ! Called by: PDAF_netf_analysis
 !EOP
-  write(*,*) 'In init_obs_pdaf, check!'
+!  write(*,*) 'In init_obs_pdaf, check!',mype_world,task_id,filterpe
 
 
 ! ***************************************************************

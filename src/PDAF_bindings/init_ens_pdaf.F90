@@ -26,6 +26,9 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Later revisions - see svn log
 !
 ! !USES:
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -47,13 +50,18 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Calls: init_enkf
 !EOP
 
+! write(*,*) 'In init_ens_pdaf, check!',mype_world,task_id,filterpe
+
 ! *** Read ensemble 
   CALL collect_state_pdaf(dim_p, state_p)
   
+! write(*,'(a,f6.2,2i4,l2)') 'In init_ens_pdaf, state_p(max)',maxval(state_p),mype_world,task_id,filterpe
 ! *** Initialize ens_p
   DO member = 1,dim_ens
-        ens_p(1:dim_p,member) = state_p(1:dim_p)
+        ens_p(1:dim_p,member) = state_p(1:dim_p) + float(member-1)*1.d-2 ! temporary, add fesom example later
   END DO
+! FESOM example is followed by init_seik, need to gen_cov first, then use its
+! output to add pertubation into ensembles
 
 
 

@@ -24,6 +24,9 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 !
 ! !USES:
   USE mod_assimilation, ONLY: rms_obs
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -42,7 +45,7 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! Called by: PDAF_estkf_analysis       (as U_prodRinvA)
 !EOP
 
-! write(*,*) 'In prodRinvA_pdaf, check!'
+! write(*,*) 'In prodRinvA_pdaf, check!',mype_world,task_id,filterpe
 
 ! **********************
 ! *** INITIALIZATION ***

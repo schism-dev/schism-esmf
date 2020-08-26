@@ -28,6 +28,9 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! !USES:
   use schism_glbl, only : time_stamp
   use mod_assimilation, only : delt_obs
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -48,7 +51,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
   ! Template reminder - delete when implementing functionality
 !  WRITE (*,*) 'TEMPLATE next_observation_pdaf.F90: Set number of time step in forecast!'
 
-   write(*,*) 'In next_observation_pdaf, check!'
+!  write(*,*) 'In next_observation_pdaf, check!',mype_world,task_id,filterpe
 
    nsteps = delt_obs
 
@@ -56,7 +59,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! *** Set current physical time ***
 ! *********************************
 
-   time = time_stamp
+   time = real(time_stamp) ! time_stamp is real*8
 
 ! *********************
 ! *** Set exit flag ***

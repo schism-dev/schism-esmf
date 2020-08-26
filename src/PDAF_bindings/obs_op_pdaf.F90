@@ -31,6 +31,8 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
   use schism_msgp, only: parallel_abort,myrank
 ! PDAF module
   use mod_assimilation, only: obs_p,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -42,7 +44,7 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 
 ! Local vars
   integer i,m,nd,k0,ie,k,ibad
-  real swild(max(100,nsa+nvrt+12+ntracers)),swild2(nvrt,12) ! not yet finished
+  real swild(max(100,nsa+nvrt+12+ntracers)),swild2(nvrt,12) 
   real zrat
   character(len=72) :: fdb
   integer :: lfdb
@@ -53,7 +55,7 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 ! Called by: PDAF_enkf_analysis_rlm, PDAF_enkf_analysis_rsm
 !EOP
 
-! write(*,*) 'In obs_op_pdaf, check!'
+! write(*,*) 'In obs_op_pdaf, check!',mype_world,task_id,filterpe
 
 ! *********************************************
 ! *** Perform application of measurement    ***
@@ -128,20 +130,9 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
   end do
   if (ibad.ne.0) call parallel_abort('PDAF: Some model values at obs pts are at dry region!')
 
-! Check for m_state_p & obs_p for each member
-! Not work yet!
-! out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
-! len_out_dir=len_trim(out_dir)
-
-! fdb='DA_data_check'
-! lfdb=len_trim(fdb)
-! write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
-! open(31,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
-! open(31,file=trim(adjustl(fdb)),status='old')
-
-  do i=1,dim_obs_p
-     write(*,*) 'in obs_op_pdaf',step,i,m_state_p(i),obs_p(i),myrank
-  end do
-! close(31)
+! Check
+! do i=1,dim_obs_p
+!    write(*,*) 'in obs_op_pdaf',step,i,m_state_p(i),obs_p(i),mype_world,task_id, filterpe
+! end do
 
 END SUBROUTINE obs_op_pdaf

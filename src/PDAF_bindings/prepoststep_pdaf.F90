@@ -24,6 +24,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   USE mod_assimilation, & ! Variables for assimilation
        ONLY: filtertype
 
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:

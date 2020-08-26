@@ -1,53 +1,187 @@
-!$Id: init_dim_obs_f_pdaf.F90 82 2019-02-26 15:12:22Z lnerger $
+!$Id: init_dim_obs_pdaf.F90 82 2019-02-26 15:12:22Z lnerger $
 !BOP
 !
-! !ROUTINE: init_dim_obs_f_pdaf --- Set full dimension of observations
+! !ROUTINE: init_dim_obs_f_pdaf --- Compute number of observations
 !
 ! !INTERFACE:
 SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 
 ! !DESCRIPTION:
 ! User-supplied routine for PDAF.
-! Used in the filters: LSEIK/LETKF/LESTKF
+! Used in the filters: SEEK/SEIK/EnKF/ETKF/ESTKF
 !
-! The routine is called in PDAF\_lseik\_update 
-! at the beginning of the analysis step before 
-! the loop through all local analysis domains. 
-! It has to determine the dimension of the 
-! observation vector according to the current 
-! time step for all observations required for 
-! the analyses in the loop over all local 
-! analysis domains on the PE-local state domain.
+! The routine is called at the beginning of each
+! analysis step.  It has to initialize the size of 
+! the observation vector according to the current 
+! time step for the PE-local domain.
 !
-! The routine is called by each filter process.
+! The routine is called by all filter processes.
 !
 ! !REVISION HISTORY:
-! 2005-09 - Lars Nerger - Initial code
+! 2004-10 - Lars Nerger - Initial code
 ! Later revisions - see svn log
 !
 ! !USES:
+! SCHISM module
+  use schism_glbl, only: nea,ics,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,rkind
+  use schism_msgp, only: parallel_abort
+! PDAF user define
+! new28 add in mod_assimilation, add in some schism_interpolation required here
+  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
-  INTEGER, INTENT(in)  :: step      ! Current time step
-  INTEGER, INTENT(out) :: dim_obs_f ! Dimension of full observation vector
+  INTEGER, INTENT(in)  :: step       ! Current time step
+  INTEGER, INTENT(out) :: dim_obs_f  ! Dimension of observation vector
+
+! Local vars
+  character(len=17) fnDA
+  character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
+  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:),obs_coords_p(:,:)
+  integer nobs,i,l,itmp,ifl,iobs,istat
+  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl
 
 ! !CALLING SEQUENCE:
-! Called by: PDAF_lseik_update   (as U_init_dim_obs)
-! Called by: PDAF_lestkf_update  (as U_init_dim_obs)
-! Called by: PDAF_letkf_update   (as U_init_dim_obs)
-! Called by: PDAF_lnetf_update   (as U_init_dim_l)
+! Called by: PDAF_seek_analysis    (as U_init_dim_obs)
+! Called by: PDAF_seik_analysis, PDAF_seik_analysis_newT
+! Called by: PDAF_enkf_analysis_rlm, PDAF_enkf_analysis_rsm
+! Called by: PDAF_etkf_analysis, PDAF_etkf_analysis_T
+! Called by: PDAF_estkf_analysis, PDAF_estkf_analysis_fixed
+! Called by: PDAF_netf_analysis
 !EOP
 
+! write(*,*) 'In init_dim_obs_pdaf, check!',mype_world,task_id,filterpe
 
-! *********************************************
-! *** Initialize full observation dimension ***
-! *********************************************
+! ******************************************************************
+! *** Initialize observation dimension for PE-local model domain ***
+! ******************************************************************
 
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_dim_obs_f_pdaf.F90: Set full observation dimension here!'
 
-!   dim_obs_f = ??
+! Data inputs
+! Specify i8 as steps
+  write(fnDA,'(a5,i8.8,a4)') 'data_',step,'.dat'
+
+  open(31,file='./DA_data/'//fnDA,status='old')
+
+  read(31,*) nobs
+  allocate(xobs(nobs),yobs(nobs),zobs(nobs),obsval(nobs),obstype(nobs),&
+          &iep_obs(nobs),arco_obs(nobs,4),stat=istat)
+  if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
+
+  do i=1,nobs
+     read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+     zobs(i)=0.-zobs(i) !negtive
+     if(ics==2) then
+        xtmp=xobs(i)/180.d0*pi
+        ytmp=yobs(i)/180.d0*pi
+        xobs(i)=rearth_eq*cos(ytmp)*cos(xtmp)
+        yobs(i)=rearth_eq*cos(ytmp)*sin(xtmp)
+        zobs(i)=rearth_pole*sin(ytmp)
+     endif !ics
+  end do
+  close(31)
+
+! Find parent elements in argumented
+  iep_obs=0 !flag for no-parent
+  do i=1,nea ! search in argumented
+     do l=1,nobs
+          if(iep_obs(l)/=0) cycle
+
+          if(ics==1) then
+             xobsl=xobs(l)
+             yobsl=yobs(l)
+          else !to eframe
+             call project_pt('g2l',xobs(l),yobs(l),zobs(l), &
+             &(/xctr(i),yctr(i),zctr(i)/),eframe(:,:,i),xobsl,yobsl,tmp)
+          endif
+
+          if(i34(i)==3) then
+             call area_coord(0,i,(/xctr(i),yctr(i),zctr(i)/),eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3))
+             tmp=minval(arco_obs(l,1:3))
+             if(tmp>-small2) then
+                iep_obs(l)=i
+                if(tmp<0) call area_coord(1,i,(/xctr(i),yctr(i),zctr(i)/), &
+                  &eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3)) !fix A.C.
+             endif
+          else !quad
+             call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
+             if(itmp/=0) iep_obs(l)=i
+          endif !i34
+      enddo !l; build pts
+
+      ifl=0 !flag
+      do l=1,nobs
+         if(iep_obs(l)==0) then
+            ifl=1
+            exit
+         endif
+      end do !l
+      if(ifl==0) exit
+   enddo !i=1,nea
+
+!  Count obs points in each sub domain
+   iobs=0
+   do l=1,nobs
+      if (iep_obs(l).ne.0) iobs=iobs+1
+   end do
+   dim_obs_p=iobs
+
+!  Allocate mod assimilation vars (obs_p,iep_obs_mod,obstype_mod,arco_obs_mod) 
+   if (allocated(obs_p)) deallocate(obs_p)
+   if (allocated(iep_obs_mod)) deallocate(iep_obs_mod)
+   if (allocated(obstype_mod)) deallocate(obstype_mod)
+   if (allocated(arco_obs_mod)) deallocate(arco_obs_mod)
+   if (allocated(obs_coords_p)) deallocate(obs_coords_p)
+   allocate(obs_p(iobs))
+   allocate(iep_obs_mod(iobs))
+   allocate(obstype_mod(iobs))
+   allocate(arco_obs_mod(iobs,4))
+   allocate(obs_coords_p(3,iobs)) !3 dim, store x,y,z
+   
+!  We can Put simple QA/QC here, do this later
+!   call qaqc(obsval,obstype) 
+
+!  Fill assimilation vars with local, and pass them to obs_op to do vertical interpolation
+!  new28:  if model shows -9999, can we omit this values in obs_op?
+   iobs=0
+   do l=1,nobs
+      if (iep_obs(l).ne.0) then
+         iobs=iobs+1
+         obs_p(iobs)=obsval(l)
+         iep_obs_mod(iobs)=iep_obs(l)
+         obstype_mod(iobs)=obstype(l)
+         arco_obs_mod(iobs,:)=arco_obs(l,:)
+         obs_coords_p(1,iobs)=xobs(l)
+         obs_coords_p(2,iobs)=yobs(l)
+         obs_coords_p(3,iobs)=zobs(l)
+!        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l)
+      end if
+   end do
+
+!  Collect All observation by PDAF routine
+
+   CALL PDAF_gather_dim_obs_f(dim_obs_p, dim_obs_f)
+
+   IF (ALLOCATED(obs_f)) DEALLOCATE(obs_f)
+   IF (ALLOCATED(obs_coords_f)) DEALLOCATE(obs_coords_f)
+   ALLOCATE(obs_f(dim_obs_f))
+   ALLOCATE(obs_coords_f(3, dim_obs_f))
+
+   ! Get full observation vector
+   CALL PDAF_gather_obs_f(obs_p, obs_f, istat)
+   if(istat/=0) call parallel_abort('PDAF: Local observation gather failure')
+
+   ! Get full array of coordinates
+   CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 3, istat)
+   if(istat/=0) call parallel_abort('PDAF: Local observation gather f2 failure')
+   
+
+!  Clean-up
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p, obs_coords_p)
 
 END SUBROUTINE init_dim_obs_f_pdaf
 

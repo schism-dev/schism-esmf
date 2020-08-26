@@ -71,8 +71,9 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
 
 
   ! *** initialize numbers (this is for constant observation errors)
-  WRITE (*,*) 'TEMPLATE prodrinva_l_pdaf.F90: Set observation variance and inverse here!'
+! WRITE (*,*) 'TEMPLATE prodrinva_l_pdaf.F90: Set observation variance and inverse here!'
 
+  ! rms_obs now is constant, carry out this as vector later (do later)
   ivariance_obs = 1.0 / rms_obs**2
   var_obs = rms_obs**2
 

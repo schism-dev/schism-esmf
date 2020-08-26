@@ -29,6 +29,7 @@ SUBROUTINE init_obsvar_l_pdaf(domain, step, dim_obs_l, obs_l, meanvar_l)
 ! Later revisions - see svn log
 !
 ! !USES:
+  USE mod_assimilation, ONLY: rms_obs
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -48,8 +49,8 @@ SUBROUTINE init_obsvar_l_pdaf(domain, step, dim_obs_l, obs_l, meanvar_l)
 ! ***********************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_obsvar_l_pdaf.F90: Set mean observation variance here!'
+! WRITE (*,*) 'TEMPLATE init_obsvar_l_pdaf.F90: Set mean observation variance here!'
 
-!  meanvar_l = ?
+  meanvar_l = rms_obs**2
 
 END SUBROUTINE init_obsvar_l_pdaf

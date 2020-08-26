@@ -23,6 +23,7 @@ SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
 ! Later revisions - see svn log
 !
 ! !USES:
+  use schism_glbl, only: npa
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -42,8 +43,8 @@ SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
 ! ************************************
  
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_n_domains_pdaf.F90: Set number of local analysis domains here!'
+! WRITE (*,*) 'TEMPLATE init_n_domains_pdaf.F90: Set number of local analysis domains here!'
 
-!   n_domains_p = ?
+  n_domains_p = npa ! here we choose npa
 
 END SUBROUTINE init_n_domains_pdaf

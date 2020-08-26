@@ -36,6 +36,9 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! Later revisions - see svn log
 !
 ! !USES:
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -69,7 +72,7 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! Called by: PDAF_lnetf_analysis  (as U_prepoststep)
 !EOP
 
- write(*,*) 'In prepoststep_ens, check!',step
+!write(*,*) 'In prepoststep_ens, check!',step,mype_world,task_id,filterpe
 
 ! ****************************
 ! *** Perform pre/poststep ***
@@ -85,9 +88,11 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
      DO i = 1, dim_p
         state_p(i) = state_p(i) + ens_p(i, member)
      END DO
+!    write(*,*) 'check ens_p',maxval(ens_p(:,member)),member
   END DO
   state_p(:) = state_p(:)/real(dim_ens)
 
+! write(*,*) 'In prepoststep_ens, check!',maxval(state_p),step,mype_world,task_id,filterpe
 
 
 END SUBROUTINE prepoststep_ens

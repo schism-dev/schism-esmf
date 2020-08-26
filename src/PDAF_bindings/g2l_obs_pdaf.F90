@@ -25,6 +25,7 @@ SUBROUTINE g2l_obs_pdaf(domain, step, dim_obs_f, dim_obs_l, mstate_f, &
 ! Later revisions - see svn log
 !
 ! !USES:
+  use mod_assimilation, only: obs_index_l
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -35,6 +36,8 @@ SUBROUTINE g2l_obs_pdaf(domain, step, dim_obs_f, dim_obs_l, mstate_f, &
   REAL, INTENT(in)    :: mstate_f(dim_obs_f)   ! Full PE-local obs. vector
   REAL, INTENT(out)   :: mstate_l(dim_obs_l)   ! Obs. vector on local domain
 
+! Local vars
+  INTEGER :: i
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_analysis   (as U_g2l_obs)
 ! Called by: PDAF_lestkf_analysis  (as U_g2l_obs)
@@ -48,9 +51,12 @@ SUBROUTINE g2l_obs_pdaf(domain, step, dim_obs_f, dim_obs_l, mstate_f, &
 ! *******************************************************
 
   ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE g2l_obs_pdaf.F90: Initialize local observed state here!'
+! WRITE (*,*) 'TEMPLATE g2l_obs_pdaf.F90: Initialize local observed state here!'
 
 !   mstate_l = ??
 
+  DO i = 1, dim_obs_l
+       mstate_l(i) = mstate_f(obs_index_l(i))
+  END DO
 
 END SUBROUTINE g2l_obs_pdaf

@@ -38,6 +38,7 @@ MODULE mod_assimilation
   REAL, ALLOCATABLE :: obs_coords_f(:,:)  ! Array for full observation coordinates
   INTEGER, ALLOCATABLE :: obs_index_l(:)  ! Vector holding local state-vector indices of observations
   REAL, ALLOCATABLE    :: distance_l(:)   ! Vector holding distances of local observations
+  INTEGER, ALLOCATABLE :: offset_field_p(:) ! state_p offset for local analysis
 
 
 ! *** Below are the generic variables used for configuring PDAF ***

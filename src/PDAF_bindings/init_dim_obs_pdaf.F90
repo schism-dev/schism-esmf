@@ -28,6 +28,9 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
   use mod_assimilation, only: obs_p,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p
+! Check only
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+
 
   IMPLICIT NONE
 
@@ -51,7 +54,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! Called by: PDAF_netf_analysis
 !EOP
 
-! write(*,*) 'In init_dim_obs_pdaf, check!'
+! write(*,*) 'In init_dim_obs_pdaf, check!',mype_world,task_id,filterpe
 
 ! ******************************************************************
 ! *** Initialize observation dimension for PE-local model domain ***
