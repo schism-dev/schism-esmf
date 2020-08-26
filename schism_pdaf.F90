@@ -380,8 +380,6 @@ program main
 ! Init PDAF env
   call init_parallel_pdaf(0,1,schismCount,petCountLocal,concurrentCount)
   call init_pdaf(schismCount,j)
-! call collect_state_pdaf(dim_p, state)
-! write(*,*) 'in schism_pdaf, dim,state',schismCount,dim_p,maxval(state)
   if(j/=0) then
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
