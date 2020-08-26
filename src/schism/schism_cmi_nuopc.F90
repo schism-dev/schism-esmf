@@ -81,6 +81,10 @@ subroutine SetServices(comp, rc)
   call NUOPC_CompDerive(comp, model_routine_SS, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+  !  phaseLabelList=(/"IPDv00p0"/), userRoutine=InitializeP0, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv00p1"/), userRoutine=InitializeAdvertise, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -103,6 +107,86 @@ subroutine SetServices(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine SetServices
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "InitializeP0"
+subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
+
+  type(ESMF_GridComp)   :: comp
+  type(ESMF_State)      :: importState
+  type(ESMF_State)      :: exportState
+  type(ESMF_Clock)      :: parentClock
+  integer, intent(out)  :: rc
+
+  character(len=10)           :: InitializePhaseMap(1)
+  integer                     :: localrc
+  logical                     :: isPresent
+  character(len=ESMF_MAXSTR)  :: configFileName, compName
+  character(len=ESMF_MAXSTR)  :: message
+  type(ESMF_Config)           :: config
+
+  rc=ESMF_SUCCESS
+
+  InitializePhaseMap(1) = "IPDv00p1=1"
+  call ESMF_AttributeAdd(comp, convention="NUOPC", &
+    purpose="General", &
+    attrList=(/"InitializePhaseMap"/), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_AttributeSet(comp, name="InitializePhaseMap", valueList=InitializePhaseMap, &
+    convention="NUOPC", purpose="General", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A)') trim(compName)//' initializing (p=0) component ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (.not.ESMF_StateIsCreated(importState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Import', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  if (.not.ESMF_StateIsCreated(exportState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Export', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  ! Read the configuration for this component from file if not
+  ! already present in the component
+  call ESMF_GridCompGet(comp, configIsPresent=isPresent, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (isPresent) then
+    call ESMF_GridCompGet(comp, config=config, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message, '(A)') trim(compName)//' uses internal configuration'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  else
+    configfilename=trim(compName)//'.cfg'
+    inquire(file=trim(configfilename), exist=isPresent)
+
+    config = ESMF_ConfigCreate(rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    if (isPresent) then
+      call ESMF_ConfigLoadFile(config, trim(configfilename), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      write(message,'(A)')  trim(compName)//' read configuration from '// trim(configFileName)
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    else
+      write(message,'(A)')  trim(compName)//' has no configuration; use global config'
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+
+    call ESMF_GridCompSet(comp, config=config, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+end subroutine InitializeP0
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "InitializeAdvertise"
@@ -131,6 +215,19 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   !> @todo replace by NUOPC_CompGet()
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A)') trim(compName)//' initializing component ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (.not.ESMF_StateIsCreated(importState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Import', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  if (.not.ESMF_StateIsCreated(exportState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Export', rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   ! Get VM for this component
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
