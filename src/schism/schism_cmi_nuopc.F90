@@ -36,11 +36,26 @@ module schism_cmi_nuopc
     model_label_Advance   => label_Advance
 
   use schism_bmi
+  use schism_esmf_util
 
   implicit none
 
   private
   public SetServices
+
+! The interal state saves data across ESMF phases and is
+! persistent throught the lifetime of an instance.  Here, we
+! only provide a boilerplate implementation of an empty internal state
+
+  type type_InternalStateStruct
+  end type
+
+  type type_InternalState
+    type(type_InternalStateStruct), pointer :: wrap
+  end type
+
+  character(len=ESMF_MAXSTR), parameter :: &
+    label_InternalState = 'InternalState'
 
 contains
 
@@ -52,8 +67,16 @@ subroutine SetServices(comp, rc)
   integer, intent(out) :: rc
 
   integer(ESMF_KIND_I4) :: localrc
+  type(type_InternalState)   :: internalState
 
   rc = ESMF_SUCCESS
+
+  allocate(internalState%wrap, stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_UserCompSetInternalState(comp, label_InternalState, &
+    internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompDerive(comp, model_routine_SS, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
