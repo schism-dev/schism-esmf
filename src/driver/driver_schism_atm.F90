@@ -21,7 +21,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "driver_schism--atm.F90"
+#define ESMF_FILENAME "driver_schism_atm.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -141,7 +141,7 @@ subroutine SetModelServices(driver, rc)
   call NUOPC_CompAttributeSet(connector, name="Verbosity", value="high", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Let's skipt the feedback for now
+  ! Let's skip the feedback for now
   ! call NUOPC_DriverAddComp(driver, srcCompLabel="schism", dstCompLabel="atmosphere", &
   !   compSetServicesRoutine=cplSS, comp=connector, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
