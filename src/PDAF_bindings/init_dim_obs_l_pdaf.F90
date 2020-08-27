@@ -24,7 +24,7 @@ SUBROUTINE init_dim_obs_l_pdaf(domain_p, step, dim_obs_f, dim_obs_l)
 ! !USES:
 !   USE mod_assimilation, &
 !        ONLY: local_range, coords_obs_f, obs_index_l, distance_l
-  use schism_glbl, only: xnd,ynd
+  use schism_glbl, only: xnd,ynd,xlon,ylat,ics,pi
   use mod_assimilation, only: distance_l,local_range,obs_index_l,obs_coords_f
   IMPLICIT NONE
 
@@ -35,7 +35,7 @@ SUBROUTINE init_dim_obs_l_pdaf(domain_p, step, dim_obs_f, dim_obs_l)
   INTEGER, INTENT(out) :: dim_obs_l  ! Local dimension of observation vector
 
 ! Local vars
-  real distance
+  real distance,x_obs,y_obs,x_mdl,y_mdl
   integer cnt,i
 
 ! !CALLING SEQUENCE:
@@ -50,12 +50,28 @@ SUBROUTINE init_dim_obs_l_pdaf(domain_p, step, dim_obs_f, dim_obs_l)
 ! *** Initialize local observation dimension ***
 ! **********************************************
 
+! Here we need to convert back obs_coord to lon/lat if ics=2
 
 ! Count observations within local_range
   dim_obs_l = 0
   DO i = 1, dim_obs_f
-      distance = SQRT((xnd(domain_p) - obs_coords_f(1,i))**2 + &
-                      (ynd(domain_p) - obs_coords_f(2,i))**2)
+      if (ics==2) then
+         call compute_ll(obs_coords_f(1,i),obs_coords_f(2,i),obs_coords_f(3,i),x_obs,y_obs)
+         x_obs=x_obs/pi*180.d0
+         y_obs=y_obs/pi*180.d0
+         x_mdl=xlon(domain_p)/pi*180.d0
+         y_mdl=ylat(domain_p)/pi*180.d0
+      else
+         x_obs=obs_coords_f(1,i)
+         y_obs=obs_coords_f(2,i)
+         x_mdl=xnd(domain_p)
+         y_mdl=ynd(domain_p)
+      end if
+       
+      distance = SQRT((x_mdl - x_obs)**2 + (y_mdl - y_obs)**2)
+!     distance = SQRT((xnd(domain_p) - obs_coords_f(1,i))**2 + &
+!                     (ynd(domain_p) - obs_coords_f(2,i))**2)
+     ! local_range will meters if ics=1, if ics=2, unit become degree
      IF (distance <= local_range) dim_obs_l = dim_obs_l + 1
   END DO
 
@@ -68,8 +84,22 @@ SUBROUTINE init_dim_obs_l_pdaf(domain_p, step, dim_obs_f, dim_obs_l)
 
   cnt = 0
   DO i = 1, dim_obs_f
-     distance = SQRT((xnd(domain_p) - obs_coords_f(1,i))**2 + &
-                     (ynd(domain_p) - obs_coords_f(2,i))**2)
+     if (ics==2) then
+         call compute_ll(obs_coords_f(1,i),obs_coords_f(2,i),obs_coords_f(3,i),x_obs,y_obs)
+         x_obs=x_obs/pi*180.d0
+         y_obs=y_obs/pi*180.d0
+         x_mdl=xlon(domain_p)/pi*180.d0
+         y_mdl=ylat(domain_p)/pi*180.d0
+     else
+         x_obs=obs_coords_f(1,i)
+         y_obs=obs_coords_f(2,i)
+         x_mdl=xnd(domain_p)
+         y_mdl=ynd(domain_p)
+     end if
+       
+     distance = SQRT((x_mdl - x_obs)**2 + (y_mdl - y_obs)**2)
+!    distance = SQRT((xnd(domain_p) - obs_coords_f(1,i))**2 + &
+!                    (ynd(domain_p) - obs_coords_f(2,i))**2)
      IF (distance <= local_range) THEN
          cnt = cnt + 1
          distance_l(cnt) = distance

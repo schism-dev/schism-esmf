@@ -28,7 +28,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 !
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2
+    & idry_s,su2,sv2,idry,eta2,tr_nd,uu2,vv2,ww2, &
+    & elnode,i34,rkind,kbe,kbs,isidenode
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -98,7 +99,41 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
    enddo !i
 
 !  new28!!
-!  Here we need to update tr_el, su2,sv2 by node-base vars, do this later
-!  do i=1,nea ....   
+!  Here we need to update tr_el, su2,sv2,we by node-base vars, do this later
+!  Update tr_el
+   do i=1,nea    
+      if (idry_e(i).eq.1) cycle !dry
+      do j=1,ntracers
+         do k=kbe(i),nvrt
+            tr_el(j,k,i)=sum(tr_nd(j,k,elnode(1:i34(i),i)))/real(i34(i),rkind)
+         end do !k
+         do k=1,kbe(i)-1
+            tr_el(j,k,i)=tr_el(j,kbe(i),i) !extrapolation
+         end do !k
+      end do !j
+   end do !i
+!  Update su2,sv2
+   do j=1,nsa
+      if(idry_s(j)==1) cycle
+      do k=kbs(j),nvrt
+         su2(k,j)=sum(uu2(k,isidenode(:,j)))/2.d0
+         sv2(k,j)=sum(vv2(k,isidenode(:,j)))/2.d0
+      end do
+      do k=1,kbs(j)-1
+         su2(k,j)=0.d0  !zero-out
+         sv2(k,j)=0.d0  !zero-out
+      end do
+   end do
+!  Update we
+   do i=1,nea
+      if(idry_e(j)==1) cycle
+      do k=kbe(i),nvrt
+         we(k,i)=sum(ww2(k,elnode(1:i34(i),i)))/real(i34(i),rkind)
+      end do
+      do k=1,kbe(i)-1
+         we(k,i)=0.d0  !zero-out
+      end do
+   end do
+   
 
 END SUBROUTINE distribute_state_pdaf
