@@ -55,7 +55,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! *** Read ensemble 
   CALL collect_state_pdaf(dim_p, state_p)
   
-! write(*,'(a,f6.2,2i4,l2)') 'In init_ens_pdaf, state_p(max)',maxval(state_p),mype_world,task_id,filterpe
+! write(*,'(a,f6.2,2i4,l2)') 'In init_ens_pdaf, state_p(max)',maxval(state_p),kind(state_p),mype_world,task_id,filterpe
 ! *** Initialize ens_p
   DO member = 1,dim_ens
         ens_p(1:dim_p,member) = state_p(1:dim_p) + float(member-1)*1.d-2 ! temporary, add fesom example later

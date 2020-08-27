@@ -90,7 +90,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   !Order of arrays:
   !old setting
   !idry_e,we,tr_el, idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2
-!  dim_state_p=nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+6*nvrt)
+  !dim_state_p=nea*(1+nvrt+nvrt*ntracers)+nsa*(1+2*nvrt)+npa*(2+2*nvrt*ntracers+6*nvrt)
 
   !New setting
   !eta2,tr_nd,uu2,vv2,ww2 --> choose npa vars, and convert them back in distribute routine

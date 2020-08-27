@@ -383,10 +383,12 @@ program main
   enddo reconcile_loop
 
 ! Init PDAF env
+#ifdef USE_PDAF
 ! write(0, *) 'Before init_parelle_pdaf'
   call init_parallel_pdaf(0,1,schismCount,petCountLocal,concurrentCount)
 ! write(0, *) 'Before init_pdaf'
   call init_pdaf(schismCount,j)
+#endif
   if(j/=0) then
     localrc = ESMF_RC_VAL_OUTOFRANGE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -521,9 +523,10 @@ program main
   ! @todo also destroy the deep alarm objects
 !  if (allocated(alarmList)) deallocate(alarmList)
 
+#ifdef USE_PDAF
 ! PDAF finalize
     call finalize_pdaf()
-
+#endif
 
     do i = 1,schismCount
       call ESMF_GridCompFinalize(schism_components(i), importState= importStateList(i), &

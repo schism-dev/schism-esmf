@@ -29,6 +29,9 @@ CPPFLAGS=$(ESMF_F90COMPILEOPTS)
 F90FLAGS=$(ESMF_F90COMPILEPATHS)
 LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 
+# add PDAF CPP Flag
+CPPFLAGS+= -DUSE_PDAF
+
 # add SCHISM libraries
 ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment.)
@@ -57,7 +60,7 @@ ESMF_OPENMP := $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lschism_esmf -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism   ###-I src/model -I src/schism
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I src/schism
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
 ifeq ($(ESMF_COMPILER), intel)
@@ -107,7 +110,7 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_as
 
 
 schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) schism_pdaf.o
-	$(F90) -DUSE_PDAF $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 #schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
 #	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
