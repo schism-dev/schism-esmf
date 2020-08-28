@@ -27,7 +27,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
-  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p
+  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p,obs_coords_p
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -41,7 +41,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 ! Local vars
   character(len=17) fnDA
   character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
-  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:),obs_coords_p(:,:)
+  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:)!,obs_coords_p(:,:)
   integer nobs,i,l,itmp,ifl,iobs,istat
   real(rkind) tmp,xtmp,ytmp,xobsl,yobsl
 
@@ -165,6 +165,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !  Collect All observation by PDAF routine
 
    CALL PDAF_gather_dim_obs_f(dim_obs_p, dim_obs_f)
+!  write(*,*) 'in init_dim_obs_f_pdaf, dim_obs_p&f',dim_obs_p, dim_obs_f,mype_world,task_id,filterpe
 
    IF (ALLOCATED(obs_f)) DEALLOCATE(obs_f)
    IF (ALLOCATED(obs_coords_f)) DEALLOCATE(obs_coords_f)
@@ -178,10 +179,11 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    ! Get full array of coordinates
    CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 3, istat)
    if(istat/=0) call parallel_abort('PDAF: Local observation gather f2 failure')
+!  write(*,*) 'init_dim_obs_f_pdaf,obs_coords_f',maxval(obs_coords_f)
    
 
 !  Clean-up
-   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p, obs_coords_p)
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p) !obs_coords_p is required in obs_op_f_pdaf
 
 END SUBROUTINE init_dim_obs_f_pdaf
 

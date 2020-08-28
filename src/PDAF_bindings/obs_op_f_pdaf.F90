@@ -30,7 +30,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 !                       & in_dir,out_dir,len_in_dir,len_out_dir               
   use schism_msgp, only: parallel_abort,myrank
 ! PDAF module
-  use mod_assimilation, only: obs_p,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p,dim_obs_p
+  use mod_assimilation, only: iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p,dim_obs_p
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
   IMPLICIT NONE
@@ -72,6 +72,8 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 
 ! Get process-local observed state
   ALLOCATE(m_state_p(dim_obs_p))
+! write(*,*) 'in obs_op_f_pdaf, dim_obs_p', dim_obs_p,mype_world,task_id,filterpe 
+! write(*,*) 'obs_coords_p',maxval(obs_coords_p)
 
   do i=1,dim_obs_p
      ie=iep_obs_mod(i)
