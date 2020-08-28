@@ -179,11 +179,11 @@ program main
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Here, we partition the schismCount on the concurrentCount
-  !> concurrent runs.  As an example, we assume
+  !> concurrent runs. As an example, we assume
   !> petCount=48, schismCount=14, concurrentCount=5
   !> We integer divide petCount by concurrentCount
   !> and obtain the petLists {0..8} {9..17} {18..26}
-  !> {27..35} {36..44}, i.e. 9 cores for each task.
+  !> {27..35} {36..44}, i.e. 9 cores for concurrnt tasks (1,4,7,10,13 etc).
   !> NOTE that # of cores must be
   !> equal as we do not want to repartition the grid etc.
 
@@ -200,8 +200,8 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
-  !> Thus, we obtain the sets of instances that run concurrently: {1..5} {6..10}
-  !> {11..14}
+  !> Thus, we obtain the sets of instances that run concurrently: {1 4 7 10 13}
+  !etc folowing column major
 
   !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, ncohort
   do i = 1, schismCount
@@ -324,7 +324,7 @@ program main
       exportState=exportStateList(i), phase=0, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    !Put sequence_index (0-based) into attribute to pass onto init P1 etc
+    !Put cohort index (0-based) into attribute to pass onto init P1 etc
 !   cohortIndex=(i-1)/concurrentCount
     cohortIndex=mod(i-1,ncohort) ! correct this to match PDAF task-ID
     call ESMF_AttributeSet(schism_components(i), 'cohort_index', cohortIndex)
