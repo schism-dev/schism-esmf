@@ -193,7 +193,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
                     !   (2) use 5th-order polynomial
                     !   (3) regulated localization of R with mean error variance
                     !   (4) regulated localization of R with single-point error variance
-  local_range = 0  ! Range in grid points for observation domain in local filters
+  local_range = 1  ! Range in grid points for observation domain in local filters
   srange = local_range  ! Support range for 5th-order polynomial
                     ! or range for 1/e for exponential weighting
 
@@ -204,6 +204,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   OPEN (500,file='pdaf.nml')
   READ (500,NML=pdaf_nml)
   CLOSE (500)
+  srange = local_range  ! Support range for 5th-order polynomial
 
 
 ! ***********************************
