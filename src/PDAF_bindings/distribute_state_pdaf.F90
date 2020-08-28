@@ -103,14 +103,16 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 !  Update tr_el
    do i=1,nea    
       if (idry_e(i).eq.1) cycle !dry
-      do j=1,ntracers
-         do k=kbe(i),nvrt
+      do k=kbe(i),nvrt
+         do j=1,ntracers
             tr_el(j,k,i)=sum(tr_nd(j,k,elnode(1:i34(i),i)))/real(i34(i),rkind)
-         end do !k
-         do k=1,kbe(i)-1
+         end do !j  
+      end do !k
+      do k=1,kbe(i)-1
+         do j=1,ntracers
             tr_el(j,k,i)=tr_el(j,kbe(i),i) !extrapolation
-         end do !k
-      end do !j
+         end do !j
+      end do !k
    end do !i
 !  Update su2,sv2
    do j=1,nsa
