@@ -57,7 +57,7 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
 !  Assign state_p to eta2, su2 etc; exchange ghost
 !  ? = state_p
-! write(*,*) 'In distribute_state_pdaf, check!',mype_world,task_id,filterpe
+!write(*,*) 'In distribute_state_pdaf, check!',state_p(1:3),mype_world,task_id,filterpe
    
    !init count
    itot=0
@@ -68,14 +68,14 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
      eta2(i)=state_p(itot)
    enddo !i
    ! Tracer
-   do i=1,npa
-     do k=1,nvrt
-       do j=1,ntracers
+   do j=1,ntracers
+     do i=1,npa
+       do k=1,nvrt
          itot=itot+1
          tr_nd(j,k,i)=state_p(itot)
-       enddo !j
-     enddo !k
-   enddo !i
+       enddo !k
+     enddo !i
+   enddo !j
    ! U
    do i=1,npa
      do k=1,nvrt

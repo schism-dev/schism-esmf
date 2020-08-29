@@ -28,7 +28,10 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! !USES:
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
-
+! new28
+! The following is only use for lock-exchange experiment, delete them after done
+  use mod_assimilation, only: offset_field_p
+  use schism_glbl, only: npa,nvrt
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -41,7 +44,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   INTEGER, INTENT(inout) :: flag                 ! PDAF status flag
 
 ! Local variables
-  INTEGER ::  member  ! Counters
+  INTEGER ::  member,i,is,ie  ! Counters
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_init       (as U_init_ens)
@@ -58,8 +61,15 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! write(*,'(a,f6.2,2i4,l2)') 'In init_ens_pdaf, state_p(max)',maxval(state_p),kind(state_p),mype_world,task_id,filterpe
 ! *** Initialize ens_p
   DO member = 1,dim_ens
-        ens_p(1:dim_p,member) = state_p(1:dim_p) + float(member-1)*1.d-2 ! temporary, add fesom example later
+        ens_p(:,member) = state_p(:) !+ float(member-1)*1.d-2 ! temporary, add fesom example later
+        is=offset_field_p(2)+1
+        ie=offset_field_p(2)+nvrt*npa
+!       write(*,'(a,6f8.2,i4)') 'state_p in ens',state_p(is-1:is+1),state_p(ie-1:ie+1),mype_world
+        do i=is,ie ! temperature
+           state_p(i)=state_p(i)+0.2d0 !this is just for lock-exchange test, will remove after test done!
+        end do
   END DO
+! write(*,*) 'in init_ens_pdaf',state_p(1:3)
 ! FESOM example is followed by init_seik, need to gen_cov first, then use its
 ! output to add pertubation into ensembles
 

@@ -83,16 +83,16 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 
 !     *** Compute mean state ***
 
-  state_p = 0.0
+  state_p = 0.0d0
   DO member = 1, dim_ens
      DO i = 1, dim_p
         state_p(i) = state_p(i) + ens_p(i, member)
      END DO
 !    write(*,*) 'check ens_p',maxval(ens_p(:,member)),member
   END DO
-  state_p(:) = state_p(:)/real(dim_ens)
+  state_p(:) = state_p(:)/real(dim_ens,8)
 
-! write(*,*) 'In prepoststep_ens, check!',maxval(state_p),step,mype_world,task_id,filterpe
+! write(*,*) 'In prepoststep_ens, check!',state_p(1:3),step,mype_world,task_id,filterpe
 
 
 END SUBROUTINE prepoststep_ens

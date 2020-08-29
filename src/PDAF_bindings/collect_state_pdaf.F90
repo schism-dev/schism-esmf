@@ -63,14 +63,14 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
      state_p(itot)=eta2(i)
    enddo !i
    ! Tracer
-   do i=1,npa
-     do k=1,nvrt
-       do j=1,ntracers
+   do j=1,ntracers
+     do i=1,npa
+       do k=1,nvrt
          itot=itot+1
          state_p(itot)=tr_nd(j,k,i)
-       enddo !j
-     enddo !k
-   enddo !i
+       enddo !k
+     enddo !i
+   enddo !j
    ! U
    do i=1,npa
      do k=1,nvrt
@@ -92,5 +92,7 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
        state_p(itot)=ww2(k,i)
      enddo !k
    enddo !i
+ 
+!  write(*,*) 'In collect_state_pdaf, check!',state_p(1:3),mype_world,task_id,filterpe
 
 END SUBROUTINE collect_state_pdaf

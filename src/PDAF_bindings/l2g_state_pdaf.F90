@@ -58,7 +58,7 @@ SUBROUTINE l2g_state_pdaf(step, domain_p, dim_l, state_l, dim_p, state_p)
 
 !  state_p = ?
 
-  nfield=5 ! z+tracer(s/t)+u+v+w
+  nfield=5 ! z+tracer(t/s)+u+v+w
 
 ! elev
   state_p(domain_p)=state_l(1)
