@@ -30,7 +30,8 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
  &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2
 ! Check only
-  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+  use mod_parallel_pdaf, only: mype_model,task_id,filterpe
+  use mod_assimilation, only: offset_field_p
 
   IMPLICIT NONE
   
@@ -93,6 +94,10 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
      enddo !k
    enddo !i
  
-!  write(*,*) 'In collect_state_pdaf, check!',state_p(1:3),mype_world,task_id,filterpe
+!  Debug
+!  i=offset_field_p(2)+1
+!  if (mype_model.eq.2) then
+!  write(*,'(a,3f8.3,2i3,l)') 'In collect_state_pdaf, check!',state_p(i:i+2),mype_model,task_id,filterpe
+!  end if
 
 END SUBROUTINE collect_state_pdaf

@@ -37,7 +37,8 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 !
 ! !USES:
 ! Check only
-  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+  use mod_parallel_pdaf, only: mype_model,task_id,filterpe
+  use mod_assimilation, only: offset_field_p
 
   IMPLICIT NONE
 
@@ -92,7 +93,11 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   END DO
   state_p(:) = state_p(:)/real(dim_ens,8)
 
-! write(*,*) 'In prepoststep_ens, check!',state_p(1:3),step,mype_world,task_id,filterpe
+! Debug
+! i=offset_field_p(2)+1
+! if (mype_model.eq.2) then
+! write(*,'(a,3f8.3,2i3,l)') 'In prepoststep_ens, check!',state_p(i:i+2),mype_model,task_id,filterpe
+! end if
 
 
 END SUBROUTINE prepoststep_ens

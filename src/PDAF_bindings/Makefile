@@ -35,9 +35,9 @@ endif
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
 
-ifeq ($(ESMF_F90COMPILER),mpiifort)
+#ifeq ($(ESMF_F90COMPILER),mpiifort)
 F90FLAGS += -r8
-endif
+#endif
 
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 

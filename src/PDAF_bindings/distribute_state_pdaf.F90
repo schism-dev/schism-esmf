@@ -31,7 +31,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
     & idry_s,su2,sv2,idry,eta2,tr_nd,uu2,vv2,ww2, &
     & elnode,i34,rkind,kbe,kbs,isidenode
 ! Check only
-  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+  use mod_parallel_pdaf, only: mype_model,task_id,filterpe
+  use mod_assimilation, only: offset_field_p
 
   IMPLICIT NONE
   
@@ -56,8 +57,11 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
   !WRITE (*,*) 'TEMPLATE distribute_state_pdaf.F90: Implement initialization of model fields here!'
 
 !  Assign state_p to eta2, su2 etc; exchange ghost
-!  ? = state_p
-!write(*,*) 'In distribute_state_pdaf, check!',state_p(1:3),mype_world,task_id,filterpe
+!  Debug
+!  i=offset_field_p(2)+1
+!  if (mype_model.eq.2) then
+!  write(*,'(a,3f8.3,2i3,l)') 'In distribute_state_pdaf, check!',state_p(i:i+2),mype_model,task_id,filterpe
+!  end if
    
    !init count
    itot=0
