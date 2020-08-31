@@ -41,17 +41,20 @@ SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
 # add PDAF libraries
 # @todo make optional
 ifndef PDAF_BUILD_DIR
-$(error PDAF_BUILD_DIR has to be set in environment.)
-endif
+$(warning PDAF_BUILD_DIR not set, will not compile PDAF hooks.)
+undefine USE_PDAF
+else
 PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
+ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
+$(error PDAF has to be compiled before ESMF-SCHISM.)
+endif
+endif
+
 
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
-ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
-$(error PDAF has to be compiled before ESMF-SCHISM.)
-endif
 
 # Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
 # compiler flag is already set
