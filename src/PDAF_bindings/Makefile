@@ -34,12 +34,17 @@ endif
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
+
+ifeq ($(ESMF_F90COMPILER),mpiifort)
+F90FLAGS += -r8
+endif
+
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 
 .SUFFIXES: .F90
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) -r8 $<
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 
 #schism_cmi_nuopc.o: schism_esmf_util.o schism_bmi.o
 #schism_cmi_esmf.o: schism_esmf_util.o schism_bmi.o
@@ -53,7 +58,7 @@ esmf: parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o i
       init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
       collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o assimilate_pdaf.o \
       init_dim_obs_f_pdaf.o init_dim_obs_l_pdaf.o obs_op_f_pdaf.o init_obs_f_pdaf.o init_obs_l_pdaf.o prodrinva_l_pdaf.o init_obsvar_l_pdaf.o \
-      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o g2l_obs_pdaf.o  
+      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o g2l_obs_pdaf.o
 nuopc: schism_cmi_nuopc.o
 
 clean:
