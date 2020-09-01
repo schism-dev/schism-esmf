@@ -160,8 +160,16 @@ subroutine SetModelServices(driver, rc)
   call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call NUOPC_FieldDictionaryEgest(freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   call NUOPC_FreeFormatDestroy(freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+
 
 end subroutine
 
