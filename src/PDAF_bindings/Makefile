@@ -30,14 +30,30 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
+ifeq ($(wildcard ../compiler.mk),)
+$(warning cannot find compiler Makefile snippet "../compiler.mk")
+else
+include ../compiler.mk
+endif
+
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
 
-#ifeq ($(ESMF_F90COMPILER),mpiifort)
+ifeq ($(ESMF_FC),gfortran)
+F90FLAGS += -freal-4-real-8
+else
+ifeq ($(ESMF_FC),ifort)
+$(error "Promotion of real to 8 byte not implemented for ifort")
+else
+ifeq ($(ESMF_FC),nagfor)
+$(error "Promotion of real to 8 byte not implemented for nagfor")
+else
 F90FLAGS += -r8
-#endif
+endif # nag
+endif # intel
+endif # gfortran
 
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 
