@@ -50,7 +50,7 @@ ifeq ($(ESMF_FC),gfortran)
 F90FLAGS += -fdefault-real-8 # double all reals
 else
 ifeq ($(ESMF_FC),ifort)
-$(error "Promotion of real to 8 byte not implemented for ifort")
+F90FLAGS += -real-size 64 # make only real double precision
 else
 ifneq (,$(findstring $(ESMF_FC),nag))
 F90FLAGS += -double # modern version of -r8
