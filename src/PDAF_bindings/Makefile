@@ -41,16 +41,25 @@ endif
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
 
+ifneq (,$(findstring $(ESMF_FC),nag))
+    CFLAGS += -fno-strict-overflow
+endif
+
 ifeq ($(ESMF_FC),gfortran)
-F90FLAGS += -freal-4-real-8
+#F90FLAGS += -freal-4-real-8 # make only real double precision
+F90FLAGS += -fdefault-real-8 # double all reals
 else
 ifeq ($(ESMF_FC),ifort)
 $(error "Promotion of real to 8 byte not implemented for ifort")
 else
-ifeq ($(ESMF_FC),nagfor)
-$(error "Promotion of real to 8 byte not implemented for nagfor")
+ifneq (,$(findstring $(ESMF_FC),nag))
+F90FLAGS += -double # modern version of -r8
 else
-F90FLAGS += -r8
+ifneq (,$(findstring $(ESMF_FC),pg))
+F90FLAGS += -double # modern version of -r8
+else
+$(error "Promotion of real to 8 byte not implemented for $(ESMF_FC)")
+endif # pg
 endif # nag
 endif # intel
 endif # gfortran
