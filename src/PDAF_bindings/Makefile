@@ -41,28 +41,31 @@ endif
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
 
-ifneq (,$(findstring $(ESMF_FC),nag))
-    CFLAGS += -fno-strict-overflow
-endif
+# Add compiler-specific flags to CFLAGS and F90FLAGS
 
-ifeq ($(ESMF_FC),gfortran)
-#F90FLAGS += -freal-4-real-8 # make only real double precision
-F90FLAGS += -fdefault-real-8 # double all reals
+ifneq (,$(findstring g95,$(ESMF_FC)))
+  F90FLAGS += -fdefault-real-8 # double all reals
 else
-ifeq ($(ESMF_FC),ifort)
-F90FLAGS += -real-size 64 # make only real double precision
+ifneq (,$(findstring gfortran, $(ESMF_FC)))
+  #F90FLAGS += -freal-4-real-8 # make only real double precision
+  F90FLAGS += -fdefault-real-8 # double all reals
 else
-ifneq (,$(findstring $(ESMF_FC),nag))
-F90FLAGS += -double # modern version of -r8
+ifneq (,$(findstring ifort,$(ESMF_FC)))
+  F90FLAGS += -real-size 64 # make only real double precision
 else
-ifneq (,$(findstring $(ESMF_FC),pg))
-F90FLAGS += -double # modern version of -r8
+ifneq (,$(findstring nagf,$(ESMF_FC)))
+  F90FLAGS += -double # modern version of -r8
+  CFLAGS += -fno-strict-overflow
+else
+ifneq (,$(findstring pgf,$(ESMF_FC)))
+  F90FLAGS += -double # modern version of -r8
 else
 $(error "Promotion of real to 8 byte not implemented for $(ESMF_FC)")
 endif # pg
 endif # nag
 endif # intel
 endif # gfortran
+endif # g95
 
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 
