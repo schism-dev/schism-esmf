@@ -21,7 +21,7 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "main_nuopc.F90"
+#define ESMF_FILENAME "atmosphere_cmi_nuopc.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
@@ -87,10 +87,6 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   ! This component imports SST and exports SLP and SWFLUX
 
-  !call NUOPC_Advertise(importState, &
-  !  StandardName="surface_temperature", name="sst", rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   if (.not.NUOPC_FieldDictionaryHasEntry("surface_air_pressure", rc=localrc)) then
       call NUOPC_FieldDictionaryAddEntry("surface_air_pressure", "N m-2", rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -98,8 +94,11 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-    StandardName="surface_air_pressure", name="pmsl", rc=localrc)
+    StandardName="surface_air_pressure", name="air_pressure_at_water_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 
   if (.not.NUOPC_FieldDictionaryHasEntry("surface_downwelling_photosynthetic_radiative_flux", rc=localrc)) then
       call NUOPC_FieldDictionaryAddEntry("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", rc=localrc)
@@ -108,7 +107,11 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-      StandardName="surface_downwelling_photosynthetic_radiative_flux", name="rsns", rc=localrc)
+    StandardName="surface_downwelling_photosynthetic_radiative_flux", &
+    name="downwelling_short_photosynthetic_radiation_at_water_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
+
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (.not.NUOPC_FieldDictionaryHasEntry("x_velocity_at_10m_above_sea_surface", rc=localrc)) then
@@ -118,7 +121,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-      StandardName="x_velocity_at_10m_above_sea_surface", name="x_velocity_at_10m_above_sea_surface", rc=localrc)
+      StandardName="x_velocity_at_10m_above_sea_surface", &
+      name="x_velocity_at_10m_above_sea_surface", &
+      SharePolicyField='share', SharePolicyGeomObject='not share', &
+      TransferOfferGeomObject='will provide',  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (.not.NUOPC_FieldDictionaryHasEntry("y_velocity_at_10m_above_sea_surface", rc=localrc)) then
@@ -128,7 +134,26 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Advertise(exportState, &
-      StandardName="y_velocity_at_10m_above_sea_surface", name="y_velocity_at_10m_above_sea_surface", rc=localrc)
+    StandardName="y_velocity_at_10m_above_sea_surface", &
+    name="y_velocity_at_10m_above_sea_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
+
+  !> Create fields that feed back from the ocean to the atmosphere.
+  !> @todo Make sure that these remain optional in case there is no coupling
+  !> @todo check unit for temperature
+  if (.not.NUOPC_FieldDictionaryHasEntry("temperature_at_water_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("temperature_at_water_surface", "deg C", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(importState, &
+    StandardName="sea_surface_temperature", &
+    name="temperature_at_water_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
+
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine InitializeP1
@@ -160,19 +185,19 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   gridOut = gridIn ! for now out same as in
 
-  field = ESMF_FieldCreate(name="sst", grid=gridIn, &
+  field = ESMF_FieldCreate(name="temperature_at_water_surface", grid=gridIn, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Disabled for now as we disabled coupling OCN->ATM
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifdef CREATE_AND_REALIZE
   ! This branch shows the standard procedure of creating a complete field
   ! with Grid and memory allocation, and then calling Realize() for it.
 
-  field = ESMF_FieldCreate(name="pmsl", grid=gridOut, &
+  field = ESMF_FieldCreate(name="air_pressure_at_water_surface", grid=gridOut, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -184,7 +209,7 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   ! field, it accesses the empty field that was created during advertise,
   ! and finishes it, setting a grid, and then calling FieldEmptyComplete().
 
-  call ESMF_StateGet(exportState, field=field, itemName="pmsl", rc=localrc)
+  call ESMF_StateGet(exportState, field=field, itemName="air_pressure_at_water_surface", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_FieldEmptySet(field, grid=gridOut, rc=localrc)
@@ -200,8 +225,8 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 #endif
 
   ! Other export fields
-  field = ESMF_FieldCreate(name="rsns", grid=gridOut, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", &
+   grid=gridOut, typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(exportState, field=field, rc=localrc)

@@ -112,6 +112,8 @@ subroutine SetModelServices(driver, rc)
   ! SetServices for dummy atmosphereosphere and for schism ocean
   ! NUOPC_DriverAddGridComp(driver, compLabel, &
   !   compSetServicesRoutine, compSetVMRoutine, petList, info, driver, rc)
+  !> @todo this next statement throws an error without showing this in the log,
+  !> but simply exiting to error at main:97
   call NUOPC_DriverAddComp(driver=driver, compLabel="atmosphere", &
     compSetServicesroutine=atmosphereSS, petList=(/petCount-1/), comp=child, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -130,7 +132,7 @@ subroutine SetModelServices(driver, rc)
   !call NUOPC_GridCompAttributeEgest(child, freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
+  !call NUOPC_FreeFormatLog(freeFormat, iofmt=ESMF_IOFMT_YAML, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! SetServices for connectors atmosphere--ocean and vice versa
@@ -154,13 +156,14 @@ subroutine SetModelServices(driver, rc)
   ! call NUOPC_DriverGet(driver, slotCount=slotCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_DriverEgestRunSequence(driver, freeFormat=freeFormat, rc=localrc)
+  call NUOPC_DriverEgestRunSequence(driver, freeFormat=freeFormat, &
+     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_FieldDictionaryEgest(freeFormat, rc=localrc)
+  call NUOPC_FieldDictionaryEgest(freeFormat, iofmt=ESMF_IOFMT_YAML, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
@@ -168,8 +171,6 @@ subroutine SetModelServices(driver, rc)
 
   call NUOPC_FreeFormatDestroy(freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-
 
 end subroutine
 
