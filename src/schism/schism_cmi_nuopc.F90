@@ -209,6 +209,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4)       :: ntime=0, iths=0, i
   character(len=ESMF_MAXSTR)  :: message, compName
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  logical                     :: isPresent
 
   type(ESMF_Vm)               :: vm
 
@@ -250,11 +251,20 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initialized parallel environment.'
 #endif
 
+  call ESMF_UtilIOMkDir ('./outputs',  relaxedFlag=.true., rc=localrc)
+  write(message, '(A)') trim(compName)//' writes results to directory ./outputs.'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   write(message, '(A)') trim(compName)//' initializing science model ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  call ESMF_UtilIOMkDir ('./outputs',  relaxedFlag=.true., rc=localrc)
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  inquire(file='param.nml', exist=isPresent)
+  if (.not.isPresent) then
+    write(message, '(A)') trim(compName)//' writes results to directory ./outputs.'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_FILE_OPEN
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
