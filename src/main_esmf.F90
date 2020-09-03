@@ -59,7 +59,7 @@ program main
   !> Read clock parameters from global.nml
 
   filename = './global.nml'
-  clock = clockCreateFrmParam(filename, localrc)
+  clock = clockCreateFrmParam(filename, relaxedFlag=.true., rc=localrc)
 
   ! Initialize, run, and finalize top level
   call ESMF_GridCompInitialize(topComp, clock=clock, userRc=userRc, rc=localrc)

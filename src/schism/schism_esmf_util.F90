@@ -551,46 +551,69 @@ subroutine addCIM(comp, rc)
 
 end subroutine addCIM
 
-function clockCreateFrmParam(filename, rc) result(clock)
+function clockCreateFrmParam(filename, kwe, relaxedFlag, rc) result(clock)
 
   use esmf
   implicit none
 
-  character(len=ESMF_MAXSTR), intent(in) :: filename
-  integer(ESMF_KIND_I4), intent(out)     :: rc
-  type(ESMF_Clock)                       :: clock
+  character(len=ESMF_MAXSTR), intent(in)           :: filename
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  logical, intent(in), optional                    :: relaxedFlag
+  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+  type(ESMF_Clock)                                 :: clock
 
-  logical               :: isPresent
-  integer(ESMF_KIND_I4) :: unit, localrc
-  type(ESMF_Time)       :: stopTime, startTime
+  logical                 :: isPresent
+  integer(ESMF_KIND_I4)   :: unit, localrc, rc_
+  type(ESMF_Time)         :: stopTime, startTime
   type(ESMF_TimeInterval) :: timeStep
+  character(len=ESMF_MAXSTR) :: message
 
-  integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2
+  integer(ESMF_KIND_I4)  :: start_year=2000, start_month=1, start_day=1
+  integer(ESMF_KIND_I4)  :: start_hour=0, rnday=2
   namelist /global/ start_year, start_month, start_day, start_hour, rnday
 
+  if (present(rc)) rc = ESMF_SUCCESS
+
   inquire(file=filename, exist=isPresent)
+  if (present(relaxedFlag)) then
+    if (.not.relaxedFlag .and. .not.isPresent) then
+      write(message, '(A)') '-- cannot find required '//trim(filename)
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+
+      if (.not.present(rc)) then
+        localrc = ESMF_RC_FILE_OPEN
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+      else
+        rc = ESMF_RC_FILE_OPEN
+        return
+      endif
+    endif
+  endif
+
   if (isPresent) then
 
     call ESMF_UtilIOUnitGet(unit, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     open(unit, file=filename, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     read(unit, nml=global, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     close(unit)
+  else
+    write(message, '(A)') '-- assumes default clock 2000-01-01T00:00:00 + 2 days'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
   ! Set day as timestep temporarily to count later to stop time
   call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
     h=start_hour, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   stopTime = startTime + timeStep
 
@@ -599,7 +622,7 @@ function clockCreateFrmParam(filename, rc) result(clock)
 
   clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
     name='main clock', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
 end function clockCreateFrmParam
 

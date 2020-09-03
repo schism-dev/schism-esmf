@@ -1,5 +1,5 @@
-! This code is part of the SCHISM-ESMF interface.  It defines
-! a main() program for a NUOPC coupled system.
+! This code is part of the SCHISM-ESMF interface.  It defines a main() program
+! for a NUOPC coupled system.
 !
 ! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
 ! @author Carsten Lemmen <carsten.lemmen@hzg.de>
@@ -59,7 +59,12 @@ program main
 
   call NUOPC_FreeFormatLog(freeFormat, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
+
+  !> Read clock parameters from global.nml, be relaxed about this
+  filename = './global.nml'
+  clock = clockCreateFrmParam(filename, relaxedFlag=.true., rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! Create the top level component and register its services along with
   ! profiling attributes
   topComp = ESMF_GridCompCreate(name="toplevel", rc=localrc)
@@ -68,13 +73,10 @@ program main
   call ESMF_GridCompSetServices(topComp, driverSetServices, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
+  
+
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !> Read clock parameters from global.nml
-
-  filename = './global.nml'
-  clock = clockCreateFrmParam(filename, localrc)
 
   call ESMF_ClockPrint(clock, options="startTime", &
       preString='main starts at ', unit=message, rc=localrc)
