@@ -47,17 +47,6 @@ program main
 
   include 'mpif.h'
 
-  !> @todo use this routine from schism_esmf_util, delete local one
-!  interface
-!    subroutine clockCreateFrmParam(filename,rc,clock,schism_dt,num_schism_dt_in_couple)
-!      use esmf
-!        character(len=ESMF_MAXSTR), intent(in) :: filename
-!        integer(ESMF_KIND_I4), intent(out)     :: rc
-!        type(ESMF_Clock), intent(out)          :: clock !clockCreateFrmParam
-!        integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple
-!    end subroutine clockCreateFrmParam
-!  end interface
-
   type(ESMF_GridComp), allocatable :: schism_components(:)
   type(ESMF_State), allocatable    ::  importStateList(:), exportStateList(:)
 
@@ -416,7 +405,7 @@ program main
       else
         call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
         value=0, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
       endif !DA step
 
       call ESMF_GridCompRun(schism_components(i), importState= importStateList(i), &

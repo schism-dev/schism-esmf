@@ -32,19 +32,11 @@
 program main
 
   use esmf
+  use schism_esmf_util, only: clockCreateFrmParam
   use schism_cmi_esmf, only: schismSetServices => SetServices
   use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
 
   implicit none
-
-  interface
-    function clockCreateFrmParam(filename, rc)
-      use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
-    end function clockCreateFrmParam
-  end interface
 
   type(ESMF_GridComp), allocatable :: schism_components(:)
   type(ESMF_GridComp)     :: atmos_component
@@ -141,7 +133,8 @@ program main
 
 
   filename = './global.nml'
-  clock = clockCreateFrmParam(filename, localrc)
+  clock = clockCreateFrmParam(filename, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i = 1, schismCount
 
@@ -255,56 +248,3 @@ program main
   call ESMF_Finalize(rc=localrc)
 
 end program main
-
-function clockCreateFrmParam(filename, rc) result(clock)
-
-  use esmf
-  implicit none
-
-  character(len=ESMF_MAXSTR), intent(in) :: filename
-  integer(ESMF_KIND_I4), intent(out)     :: rc
-  type(ESMF_Clock)                       :: clock
-
-  logical               :: isPresent
-  integer(ESMF_KIND_I4) :: unit, localrc
-  type(ESMF_Time)       :: stopTime, startTime
-  type(ESMF_TimeInterval) :: timeStep
-
-  integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2 !rnday in hours
-  namelist /global/ start_year, start_month, start_day, start_hour, rnday
-
-  inquire(file=filename, exist=isPresent)
-  if (isPresent) then
-
-    call ESMF_UtilIOUnitGet(unit, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    open(unit, file=filename, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    read(unit, nml=global, iostat=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    close(unit)
-  endif
-
-  ! Set day as timestep temporarily to count later to stop time
-  call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
-    h=start_hour, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  stopTime = startTime + timeStep
-
-  ! Only now define the coupling timestep as fraction of full timeStep (24
-  ! coupling steps in total here)
-  timeStep = timeStep / 24
-
-  clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
-    name='main clock', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-end function clockCreateFrmParam
