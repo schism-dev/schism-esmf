@@ -47,6 +47,8 @@ subroutine addSchismMesh(comp, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only:  nvrt
 
+  implicit none
+
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
@@ -78,6 +80,9 @@ subroutine addSchismMesh(comp, rc)
   type(ESMF_Field)                     :: field
 
   rc = ESMF_SUCCESS
+
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo all non-ESMF stuff should be outsourced to schism_bmi.F90
   ! prepare mesh
