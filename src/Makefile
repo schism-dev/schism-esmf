@@ -69,16 +69,16 @@ main_nuopc: main_nuopc.o driver/driver_schism_atm.o model/atmosphere_cmi_nuopc.o
 	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_esmf.o: driver/toplevel_schism_atm.o
-main_nuopc.o: driver/driver_schism_atm.o driver/driver_schism.o
+main_esmf.o: driver/toplevel_schism_atm.o main_esmf.F90 Makefile
+main_nuopc.o: driver/driver_schism_atm.o driver/driver_schism.o main_nuopc.F90 Makefile
 
-driver/driver_schism.o:
+driver/driver_schism.o: driver/driver_schism.F90 driver/Makefile Makefile
 	make -C driver driver_schism.o
 
-driver/driver_schism_atm.o:
+driver/driver_schism_atm.o: driver/driver_schism_atm.F90 driver/Makefile Makefile
 	make -C driver driver_schism_atm.o
 
-driver/toplevel_schism_atm.o:
+driver/toplevel_schism_atm.o: driver/toplevel_schism_atm.F90 driver/Makefile Makefile
 	make -C driver toplevel_schism_atm.o
 
 .PHONY:  clean default all nuopc esmf
