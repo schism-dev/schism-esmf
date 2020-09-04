@@ -31,6 +31,7 @@ module atmosphere_cmi_nuopc
 
   use esmf
   use nuopc
+  use schism_esmf_util, only : SCHISM_FieldRealize
 
   ! This is a dummy science model, so derive it from NUOPC model
   use NUOPC_Model, &
@@ -191,6 +192,9 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4)   :: localRc, ubnd(2), lbnd(2), i, j
 
   real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
+  character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  integer(ESMF_KIND_I4)                   :: itemCount
 
   rc = ESMF_SUCCESS
 
@@ -212,47 +216,32 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#ifdef CREATE_AND_REALIZE
-  ! This branch shows the standard procedure of creating a complete field
-  ! with Grid and memory allocation, and then calling Realize() for it.
 
-  field = ESMF_FieldCreate(name="air_pressure_at_water_surface", grid=gridOut, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  !> Realize all export fields using the utility function from schism_esmf_util
+  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
+  allocate(itemNameList(itemCount), itemTypeList(itemCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#else
-  ! This branch shows the alternative way of "realizing" an advertised
-  ! field, it accesses the empty field that was created during advertise,
-  ! and finishes it, setting a grid, and then calling FieldEmptyComplete().
-
-  call ESMF_StateGet(exportState, field=field, itemName="air_pressure_at_water_surface", rc=localrc)
+  call ESMF_StateGet(exportState, itemTypeList=itemTypeList,  &
+    itemNameList=itemNameList, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldEmptySet(field, grid=gridOut, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  do i=1, itemCount
 
-  call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-  ! There is not need to formally call Realize() when completing the
-  ! adverised field directly. However, calling Realize() also works.
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-#endif
+    call SCHISM_FieldRealize(exportState, itemNameList(i), &
+      grid=gridOut, typeKind=ESMF_TYPEKIND_R8, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! Other export fields
-  field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", &
-   grid=gridOut, typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  enddo
 
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! Provide values for the fields
 
-  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", grid=gridOut, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  call ESMF_StateGet(exportState, field=field, &
+    itemName="x_velocity_at_10m_above_sea_surface", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr2, &
@@ -265,16 +254,6 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
         + 3*cos(j/ubnd(2)*3.14/180.)
     end do
   enddo
-
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  field = ESMF_FieldCreate(name="y_velocity_at_10m_above_sea_surface", grid=gridOut, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 

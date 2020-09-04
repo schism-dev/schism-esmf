@@ -377,13 +377,14 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   type(ESMF_TimeInterval) :: stabilityTimeStep
   type(ESMF_Field)        :: field
-  integer(ESMF_KIND_I4)   :: localrc, i, itemCount
+  integer(ESMF_KIND_I4)   :: localrc, i
 
   type(ESMF_CoordSys_Flag) :: coordsys
   type(ESMF_Mesh)          :: mesh2d
 
-  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  integer(ESMF_KIND_I4)                   :: itemCount
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
 
@@ -445,13 +446,26 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! exportable field: sea surface_temperature
-  field = ESMF_FieldCreate(name="temperature_at_water_surface", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  !> Realize all export fields using the utility function from schism_esmf_util
+  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(exportState, field=field, rc=localrc)
+  allocate(itemNameList(itemCount), itemTypeList(itemCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(exportState, itemTypeList=itemTypeList,  &
+    itemNameList=itemNameList, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do i=1, itemCount
+
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+
+    call SCHISM_FieldRealize(exportState, itemNameList(i), &
+      mesh=mesh2d, typeKind=ESMF_TYPEKIND_R8, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  enddo
 
 end subroutine
 

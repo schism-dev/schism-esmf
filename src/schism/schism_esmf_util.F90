@@ -32,7 +32,7 @@ module schism_esmf_util
   use esmf
   implicit none
 
-  public addSchismMesh, clockCreateFrmParam
+  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   private
 
 contains
@@ -630,5 +630,73 @@ function clockCreateFrmParam(filename, kwe, relaxedFlag, rc) result(clock)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
 end function clockCreateFrmParam
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "SCHISM_FieldRealize"
+subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
+
+  use NUOPC, only: NUOPC_Realize
+
+  type(ESMF_State), intent(inout)    :: state
+  character(len=*), intent(in)       :: itemName
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  type(ESMF_Grid), intent(in), optional :: grid
+  type(ESMF_Mesh), intent(in), optional :: mesh
+  type(ESMF_TypeKind_Flag), intent(in), optional :: typekind
+  integer(ESMF_KIND_I4), intent(out), optional :: rc
+
+  integer(ESMF_KIND_I4)      :: rc_, localrc
+  character(len=ESMF_MAXSTR) :: message
+  type(ESMF_Field)           :: field
+
+  rc_ = ESMF_SUCCESS
+
+  if (present(grid).and.present(mesh)) then
+    write(message, '(A)') '-- does not accept both mesh and grid'
+    rc_ = ESMF_RC_ARG_BAD
+  elseif (.not.present(mesh).and..not.present(grid)) then
+    write(message, '(A)') '-- needs either mesh or grid as argument'
+    rc_ = ESMF_RC_ARG_BAD
+  endif
+
+  if (rc_ /= ESMF_SUCCESS) then
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    if (present(rc)) then
+      rc = rc_
+      return
+    endif
+    localrc = rc_
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  !> @todo check for existence in state and stateItemType field
+
+  call ESMF_StateGet(state, field=field, itemName=trim(itemName), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !> @todo check for empty status
+
+  if (present(grid)) then
+    call ESMF_FieldEmptySet(field, grid=grid, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  else
+    call ESMF_FieldEmptySet(field, mesh=mesh, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  if (present(typekind)) then
+    call ESMF_FieldEmptyComplete(field, typekind=typekind, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  else
+    call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  ! There is not need to formally call Realize() when completing the
+  ! adverised field directly. However, calling Realize() also works.
+  call NUOPC_Realize(state, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+end subroutine SCHISM_FieldRealize
 
 end module schism_esmf_util
