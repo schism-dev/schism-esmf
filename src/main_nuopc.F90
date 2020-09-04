@@ -73,7 +73,7 @@ program main
   call ESMF_GridCompSetServices(topComp, driverSetServices, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
 
-  
+
 
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)

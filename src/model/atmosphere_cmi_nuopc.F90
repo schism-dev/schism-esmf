@@ -81,9 +81,28 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   type(ESMF_Clock)     :: clock
   integer, intent(out) :: rc
 
-  integer(ESMF_KIND_I4) :: localRc
+  integer(ESMF_KIND_I4)      :: localRc
+  character(len=ESMF_MAXSTR) :: message, compName
 
   rc = ESMF_SUCCESS
+
+  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A)') trim(compName)//' initializing component ...'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (.not.ESMF_StateIsCreated(importState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Import', stateintent= &
+      ESMF_STATEINTENT_IMPORT, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  if (.not.ESMF_StateIsCreated(exportState)) then
+    importState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
+      ESMF_STATEINTENT_EXPORT, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   ! This component imports SST and exports SLP and SWFLUX
 

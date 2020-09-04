@@ -224,12 +224,14 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   if (.not.ESMF_StateIsCreated(importState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Import', rc=localrc)
+    importState=ESMF_StateCreate(name=trim(compName)//'Import', stateintent= &
+      ESMF_STATEINTENT_IMPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
   if (.not.ESMF_StateIsCreated(exportState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Export', rc=localrc)
+    importState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
+      ESMF_STATEINTENT_EXPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
@@ -306,6 +308,19 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   !   SharePolicyField='share', SharePolicyGeomObject='not share', &
   !   TransferOfferGeomObject='will provide',  rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(importState, &
+      StandardName="x_velocity_at_10m_above_sea_surface", &
+      name="x_velocity_at_10m_above_sea_surface", &
+      SharePolicyField='share', SharePolicyGeomObject='share', &
+      TransferOfferGeomObject='will provide',  rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (.not.NUOPC_FieldDictionaryHasEntry("y_velocity_at_10m_above_sea_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("y_velocity_at_10m_above_sea_surface", "m s-1", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> The mesh information is usually not in CF standard and therefore needs
   !> to be added to the FieldDictionary before advertising
@@ -402,6 +417,16 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   ! deallocate(itemNameList)
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> @todo change variable here
+  farrayPtr1 => pr2(1:np)
+  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
+    farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> @todo Disabled until we fix the coupling
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr2(1:np)
