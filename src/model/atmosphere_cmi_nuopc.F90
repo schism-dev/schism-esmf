@@ -200,8 +200,8 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   ! create a northwestern hemisphere grid
   gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/100, 10/), &
-    minCornerCoord=(/-120._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
-    maxCornerCoord=(/60._ESMF_KIND_R8, 60._ESMF_KIND_R8/), &
+    minCornerCoord=(/-150._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
+    maxCornerCoord=(/30._ESMF_KIND_R8, 80._ESMF_KIND_R8/), &
     coordSys=ESMF_COORDSYS_SPH_DEG, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -238,7 +238,7 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
 
   enddo
 
-  ! Provide values for the fields
+  !> @todo Provide values for the fields
 
   call ESMF_StateGet(exportState, field=field, &
     itemName="x_velocity_at_10m_above_sea_surface", rc=localrc)
