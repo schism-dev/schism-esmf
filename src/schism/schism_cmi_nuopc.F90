@@ -276,11 +276,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Advertise(importState, &
-    StandardName="surface_air_pressure", name="air_pressure_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
-    TransferOfferGeomObject='will provide',  rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call NUOPC_Advertise(importState, &
+  !   StandardName="surface_air_pressure", name="air_pressure_at_water_surface", &
+  !   SharePolicyField='share', SharePolicyGeomObject='not share', &
+  !   TransferOfferGeomObject='will provide',  rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (.not.NUOPC_FieldDictionaryHasEntry("surface_downwelling_photosynthetic_radiative_flux", rc=localrc)) then
       call NUOPC_FieldDictionaryAddEntry("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", rc=localrc)
@@ -288,12 +288,12 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Advertise(importState, &
-    StandardName="surface_downwelling_photosynthetic_radiative_flux", &
-    name="downwelling_short_photosynthetic_radiation_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
-    TransferOfferGeomObject='will provide',  rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call NUOPC_Advertise(importState, &
+  !   StandardName="surface_downwelling_photosynthetic_radiative_flux", &
+  !   name="downwelling_short_photosynthetic_radiation_at_water_surface", &
+  !   SharePolicyField='share', SharePolicyGeomObject='not share', &
+  !   TransferOfferGeomObject='will provide',  rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (.not.NUOPC_FieldDictionaryHasEntry("surface_temperature", rc=localrc)) then
       call NUOPC_FieldDictionaryAddEntry("surface_temperature", "degree C", rc=localrc)
@@ -301,11 +301,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Advertise(importState, &
-    StandardName="surface_temperature", name="temperature_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
-    TransferOfferGeomObject='will provide',  rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call NUOPC_Advertise(importState, &
+  !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
+  !   SharePolicyField='share', SharePolicyGeomObject='not share', &
+  !   TransferOfferGeomObject='will provide',  rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> The mesh information is usually not in CF standard and therefore needs
   !> to be added to the FieldDictionary before advertising
@@ -323,10 +323,22 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call NUOPC_Advertise(exportState, StandardName=trim(itemNameList(i)), &
-      SharePolicyField='share', SharePolicyGeomObject='not share', &
+      SharePolicyField='share', SharePolicyGeomObject='share', &
       TransferOfferGeomObject='will provide', rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo
+
+  if (.not.NUOPC_FieldDictionaryHasEntry("sea_surface_temperature", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("sea_surface_temperature", "degree C", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="sea_surface_temperature", name="temperature_at_water_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
@@ -397,6 +409,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo Disabled until we fix the coupling
   !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -404,16 +417,15 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! exportable field: surface_temperature
-  ! @todo re-enable
+  ! exportable field: sea surface_temperature
   field = ESMF_FieldCreate(name="temperature_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(exportState, field=field, rc=localrc)
+  call NUOPC_Realize(exportState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine

@@ -95,7 +95,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   call NUOPC_Advertise(exportState, &
     StandardName="surface_air_pressure", name="air_pressure_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    SharePolicyField='share', SharePolicyGeomObject='share', &
     TransferOfferGeomObject='will provide',  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -109,7 +109,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(exportState, &
     StandardName="surface_downwelling_photosynthetic_radiative_flux", &
     name="downwelling_short_photosynthetic_radiation_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    SharePolicyField='share', SharePolicyGeomObject='share', &
     TransferOfferGeomObject='will provide',  rc=localrc)
 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -123,7 +123,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(exportState, &
       StandardName="x_velocity_at_10m_above_sea_surface", &
       name="x_velocity_at_10m_above_sea_surface", &
-      SharePolicyField='share', SharePolicyGeomObject='not share', &
+      SharePolicyField='share', SharePolicyGeomObject='share', &
       TransferOfferGeomObject='will provide',  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -136,7 +136,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(exportState, &
     StandardName="y_velocity_at_10m_above_sea_surface", &
     name="y_velocity_at_10m_above_sea_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
+    SharePolicyField='share', SharePolicyGeomObject='share', &
     TransferOfferGeomObject='will provide',  rc=localrc)
 
   !> Create fields that feed back from the ocean to the atmosphere.
@@ -148,11 +148,11 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   endif
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Advertise(importState, &
-    StandardName="sea_surface_temperature", &
-    name="temperature_at_water_surface", &
-    SharePolicyField='share', SharePolicyGeomObject='not share', &
-    TransferOfferGeomObject='will provide',  rc=localrc)
+  ! call NUOPC_Advertise(importState, &
+  !   StandardName="sea_surface_temperature", &
+  !   name="temperature_at_water_surface", &
+  !   SharePolicyField='share', SharePolicyGeomObject='share', &
+  !   TransferOfferGeomObject='will provide',  rc=localrc)
 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -190,7 +190,7 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Disabled for now as we disabled coupling OCN->ATM
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifdef CREATE_AND_REALIZE
