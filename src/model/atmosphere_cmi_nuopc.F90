@@ -119,7 +119,6 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     TransferOfferGeomObject='will provide',  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-
   if (.not.NUOPC_FieldDictionaryHasEntry("surface_downwelling_photosynthetic_radiative_flux", rc=localrc)) then
       call NUOPC_FieldDictionaryAddEntry("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -156,6 +155,18 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(exportState, &
     StandardName="y_velocity_at_10m_above_sea_surface", &
     name="y_velocity_at_10m_above_sea_surface", &
+    SharePolicyField='share', SharePolicyGeomObject='share', &
+    TransferOfferGeomObject='will provide',  rc=localrc)
+
+  if (.not.NUOPC_FieldDictionaryHasEntry("air_temperature_at_water_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("air_temperature_at_water_surface", "K", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Advertise(exportState, &
+    StandardName="air_temperature_at_water_surface", &
+    name="air_temperature_at_water_surface", &
     SharePolicyField='share', SharePolicyGeomObject='share', &
     TransferOfferGeomObject='will provide',  rc=localrc)
 
@@ -252,6 +263,51 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
     do i=lbnd(1), ubnd(1)
       farrayPtr2(i,j) = 3*sin(i/ubnd(1)*3.14/180.) &
         + 3*cos(j/ubnd(2)*3.14/180.)
+    end do
+  enddo
+
+  call ESMF_StateGet(exportState, field=field, &
+    itemName="y_velocity_at_10m_above_sea_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr2, &
+    exclusiveUBound=ubnd, exclusiveLBound=lbnd, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do j=lbnd(2),ubnd(2)
+    do i=lbnd(1), ubnd(1)
+      farrayPtr2(i,j) = 3*sin(i/ubnd(1)*3.14/180.) &
+        + 3*cos(j/ubnd(2)*3.14/180.)
+    end do
+  enddo
+
+  call ESMF_StateGet(exportState, field=field, &
+    itemName="air_pressure_at_water_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr2, &
+    exclusiveUBound=ubnd, exclusiveLBound=lbnd, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do j=lbnd(2),ubnd(2)
+    do i=lbnd(1), ubnd(1)
+      farrayPtr2(i,j) = 100000 + 2000*sin(i/ubnd(1)*3.14/180.) &
+        + 2000*cos(j/ubnd(2)*3.14/180.)
+    end do
+  enddo
+
+  call ESMF_StateGet(exportState, field=field, &
+    itemName="air_temperature_at_water_surface", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr2, &
+    exclusiveUBound=ubnd, exclusiveLBound=lbnd, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do j=lbnd(2),ubnd(2)
+    do i=lbnd(1), ubnd(1)
+      farrayPtr2(i,j) = 298 + 10*sin(i/ubnd(1)*3.14/180.) &
+        - 10*cos(j/ubnd(2)*3.14/180.)
     end do
   enddo
 
