@@ -1,5 +1,5 @@
 # schism-esmf
-Earth System Modeling Framework cap for SCHISM
+Earth System Modeling Framework (ESMF) and National Unified Operational Prediction Capability (NUOPC) caps for SCHISM
 
 -------------------------------------------------------
 
@@ -43,7 +43,7 @@ Earth System Modeling Framework cap for SCHISM
     on Cyclops:
       setenv SCHISM_BUILD_DIR /sciclone/home10/yinglong/git/schism/build.cyclops
 
-3. PDAF:
+3. Optionally, you need PDAF:
 
    on WW:
       setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Whirlwind
