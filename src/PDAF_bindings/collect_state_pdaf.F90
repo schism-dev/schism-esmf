@@ -28,7 +28,7 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
 !
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
- &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2
+ &idry_s,su2,sv2, idry,eta2,tr_nd,uu2,vv2,ww2,kbp
 ! Check only
   use mod_parallel_pdaf, only: mype_model,task_id,filterpe
   use mod_assimilation, only: offset_field_p
@@ -68,7 +68,11 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
      do i=1,npa
        do k=1,nvrt
          itot=itot+1
-         state_p(itot)=tr_nd(j,k,i)
+         if (k.lt.kbp(i)) then
+            state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+         else
+            state_p(itot)=tr_nd(j,k,i)
+         end if
        enddo !k
      enddo !i
    enddo !j
@@ -76,21 +80,33 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
    do i=1,npa
      do k=1,nvrt
         itot=itot+1
-        state_p(itot)=uu2(k,i)
+        if (k.lt.kbp(i)) then
+           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        else
+           state_p(itot)=uu2(k,i)
+        end if
      enddo !k
    enddo !i
    ! V
    do i=1,npa
      do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=vv2(k,i)
+        itot=itot+1
+        if (k.lt.kbp(i)) then
+           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        else
+           state_p(itot)=vv2(k,i)
+        end if
      enddo !k
    enddo !i
    ! W
    do i=1,npa
      do k=1,nvrt
-       itot=itot+1
-       state_p(itot)=ww2(k,i)
+        itot=itot+1
+        if (k.lt.kbp(i)) then
+           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        else
+           state_p(itot)=ww2(k,i)
+        end if
      enddo !k
    enddo !i
  

@@ -58,5 +58,6 @@ SUBROUTINE g2l_obs_pdaf(domain, step, dim_obs_f, dim_obs_l, mstate_f, &
   DO i = 1, dim_obs_l
        mstate_l(i) = mstate_f(obs_index_l(i))
   END DO
+ !write(*,*) 'g2l_obs:',mstate_l(:)
 
 END SUBROUTINE g2l_obs_pdaf

@@ -101,12 +101,14 @@ SUBROUTINE init_dim_obs_l_pdaf(domain_p, step, dim_obs_f, dim_obs_l)
 !    distance = SQRT((xnd(domain_p) - obs_coords_f(1,i))**2 + &
 !                    (ynd(domain_p) - obs_coords_f(2,i))**2)
      IF (distance <= local_range) THEN
+!        write(*,*) 'check distance in init_dim_obs_l_pdaf', distance, x_mdl, x_obs, y_mdl, y_obs
          cnt = cnt + 1
          distance_l(cnt) = distance
          obs_index_l(cnt) = i
      END IF
   END DO
   
+! write(*,'(a,3i6)') 'in init_dim_obs_l_pdaf,cnt, dim_obs_l,dim_obs_f:', cnt, dim_obs_l,dim_obs_f
 
 END SUBROUTINE init_dim_obs_l_pdaf
 

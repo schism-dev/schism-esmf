@@ -32,7 +32,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        ONLY: dim_state_p, screen, filtertype, subtype, dim_ens, &
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
-       filename, type_trans, type_sqrt, delt_obs,offset_field_p
+       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
            type_forget, forget, type_trans, type_sqrt, &
-           locweight, local_range, srange 
+           locweight, local_range, srange,varscale 
 
 
 ! ***************************
@@ -196,6 +196,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   local_range = 1  ! Range in grid points for observation domain in local filters
   srange = local_range  ! Support range for 5th-order polynomial
                     ! or range for 1/e for exponential weighting
+  varscale = 1.0    ! Init ensemble variance
 
 ! *** File names
   filename = 'output.dat'

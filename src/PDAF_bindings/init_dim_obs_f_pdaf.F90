@@ -23,7 +23,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ics,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,rkind
+  use schism_glbl, only: nea,ics,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
@@ -44,6 +44,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:)!,obs_coords_p(:,:)
   integer nobs,i,l,itmp,ifl,iobs,istat
   real(rkind) tmp,xtmp,ytmp,xobsl,yobsl
+  logical fexist
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_seek_analysis    (as U_init_dim_obs)
@@ -54,7 +55,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 ! Called by: PDAF_netf_analysis
 !EOP
 
-! write(*,*) 'In init_dim_obs_pdaf, check!',mype_world,task_id,filterpe
+! write(*,*) 'In init_dim_obs_f_pdaf, check!',step,mype_world,task_id,filterpe
 
 ! ******************************************************************
 ! *** Initialize observation dimension for PE-local model domain ***
@@ -65,9 +66,13 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 ! Specify i8 as steps
   write(fnDA,'(a5,i8.8,a4)') 'data_',step,'.dat'
 
-  open(31,file='./DA_data/'//fnDA,status='old')
-
-  read(31,*) nobs
+  inquire(file='./DA_data/'//fnDA,exist=fexist)
+  if (fexist) then ! file exist
+     open(31,file='./DA_data/'//fnDA,status='old')
+     read(31,*) nobs
+  else
+     nobs=0
+  end if
   allocate(xobs(nobs),yobs(nobs),zobs(nobs),obsval(nobs),obstype(nobs),&
           &iep_obs(nobs),arco_obs(nobs,4),stat=istat)
   if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
@@ -83,11 +88,12 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
         zobs(i)=rearth_pole*sin(ytmp)
      endif !ics
   end do
-  close(31)
+  if (fexist) close(31) !file exist
 
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
   do i=1,nea ! search in argumented
+     if(idry_e(i)==1) cycle ! skip dry points
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
 
@@ -158,14 +164,16 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
          obs_coords_p(1,iobs)=xobs(l)
          obs_coords_p(2,iobs)=yobs(l)
          obs_coords_p(3,iobs)=zobs(l)
-!        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l)
+!        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l),task_id,filterpe
       end if
    end do
 
 !  Collect All observation by PDAF routine
 
    CALL PDAF_gather_dim_obs_f(dim_obs_p, dim_obs_f)
+!  if (task_id.eq.0) then
 !  write(*,*) 'in init_dim_obs_f_pdaf, dim_obs_p&f',dim_obs_p, dim_obs_f,mype_world,task_id,filterpe
+!  end if
 
    IF (ALLOCATED(obs_f)) DEALLOCATE(obs_f)
    IF (ALLOCATED(obs_coords_f)) DEALLOCATE(obs_coords_f)

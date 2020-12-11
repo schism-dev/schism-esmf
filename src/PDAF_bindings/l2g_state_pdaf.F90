@@ -39,7 +39,7 @@ SUBROUTINE l2g_state_pdaf(step, domain_p, dim_l, state_l, dim_p, state_p)
   REAL, INTENT(inout) :: state_p(dim_p) ! PE-local full state vector 
 
 ! Local vars
-  integer iid,cnt,nfield,k
+  integer iid,cnt,nfield,k,ii,ic
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update    (as U_l2g_state)
@@ -65,10 +65,14 @@ SUBROUTINE l2g_state_pdaf(step, domain_p, dim_l, state_l, dim_p, state_p)
 ! 3D field
   cnt=2
   do iid=2,nfield
-     do k=1,nvrt
-        state_p(domain_p + offset_field_p(iid) + (k-1)*npa) = state_l(cnt) 
-        cnt=cnt+1
-     end do !k
+     ic=1
+     if (iid.eq.2) ic=ntracers
+        do ii=1,ic
+           do k=1,nvrt
+             state_p(domain_p + offset_field_p(iid) + (k-1)*npa + nvrt*npa*(ii-1)) = state_l(cnt) 
+             cnt=cnt+1
+           end do !k
+        end do !ii
   end do !iid
 
 

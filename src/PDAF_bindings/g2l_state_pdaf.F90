@@ -37,7 +37,7 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
   REAL, INTENT(out)   :: state_l(dim_l) ! State vector on local analysis domain
 
 ! Local vars
-  integer iid,cnt,nfield,k
+  integer iid,cnt,nfield,k,ii,ic
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update    (as U_g2l_state)
 ! Called by: PDAF_letkf_update    (as U_g2l_state)
@@ -63,10 +63,15 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 ! 3D field
   cnt=2
   do iid=2,nfield
-     do k=1,nvrt
-        state_l(cnt)= state_p(domain_p + offset_field_p(iid) + (k-1)*npa)
-        cnt=cnt+1
-     end do !k
+     ic=1 !iid=3~5
+     if (iid.eq.2) ic=ntracers
+        do ii=1,ic
+           do k=1,nvrt
+             state_l(cnt)= state_p(domain_p + offset_field_p(iid) + (k-1)*npa + nvrt*npa*(ii-1))
+             cnt=cnt+1
+           end do !k
+        end do !ii
   end do !iid
+! write(*,'(a, i,106f10.3)') 'g2l_state:', ntracers,state_l
 
 END SUBROUTINE g2l_state_pdaf

@@ -123,7 +123,8 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 
             !Horizonal interplation
             m_state_p(i)=sum(arco_obs_mod(i,1:i34(ie))*swild(1:i34(ie)))
-!           write(*,*) 'Vert itp check',i,m_state_p(i),arco_obs_mod(i,1:i34(ie)),swild(1:i34(ie))
+!           write(*,*) 'Vert itp check',i,m_state_p(i),arco_obs_mod(i,1:i34(ie)),swild(1:i34(ie)),task_id,filterpe
+!           write(*,*) 'Vert itp check',i,m_state_p(i),task_id,filterpe
         end if
      end if !itp if
   end do   
