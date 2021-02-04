@@ -8,5 +8,8 @@
  forget = 1.0,    ! forgetting factor
  locweight = 4,   ! localization weight type, 0:uniform, 1:Exponential, 2/3/4:5th-order polynomial, check details in init_pdaf
  local_range = 500.0,  ! localization range, use lat/lon if ics=2
+ varscale = 1.00, ! Init Ensemble Variance
+ ihfskip_PDAF  = 108,  ! ihfskip for DA output, has to be multiple of delt_obs
+ nspool_PDAF  =  36,  ! nspool for DA output, has to be multiple of delt_obs
 /
 

@@ -46,8 +46,8 @@
     integer,save :: len_out_dir,it_main_PDAF !specify it_main from step
     logical,save :: ifirst
 
-    public :: writeout_nc_PDAF
-    public :: fill_nc_header_PDAF
+!   public :: writeout_nc_PDAF
+!   public :: fill_nc_header_PDAF
     public :: write_netcdf_pdaf
 
     contains
