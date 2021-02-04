@@ -44,21 +44,21 @@ F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
 # Add compiler-specific flags to CFLAGS and F90FLAGS
 
 ifneq (,$(findstring g95,$(ESMF_FC)))
-  F90FLAGS += -fdefault-real-8 # double all reals
+  F90FLAGS += -O3 -fdefault-real-8 # double all reals
 else
 ifneq (,$(findstring gfortran, $(ESMF_FC)))
   #F90FLAGS += -freal-4-real-8 # make only real double precision
-  F90FLAGS += -fdefault-real-8 # double all reals
+  F90FLAGS += -O3 -fdefault-real-8 # double all reals
 else
 ifneq (,$(findstring ifort,$(ESMF_FC)))
-  F90FLAGS += -real-size 64 # make only real double precision
+  F90FLAGS += -r8 -O3 -xHOST #Change to PDAF setting #-real-size 64 # make only real double precision
 else
 ifneq (,$(findstring nagf,$(ESMF_FC)))
   F90FLAGS += -double # modern version of -r8
   CFLAGS += -fno-strict-overflow
 else
 ifneq (,$(findstring pgf,$(ESMF_FC)))
-  F90FLAGS += -double # modern version of -r8
+  F90FLAGS += -O3 -fast -Mr8 -Mr8intrinsics -Mbyteswapio -Mpreprocess # modern version of -r8
 else
 $(error "Promotion of real to 8 byte not implemented for $(ESMF_FC)")
 endif # pg
@@ -83,10 +83,10 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 default: all
 all: nuopc esmf
 esmf: parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o \
-      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
+      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o output_netcdf_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
       collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o assimilate_pdaf.o \
       init_dim_obs_f_pdaf.o init_dim_obs_l_pdaf.o obs_op_f_pdaf.o init_obs_f_pdaf.o init_obs_l_pdaf.o prodrinva_l_pdaf.o init_obsvar_l_pdaf.o \
-      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o g2l_obs_pdaf.o
+      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o g2l_obs_pdaf.o 
 nuopc: schism_cmi_nuopc.o
 
 clean:

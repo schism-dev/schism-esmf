@@ -32,7 +32,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        ONLY: dim_state_p, screen, filtertype, subtype, dim_ens, &
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
-       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale
+       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale,ihfskip_PDAF,nspool_PDAF
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
            type_forget, forget, type_trans, type_sqrt, &
-           locweight, local_range, srange,varscale 
+           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF
 
 
 ! ***************************
@@ -207,6 +207,11 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   CLOSE (500)
   srange = local_range  ! Support range for 5th-order polynomial
 
+! Check pdaf.nml, stop if parameters are wrongly set. 
+  if ((mod(ihfskip_PDAF,delt_obs).ne.0).or.(mod(nspool_PDAF,delt_obs).ne.0)) then
+     write(errmsg,*) 'ihfskip_PDAF, nspool_PDAF have to match delt_obs, please change accordingly!'
+     CALL parallel_abort(errmsg)
+  end if
 
 ! ***********************************
 ! *** Some optional functionality ***

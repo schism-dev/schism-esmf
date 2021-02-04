@@ -39,6 +39,7 @@ module schism_cmi_esmf
   !Saved cohort arrays for schism_get and _save, and all that require resetting
   !among different cohorts
   integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:), istack(:)
+  integer, save, allocatable :: ncid_c(:) !CWB2021-1
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
  &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
  &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
@@ -120,10 +121,10 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
-  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile
+  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out
 !  use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
-!  use schism_io, only: ncid
+  use schism_io, only: fill_nc_header!ncid
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -311,6 +312,21 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     !Bypass alloc and decomp
     call schism_init(1,trim(simulationDirectory), iths, ntime)
   endif
+#ifdef USE_PDAF
+! CWB2021-1 start
+! ADDing PDAF C-pre, same for other changes
+! debug
+  write(message,*) 'init_P1: ifile=',ifile
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+! Check
+  if (nc_out>0) then
+      write(message,*) 'Change nc_out to 0 in param.nml'
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
+  call fill_nc_header(0) !ncfile output init
+! CWB2021-1 end
+#endif
 
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
@@ -827,9 +843,11 @@ end subroutine InitializeP1
 subroutine Run(comp, importState, exportState, parentClock, rc)
 
   use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp,idry,uu2,vv2,eta2,&
-     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy,ifile
+     &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy,ifile,ihfskip,nspool,&
+     &nea,nsa,id_out_var,iof_hydro,idry_e,idry_s,znl,pr,ww2,prho,airt1,shum1,srad,fluxsu,fluxlu,&
+     &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
   use schism_msgp, only: myrank,nproc
-!  use schism_io, only: ncid
+  use schism_io, only: writeout_nc,fill_nc_header!ncid
 !  USE PDAF_interfaces_module
 
 #ifdef USE_FABM
@@ -869,7 +887,6 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
        prepoststep_ens !, &            ! User supplied pre/poststep routine
 !      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
-
 
   rc = ESMF_SUCCESS
 
@@ -1005,6 +1022,62 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
       enddo !i
       close(10)
     endif !it==
+
+#ifdef USE_PDAF
+!CWB2021-1 start
+!   Writeout nc (Hydro only)
+    if(mod(it,nspool)==0) then
+        write(message,*) 'writeout nc at it = ',it,', elapsed ',it*dt,'s','it_main=',it_main
+        call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+        call writeout_nc(id_out_var(1),'wetdry_node',1,1,npa,dble(idry))
+        call writeout_nc(id_out_var(2),'wetdry_elem',4,1,nea,dble(idry_e))
+        call writeout_nc(id_out_var(3),'wetdry_side',7,1,nsa,dble(idry_s))
+       !zcor MUST be 1st 3D var output for combine scripts to work!
+        call writeout_nc(id_out_var(4),'zcor',2,nvrt,npa,znl(:,:))
+        if(iof_hydro(1)==1) call writeout_nc(id_out_var(5),'elev',1,1,npa,eta2)
+        if(iof_hydro(2)==1) call writeout_nc(id_out_var(6),'air_pressure',1,1,npa,pr)
+        if(iof_hydro(3)==1) call writeout_nc(id_out_var(7),'air_temperature',1,1,npa,airt1)
+        if(iof_hydro(4)==1) call writeout_nc(id_out_var(8),'specific_humidity',1,1,npa,shum1)
+        if(iof_hydro(5)==1) call writeout_nc(id_out_var(9),'solar_radiation',1,1,npa,srad)
+        if(iof_hydro(6)==1) call writeout_nc(id_out_var(10),'sensible_flux',1,1,npa,fluxsu)
+        if(iof_hydro(7)==1) call writeout_nc(id_out_var(11),'latent_heat',1,1,npa,fluxlu)
+        if(iof_hydro(8)==1) call writeout_nc(id_out_var(12),'upward_longwave',1,1,npa,hradu)
+        if(iof_hydro(9)==1) call writeout_nc(id_out_var(13),'downward_longwave',1,1,npa,hradd)
+        if(iof_hydro(10)==1) call writeout_nc(id_out_var(14),'total_heat_flux',1,1,npa,sflux)
+        if(iof_hydro(11)==1) call writeout_nc(id_out_var(15),'evaporation',1,1,npa,fluxevp)
+        if(iof_hydro(12)==1) call writeout_nc(id_out_var(16),'precipitation',1,1,npa,fluxprc)
+        if(iof_hydro(13)==1) call writeout_nc(id_out_var(17),'bottom_stress',1,1,npa,tau_bot_node(1,:),tau_bot_node(2,:)) !Cdp)
+        if(iof_hydro(14)==1) call writeout_nc(id_out_var(18),'wind_speed',1,1,npa,windx,windy)
+        if(iof_hydro(15)==1) call writeout_nc(id_out_var(19),'wind_stress',1,1,npa,tau(1,:),tau(2,:))
+        if(iof_hydro(16)==1) call writeout_nc(id_out_var(20),'dahv',1,1,npa,dav(1,:),dav(2,:))
+        if(iof_hydro(17)==1) call writeout_nc(id_out_var(21),'vertical_velocity',2,nvrt,npa,ww2)
+        if(iof_hydro(18)==1) call writeout_nc(id_out_var(22),'temp',2,nvrt,npa,tr_nd(1,:,:))
+        if(iof_hydro(19)==1) call writeout_nc(id_out_var(23),'salt',2,nvrt,npa,tr_nd(2,:,:))
+        if(iof_hydro(20)==1) call writeout_nc(id_out_var(24),'water_density',2,nvrt,npa,prho)
+        if(iof_hydro(21)==1) call writeout_nc(id_out_var(25),'diffusivity',2,nvrt,npa,dfh)
+        if(iof_hydro(22)==1) call writeout_nc(id_out_var(26),'viscosity',2,nvrt,npa,dfv)
+        if(iof_hydro(23)==1) call writeout_nc(id_out_var(27),'TKE',2,nvrt,npa,q2)
+        if(iof_hydro(24)==1) call writeout_nc(id_out_var(28),'mixing_length',2,nvrt,npa,xl)
+        if(iof_hydro(25)==1) call writeout_nc(id_out_var(29),'hvel',2,nvrt,npa,uu2,vv2)
+        if(iof_hydro(26)==1) call writeout_nc(id_out_var(30),'hvel_side',8,nvrt,nsa,su2,sv2)
+        if(iof_hydro(27)==1) call writeout_nc(id_out_var(31),'wvel_elem',5,nvrt,nea,we)
+        if(iof_hydro(28)==1) call writeout_nc(id_out_var(32),'temp_elem',6,nvrt,nea,tr_el(1,:,:))
+        if(iof_hydro(29)==1) call writeout_nc(id_out_var(33),'salt_elem',6,nvrt,nea,tr_el(2,:,:))
+!       if(iof_hydro(30)==1) call writeout_nc(id_out_var(34),'pressure_gradient',7,1,nsa,bpgr(:,1),bpgr(:,2))
+!       bpgr is not in schism_glbl, skip it 
+    end if
+
+!   Close nc files
+    if(mod(it,ihfskip)==0) then
+       ifile=ifile+1  !output file #
+       call fill_nc_header(1)
+    endif !it==ifile*ihfskip
+!   debug
+    write(message,*) 'Run: ifile=',ifile
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    
+!CWB2021-1 end
+#endif
 
     it=it+1
   end do !while
@@ -1388,12 +1461,15 @@ subroutine schism_alloc_arrays(ncohort)
   !Extra: somehow this helps
   if(.not.allocated(uu2_c)) allocate(uu2_c(nvrt,npa,0:ncohort-1))
   if(.not.allocated(vv2_c)) allocate(vv2_c(nvrt,npa,0:ncohort-1))
+  !CWB2021-1 Add ncid
+  if(.not.allocated(ncid_c)) allocate(ncid_c(0:ncohort-1))
 end subroutine schism_alloc_arrays
 
 subroutine schism_save_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
  &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
  &uu2,vv2
+  use schism_io, only:ncid_schism_io !CWB2021-1
   implicit none
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
 
@@ -1428,12 +1504,14 @@ subroutine schism_save_state(ci)
 
   uu2_c(:,:,ci)=uu2
   vv2_c(:,:,ci)=vv2
+  ncid_c(ci)=ncid_schism_io !CWB2021-1
 end subroutine schism_save_state
 
 subroutine schism_get_state(ci)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
  &idry_s,su2,sv2, idry,eta2,tr_nd,tr_nd0,q2,xl,dfv,dfh,dfq1,dfq2, &
  &uu2,vv2
+  use schism_io, only:ncid_schism_io !CWB2021-1
   implicit none
   integer(ESMF_KIND_I4), intent(in) :: ci !cohort index (0-based)
 
@@ -1468,6 +1546,7 @@ subroutine schism_get_state(ci)
 
   uu2=uu2_c(:,:,ci)
   vv2=vv2_c(:,:,ci)
+  ncid_schism_io=ncid_c(ci)
 end subroutine schism_get_state
 
 end module schism_cmi_esmf

@@ -37,8 +37,10 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 !
 ! !USES:
 ! Check only
-  use mod_parallel_pdaf, only: mype_model,task_id,filterpe
+  use schism_glbl, only: npa,nvrt
+  use mod_parallel_pdaf, only: mype_model,mype_filter,task_id,filterpe,mpierr,COMM_filter,MPI_REAL8, MPI_SUM
   use mod_assimilation, only: offset_field_p
+  use output_schism_pdaf, only: write_netcdf_pdaf
 
   IMPLICIT NONE
 
@@ -57,7 +59,13 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   INTEGER, INTENT(in) :: flag        ! PDAF status flag
 
 ! Local vars
-  integer i,member
+  integer i,j,member,field,istep
+  INTEGER :: offset_field           ! Offset of a field in the state vector
+  INTEGER :: dim_field              ! Dimension of a field
+  REAL :: rmse_p(6)                ! PE-local estimated rms errors
+  REAL :: rmse(6)                  ! Global estimated rms errors
+  REAL, ALLOCATABLE :: var_p(:)     ! Estimated local model state variances
+  CHARACTER(len=1) :: typestr       ! Character indicating call type
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_get_state       (as U_prepoststep)
@@ -82,22 +90,122 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   ! Template reminder - delete when implementing functionality
 !  WRITE (*,*) 'TEMPLATE prepoststep_ens.F90: Implement prepoststep here!'
 
-!     *** Compute mean state ***
 
+! **********************
+! *** INITIALIZATION ***
+! **********************
+  ! Allocate array for variances
+  ALLOCATE(var_p(dim_p))
+
+  ! Initialize numbers
+  rmse_p = 0.0d0
+  rmse   = 0.0d0
+
+  IF (mype_filter==0) THEN
+     IF (step==0) THEN
+        !open rmse file
+        open(10,file='rmse.dat')
+        WRITE (*,'(a, i7,3x,a)') 'SCHISM-PDAF', step,'Analyze initial state ensemble'
+        WRITE (typestr,'(a1)') 'i'
+     ELSE IF (step>0) THEN
+        WRITE (*,'(a, 8x,a)') 'SCHISM-PDAF', 'Analyze assimilated state ensemble'
+        WRITE (typestr,'(a1)') 'a'
+     ELSE IF (step<0) THEN
+        WRITE (*,'(a, 8x,a)') 'SCHISM-PDAF', 'Analyze forecast state ensemble'
+        WRITE (typestr,'(a1)') 'f'
+     END IF
+  END IF
+
+!     *** Compute mean state ***
+  IF (mype_filter==0) WRITE (*,'(a, 8x,a)') 'SCHISM-PDAF', '--- compute ensemble mean'
   state_p = 0.0d0
   DO member = 1, dim_ens
      DO i = 1, dim_p
         state_p(i) = state_p(i) + ens_p(i, member)
      END DO
-!    write(*,*) 'check ens_p',maxval(ens_p(:,member)),member
   END DO
   state_p(:) = state_p(:)/real(dim_ens,8)
+
+! *** Compute local sampled variances of state vector ***
+  var_p(:) = 0.0
+  DO member = 1, dim_ens
+     DO j = 1, dim_p
+        var_p(j) = var_p(j) + &
+             (ens_p(j, member) - state_p(j))* &
+             (ens_p(j, member) - state_p(j))
+     END DO
+  END DO
+  var_p(:) = var_p(:)/real(dim_ens-1,8)
+
+! *** Compute different field RMSE
+  offset_field = 0
+  DO field = 1, 6
+     ! Specify dimension of field
+     ! SSH
+     IF (field == 1) THEN
+        dim_field = npa
+     ! T,S,u,v,w
+     ELSE
+        dim_field = npa*nvrt
+     END IF
+
+     DO i = 1, dim_field
+        rmse_p(field) = rmse_p(field) + var_p(i + offset_field)
+     ENDDO
+     rmse_p(field) = rmse_p(field) / real(dim_field,8)
+
+     ! Set offset for next field
+     offset_field = offset_field + dim_field
+
+  END DO
+
+  ! Global sum of RMS errors
+  CALL MPI_Allreduce (rmse_p, rmse, 6, MPI_REAL8, MPI_SUM, &
+       COMM_filter, MPIerr)
+
+  rmse = SQRT(rmse)
+
+  ! Display RMS errors
+  IF (mype_filter==0) THEN
+     WRITE (*,'(a, 10x,a)') &
+          'SCHISM-PDAF', 'RMS error according to sampled covariance'
+     WRITE (*,'(a,7x,a9,1x,a14,a14,a14,a14,a14,/a, 10x,81a)') &
+          'SCHISM-PDAF', 'ssh','temp','salt','u','v','w',&
+          'SCHISM-PDAF', ('-',i=1,81)
+     WRITE (*,'(a,10x,es11.4,5es14.4,1x,a5,a1,/a, 10x,81a)') &
+          'SCHISM-PDAF', rmse(1), rmse(2), rmse(3), rmse(4), rmse(5), rmse(6), 'RMSe-', typestr,&
+          'SCHISM-PDAF', ('-',i=1,81)
+!    Write RMSE to file
+     if (step==0) then
+        WRITE (10,'(a, 10x,a)') &
+              'SCHISM-PDAF', 'RMS error according to sampled covariance'
+        WRITE (10,'(a,7x,a9,1x,a14,a14,a14,a14,a14,/a, 10x,81a)') &
+              '   step    ', 'ssh','temp','salt','u','v','w',&
+              '           ', ('-',i=1,81)
+     end if
+     WRITE (10,'(i,10x,es11.4,5es14.4,1x,a5,a1)') &
+           step, rmse(1), rmse(2), rmse(3), rmse(4), rmse(5), rmse(6), 'RMSe-', typestr
+  END IF
+
+! **************************
+! *** Write output nc files ***
+! Here we only output ens-avg rank nc, follow schism output
+! **************************
+  istep=step
+  CALL write_netcdf_pdaf(istep, dim_p, state_p)
+
 
 ! Debug
 ! i=offset_field_p(2)+1
 ! if (mype_model.eq.2) then
 ! write(*,'(a,3f8.3,2i3,l)') 'In prepoststep_ens, check!',state_p(i:i+2),mype_model,task_id,filterpe
 ! end if
+
+! ********************
+! *** finishing up ***
+! ********************
+
+  DEALLOCATE(var_p)
 
 
 END SUBROUTINE prepoststep_ens

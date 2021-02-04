@@ -153,6 +153,8 @@ MODULE mod_assimilation
   REAL    :: srange        ! Support range for 5th order polynomial
                            !   or radius for 1/e for exponential weighting
   REAL    :: varscale      ! Init Ensemble variance
+  integer :: ihfskip_PDAF       ! skip handle for f/a files 
+  integer :: nspool_PDAF       ! skip handle for f/a files 
 !    ! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
   INTEGER :: type_sqrt     ! Type of the transform matrix square-root 
                     !   (0) symmetric square root, (1) Cholesky decomposition
