@@ -32,7 +32,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        ONLY: dim_state_p, screen, filtertype, subtype, dim_ens, &
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
-       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale,ihfskip_PDAF,nspool_PDAF
+       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale,ihfskip_PDAF,nspool_PDAF,outf
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
            type_forget, forget, type_trans, type_sqrt, &
-           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF
+           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF,outf
 
 
 ! ***************************

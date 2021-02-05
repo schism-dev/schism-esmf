@@ -125,6 +125,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 !  use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
   use schism_io, only: fill_nc_header!ncid
+! use mod_assimilation, only: outf !PDAF module
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
@@ -324,7 +325,12 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end if
-  call fill_nc_header(0) !ncfile output init
+! write(*,*) 'outf=',outf
+! if ((outf==2).or.(outf==3)) then ! control output
+  ! outf is initialized (in init_pdaf) after this routine, so this if statement
+  ! has to be removed!
+     call fill_nc_header(0) !ncfile output init
+! end if
 ! CWB2021-1 end
 #endif
 
@@ -848,6 +854,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
   use schism_msgp, only: myrank,nproc
   use schism_io, only: writeout_nc,fill_nc_header!ncid
+  use mod_assimilation, only: outf !PDAF module
 !  USE PDAF_interfaces_module
 
 #ifdef USE_FABM
@@ -1026,8 +1033,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 #ifdef USE_PDAF
 !CWB2021-1 start
 !   Writeout nc (Hydro only)
-    if(mod(it,nspool)==0) then
-        write(message,*) 'writeout nc at it = ',it,', elapsed ',it*dt,'s','it_main=',it_main
+    if ((outf==2).or.(outf==3)) then ! control output
+     if(mod(it,nspool)==0) then
+        write(message,*) 'writeout nc at it = ',it,', elapsed ',it*dt,'s' !,' it_main=',it_main
         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
         call writeout_nc(id_out_var(1),'wetdry_node',1,1,npa,dble(idry))
         call writeout_nc(id_out_var(2),'wetdry_elem',4,1,nea,dble(idry_e))
@@ -1065,16 +1073,17 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
         if(iof_hydro(29)==1) call writeout_nc(id_out_var(33),'salt_elem',6,nvrt,nea,tr_el(2,:,:))
 !       if(iof_hydro(30)==1) call writeout_nc(id_out_var(34),'pressure_gradient',7,1,nsa,bpgr(:,1),bpgr(:,2))
 !       bpgr is not in schism_glbl, skip it 
-    end if
+     end if !mod
 
 !   Close nc files
-    if(mod(it,ihfskip)==0) then
+     if(mod(it,ihfskip)==0) then
        ifile=ifile+1  !output file #
        call fill_nc_header(1)
-    endif !it==ifile*ihfskip
-!   debug
-    write(message,*) 'Run: ifile=',ifile
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+     endif !it==ifile*ihfskip
+!    debug
+!    write(message,*) 'Run: ifile=',ifile
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    end if ! outf
     
 !CWB2021-1 end
 #endif

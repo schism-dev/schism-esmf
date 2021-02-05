@@ -25,10 +25,10 @@
 
     module output_schism_pdaf
     use schism_glbl, only: nea,nsa,npa,nvrt,idry,idry_e,idry_s,znl,id_out_var,kbp,rkind,&
-                   & np,ne,ns,time_stamp
-    use schism_msgp, only: myrank,parallel_abort
+                   & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt
+    use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
-    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF
+    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf
     implicit none
 !    include 'netcdf.inc'
     private
@@ -61,9 +61,11 @@
       integer,intent(in) :: step,dim_p
       real(rkind),intent(in) :: state_p(dim_p)
 !     local var
-      integer :: itot,i,k
+      integer :: itot,i,k,num_schism_steps
       real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:)
       character(len=1) :: typestr
+      character(len=72) :: fdb
+      integer :: lfdb
 
 !     Allocate var
       if (allocated(elev)) deallocate(elev)
@@ -136,9 +138,10 @@
       
 !     Define out_dir,len_out_dir,ifile_PDAF
       out_dir=adjustl('./DA_output/'//typestr//'/')
-      if (myrank==0) write(*,*) 'typestr=',typestr,myrank,step !check
+!     if (myrank==0) write(*,*) 'typestr=',typestr,myrank,step !check
       len_out_dir=len_trim(out_dir)
-      if (step.eq.0) then
+      if ((outf==1).or.(outf==3)) then ! control output 
+       if (step.eq.0) then
          if (myrank==0) write(*,*) 'open DA_output file'
          ifile_PDAF=1
          ifile_PDAF_a=1
@@ -152,20 +155,45 @@
          len_out_dir=len_trim(out_dir)
          call fill_nc_header_PDAF(0,'a')
          ifirst=.False. ! after setting ncid_a/f
-      end if
+       end if !step
+      end if !outf
 
 !     Output local_global map
 !     Copy from outputs?
 
+!   Test for ascii
+      num_schism_steps=rnday*86400.d0/dt+0.5d0
+     if(abs(step)==num_schism_steps) then
+      fdb='surface_0000'
+      lfdb=len_trim(fdb)
+      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      open(90,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
+      write(90,*)np,nproc
+      do i=1,np
+        write(90,'(i11,100(1x,e20.12))')iplg(i),xnd(i),ynd(i),temp(nvrt,i),salt(nvrt,i),uu(nvrt,i),vv(nvrt,i),elev(i)
+      enddo !i
+      close(90)
+
+      fdb='bottom_0000'
+      lfdb=len_trim(fdb)
+      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      open(90,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
+      write(90,*)np,nproc
+      do i=1,np
+        write(90,'(i11,100(1x,e20.12))')iplg(i),xnd(i),ynd(i),temp(1,i),salt(1,i),uu(1,i),vv(1,i),elev(i)
+      enddo !i
+      close(90)
+      end if !num_schism_steps
+
 !     output Hydro only
-      if (step.ne.0) then ! only output f/a file when step nq 0
+      if ((outf==1).or.(outf==3)) then ! control output 
+       if (step.ne.0) then ! only output f/a file when step nq 0
          if(mod(abs(step),nspool_PDAF)==0) then
-            if (myrank==0) write(*,*) 'writenc in PDAF with',step, typestr !, out_dir
+            if (myrank==0) write(*,*) 'write ens-avg nc in PDAF with',step, typestr !, out_dir
 !            if (typestr=='f') ncid_PDAF_io=ncid_f
 !            if (typestr=='a') ncid_PDAF_io=ncid_a
 !                  
-!   Noted:   idry,idry_e,idry_s,& znl are followed with filter member, usually the 1st
-!            we didn't use ens-avg
+!   Noted:   we didn't use ens-avg for idry,idry_e,idry_s,& znl, they are followed with filter member, usually the 1st
              call writeout_nc_PDAF(typestr,id_out_var(1),'wetdry_node',1,1,npa,dble(idry))
              call writeout_nc_PDAF(typestr,id_out_var(2),'wetdry_elem',4,1,nea,dble(idry_e))
              call writeout_nc_PDAF(typestr,id_out_var(3),'wetdry_side',7,1,nsa,dble(idry_s))
@@ -181,17 +209,14 @@
          end if
 
 
-!     Close init file
-!     if (step==0) call fill_nc_header_PDAF(1)
-!      if (step==0) 
 !     Close f & a file at specify step
-!     if (step.ne.0) then ! only close after init
          if (mod(abs(step),ihfskip_PDAF)==0) then
             if (typestr=='a') ifile_PDAF_a=ifile_PDAF_a+1 
             if (typestr=='f') ifile_PDAF_f=ifile_PDAF_f+1 
             call fill_nc_header_PDAF(1,typestr)
          end if
-      end if
+       end if !step
+      end if !outf
 
 !     Deallocate var
       deallocate(elev)
@@ -385,7 +410,7 @@
       write(fgb,'(i4.4)') myrank
       fname=out_dir(1:len_out_dir)//('schout_'//fgb//'_'//ifile_char_PDAF(1:ifile_len_PDAF)//'.nc')
 !'
-      write(*,*) trim(adjustl(fname)),ifile_PDAF !check
+!     write(*,*) trim(adjustl(fname)),ifile_PDAF !check
 
       if(iopen==1) iret=nf90_close(ncid_PDAF_io)
       iret=nf90_create(trim(adjustl(fname)),OR(NF90_NETCDF4,NF90_CLOBBER),ncid_PDAF_io)

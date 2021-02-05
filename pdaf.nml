@@ -11,5 +11,6 @@
  varscale = 1.00, ! Init Ensemble Variance
  ihfskip_PDAF  = 108,  ! ihfskip for DA output, has to be multiple of delt_obs
  nspool_PDAF  =  36,  ! nspool for DA output, has to be multiple of delt_obs
+ outf = 1,  ! output handle, 0: no output, 1: ens-mean, 2: members (in schism_001...), 3: both ens-mean & members (has netcdf issues, don't use currently)
 /
 

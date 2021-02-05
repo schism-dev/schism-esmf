@@ -155,6 +155,7 @@ MODULE mod_assimilation
   REAL    :: varscale      ! Init Ensemble variance
   integer :: ihfskip_PDAF       ! skip handle for f/a files 
   integer :: nspool_PDAF       ! skip handle for f/a files 
+  integer :: outf       ! output control handle 
 !    ! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
   INTEGER :: type_sqrt     ! Type of the transform matrix square-root 
                     !   (0) symmetric square root, (1) Cholesky decomposition
