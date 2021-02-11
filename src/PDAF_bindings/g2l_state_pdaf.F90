@@ -37,7 +37,7 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
   REAL, INTENT(out)   :: state_l(dim_l) ! State vector on local analysis domain
 
 ! Local vars
-  integer iid,cnt,nfield,k,ii,ic
+  integer iid,cnt,nfield,k,ii,ic,offset_p(6)
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update    (as U_g2l_state)
 ! Called by: PDAF_letkf_update    (as U_g2l_state)
@@ -55,6 +55,14 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 !   state_l = ??
 
 ! field, start with z/tracer(t/s)/u/v/w
+! local offset, because we only have 5 fields in offset_field_p
+  offset_p(1) = offset_field_p(1) !elev
+  offset_p(2) = offset_field_p(2) !tr_nd(1),temp
+  offset_p(3) = offset_field_p(2)+npa*nvrt !tr_nd(2), salt
+  offset_p(4) = offset_field_p(3) !uu
+  offset_p(5) = offset_field_p(4) !vv
+  offset_p(6) = offset_field_p(5) !ww
+
 
   nfield=5 ! z+tracer(t/s)+u+v+w
 
@@ -62,16 +70,22 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
   state_l(1)=state_p(domain_p)
 ! 3D field
   cnt=2
-  do iid=2,nfield
-     ic=1 !iid=3~5
-     if (iid.eq.2) ic=ntracers
-        do ii=1,ic
-           do k=1,nvrt
-             state_l(cnt)= state_p(domain_p + offset_field_p(iid) + (k-1)*npa + nvrt*npa*(ii-1))
-             cnt=cnt+1
-           end do !k
-        end do !ii
+  do iid=2,nfield+1
+      do k=1,nvrt
+         state_l(cnt)= state_p( (domain_p-1)*nvrt + offset_p(iid) + k  )
+         cnt=cnt+1
+      end do !k
   end do !iid
+! do iid=2,nfield
+!    ic=1 !iid=3~5
+!    if (iid.eq.2) ic=ntracers
+!       do ii=1,ic
+!          do k=1,nvrt
+!            state_l(cnt)= state_p(domain_p + offset_field_p(iid) + (k-1)*npa + nvrt*npa*(ii-1))
+!            cnt=cnt+1
+!          end do !k
+!       end do !ii
+! end do !iid
 ! write(*,'(a, i,106f10.3)') 'g2l_state:', ntracers,state_l
 
 END SUBROUTINE g2l_state_pdaf

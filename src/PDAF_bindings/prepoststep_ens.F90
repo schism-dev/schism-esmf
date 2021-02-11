@@ -194,6 +194,10 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   istep=step
   CALL write_netcdf_pdaf(istep, dim_p, state_p)
 
+! *************************
+! *** Write output state_p for restart
+! *************************
+! call write_ens_state(istep, dim_p, state_p)
 
 ! Debug
 ! i=offset_field_p(2)+1

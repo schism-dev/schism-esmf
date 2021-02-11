@@ -26,13 +26,13 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl,only : eta2,tr_nd,uu2,vv2,elnode,i34,nvrt,idry_e,kbp,znl,nsa,ntracers,errmsg !,&
-!                       & in_dir,out_dir,len_in_dir,len_out_dir               
+  use schism_glbl,only : elnode,i34,nvrt,idry_e,kbp,znl,npa,nsa,ntracers,errmsg !,&
+!                       &in_dir,out_dir,len_in_dir,len_out_dir,eta2,tr_nd,uu2,vv2               
   use schism_msgp, only: parallel_abort,myrank
 ! PDAF module
   use mod_assimilation, only: iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_p,dim_obs_p
 ! Check only
-  use mod_parallel_pdaf, only: mype_world,task_id,filterpe
+  use mod_parallel_pdaf, only: mype_world,task_id,filterpe,mype_filter
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -43,12 +43,13 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
   REAL, INTENT(inout) :: m_state_f(dim_obs_f) ! PE-local observed state
 
 ! Local vars
-  integer i,m,nd,k0,ie,k,ibad,istat
+  integer i,m,nd,k0,ie,k,ibad,istat,itot
   real swild(max(100,nsa+nvrt+12+ntracers)),swild2(nvrt,12) 
   real zrat
   character(len=72) :: fdb
   integer :: lfdb
   real,allocatable :: m_state_p(:) ! PE-local observed state
+  real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:) !  assign from state_p
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_seek_analysis   (as U_obs_op)
@@ -65,6 +66,70 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 
 !   m_state_p = ??
 
+! Assign state_p to local vars
+!  Allocate var
+  if (allocated(elev)) deallocate(elev)
+  if (allocated(temp)) deallocate(temp)
+  if (allocated(salt)) deallocate(salt)
+  if (allocated(uu)) deallocate(uu)
+  if (allocated(vv)) deallocate(vv)
+  if (allocated(ww)) deallocate(ww)
+  allocate(elev(npa),temp(nvrt,npa),salt(nvrt,npa),uu(nvrt,npa),vv(nvrt,npa),ww(nvrt,npa))
+!  Assign state_p to vars 
+  itot=0
+  do i=1,npa
+     itot=itot+1
+     elev(i)=state_p(itot)
+  enddo !i
+  do i=1,npa
+     do k=1,nvrt
+        itot=itot+1
+        temp(k,i)=state_p(itot)
+     end do
+     do k=1,kbp(i)-1 ! extrapolation
+        temp(k,i)=temp(kbp(i),i)
+     end do
+  end do
+  do i=1,npa
+     do k=1,nvrt
+        itot=itot+1
+        salt(k,i)=state_p(itot)
+     end do
+     do k=1,kbp(i)-1 ! extrapolation
+        salt(k,i)=salt(kbp(i),i)
+     end do
+  end do
+  do i=1,npa
+     do k=1,nvrt
+        itot=itot+1
+        uu(k,i)=state_p(itot)
+     end do
+     do k=1,kbp(i)-1 ! extrapolation
+        uu(k,i)=0.d0
+     end do
+  end do
+  do i=1,npa
+     do k=1,nvrt
+        itot=itot+1
+        vv(k,i)=state_p(itot)
+     end do
+     do k=1,kbp(i)-1 ! extrapolation
+        vv(k,i)=0.d0
+     end do
+  end do
+  do i=1,npa
+     do k=1,nvrt
+        itot=itot+1
+        ww(k,i)=state_p(itot)
+     end do
+     do k=1,kbp(i)-1 ! extrapolation
+        ww(k,i)=0.d0
+     end do
+  end do
+
+
+
+
 ! new28: can we collect m_state_p base on model values,  not using values from
 !        state_p by obs index, we need to do interpolation, so index method may
 !        not good enough!
@@ -78,15 +143,20 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
   do i=1,dim_obs_p
      ie=iep_obs_mod(i)
      if ((obstype_mod(i).eq.'z').or.(obstype_mod(i).eq.'Z')) then
-        swild2(1,1:i34(ie))=eta2(elnode(1:i34(ie),ie))
+!       swild2(1,1:i34(ie))=eta2(elnode(1:i34(ie),ie))
+        swild2(1,1:i34(ie))=elev(elnode(1:i34(ie),ie))
      elseif ((obstype_mod(i).eq.'t').or.(obstype_mod(i).eq.'T')) then
-        swild2(1:nvrt,1:i34(ie))=tr_nd(1,1:nvrt,elnode(1:i34(ie),ie))
+!       swild2(1:nvrt,1:i34(ie))=tr_nd(1,1:nvrt,elnode(1:i34(ie),ie))
+        swild2(1:nvrt,1:i34(ie))=temp(1:nvrt,elnode(1:i34(ie),ie))
      elseif ((obstype_mod(i).eq.'s').or.(obstype_mod(i).eq.'S')) then
-        swild2(1:nvrt,1:i34(ie))=tr_nd(2,1:nvrt,elnode(1:i34(ie),ie))
+!       swild2(1:nvrt,1:i34(ie))=tr_nd(2,1:nvrt,elnode(1:i34(ie),ie))
+        swild2(1:nvrt,1:i34(ie))=salt(1:nvrt,elnode(1:i34(ie),ie))
      elseif ((obstype_mod(i).eq.'u').or.(obstype_mod(i).eq.'U')) then
-        swild2(1:nvrt,1:i34(ie))=uu2(1:nvrt,elnode(1:i34(ie),ie))
+!       swild2(1:nvrt,1:i34(ie))=uu2(1:nvrt,elnode(1:i34(ie),ie))
+        swild2(1:nvrt,1:i34(ie))=uu(1:nvrt,elnode(1:i34(ie),ie))
      elseif ((obstype_mod(i).eq.'v').or.(obstype_mod(i).eq.'V')) then
-        swild2(1:nvrt,1:i34(ie))=vv2(1:nvrt,elnode(1:i34(ie),ie))
+!       swild2(1:nvrt,1:i34(ie))=vv2(1:nvrt,elnode(1:i34(ie),ie))
+        swild2(1:nvrt,1:i34(ie))=vv(1:nvrt,elnode(1:i34(ie),ie))
      else
         call parallel_abort('PDAF: unknown DA data input')
      end if
@@ -124,7 +194,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
             !Horizonal interplation
             m_state_p(i)=sum(arco_obs_mod(i,1:i34(ie))*swild(1:i34(ie)))
 !           write(*,*) 'Vert itp check',i,m_state_p(i),arco_obs_mod(i,1:i34(ie)),swild(1:i34(ie)),task_id,filterpe
-!           write(*,*) 'Vert itp check',i,m_state_p(i),task_id,filterpe
+!           write(*,*) 'Vert itp check',i,m_state_p(i),task_id,filterpe,mype_filter
         end if
      end if !itp if
   end do   
@@ -142,6 +212,14 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 
 ! Clean up
   DEALLOCATE(m_state_p)
+! Deallocate var
+  deallocate(elev)
+  deallocate(temp)
+  deallocate(salt)
+  deallocate(uu)
+  deallocate(vv)
+  deallocate(ww)
+
 
 
 END SUBROUTINE obs_op_f_pdaf
