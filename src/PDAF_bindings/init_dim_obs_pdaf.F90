@@ -41,9 +41,9 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! Local vars
   character(len=17) fnDA
   character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
-  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),obsval(:),iep_obs(:),arco_obs(:,:)
+  real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),zzobs(:),obsval(:),iep_obs(:),arco_obs(:,:)
   integer nobs,i,l,itmp,ifl,iobs,istat,j,nd
-  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl
+  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp
   logical fexist
 
 ! !CALLING SEQUENCE:
@@ -75,12 +75,14 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
   end if
   allocate(xobs(nobs),yobs(nobs),zobs(nobs),obsval(nobs),obstype(nobs),&
           &iep_obs(nobs),arco_obs(nobs,4),stat=istat)
+  if (ics==2) allocate(zzobs(nobs))
   if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
 
   do i=1,nobs
      read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
      zobs(i)=0.-zobs(i) !negtive, Input zobs is Positive, this is for znl itp
      if(ics==2) then
+        zzobs(i)=zobs(i) ! save for skip code
         xtmp=xobs(i)/180.d0*pi
         ytmp=yobs(i)/180.d0*pi
         xobs(i)=rearth_eq*cos(ytmp)*cos(xtmp)
@@ -113,18 +115,28 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
                 if(tmp<0) call area_coord(1,i,(/xctr(i),yctr(i),zctr(i)/), &
                   &eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3)) !fix A.C.
                 !skip data > dp, any node depth in this element > dp, then skip it
+                 if (ics==1) then
+                     zcomp=abs(zobs(l))
+                 else
+                     zcomp=abs(zzobs(l))
+                 end if
                  do j=1,i34(i)
                     nd=elnode(j,i)
-                    if (abs(zobs(l)).gt.dp(nd)) iep_obs(l)=0
+                    if (zcomp.gt.dp(nd)) iep_obs(l)=0
                  end do
              endif
           else !quad
              call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
              if(itmp/=0) iep_obs(l)=i
                !skip data > dp, any node depth in this element > dp, then skip it
+               if (ics==1) then
+                   zcomp=abs(zobs(l))
+               else
+                   zcomp=abs(zzobs(l))
+               end if
                do j=1,i34(i)
                   nd=elnode(j,i)
-                  if (abs(zobs(l)).gt.dp(nd)) iep_obs(l)=0
+                  if (zcomp.gt.dp(nd)) iep_obs(l)=0
                end do
           endif !i34
       enddo !l; build pts
@@ -179,7 +191,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
    end do
 
 !  Clean-up
-   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs)
+   deallocate(xobs,yobs,zobs,zzobs,obsval,obstype,iep_obs,arco_obs)
 
 END SUBROUTINE init_dim_obs_pdaf
 
