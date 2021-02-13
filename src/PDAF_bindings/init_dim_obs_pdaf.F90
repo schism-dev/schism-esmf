@@ -191,7 +191,8 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
    end do
 
 !  Clean-up
-   deallocate(xobs,yobs,zobs,zzobs,obsval,obstype,iep_obs,arco_obs)
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs)
+   if (ics==2) deallocate(zzobs)
 
 END SUBROUTINE init_dim_obs_pdaf
 

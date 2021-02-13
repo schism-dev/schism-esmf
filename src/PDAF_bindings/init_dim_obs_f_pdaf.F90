@@ -214,7 +214,8 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    
 
 !  Clean-up
-   deallocate(xobs,yobs,zobs,zzobs,obsval,obstype,iep_obs,arco_obs,obs_p) !obs_coords_p is required in obs_op_f_pdaf
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p) !obs_coords_p is required in obs_op_f_pdaf
+   if (ics==2) deallocate(zzobs)
 
 END SUBROUTINE init_dim_obs_f_pdaf
 
