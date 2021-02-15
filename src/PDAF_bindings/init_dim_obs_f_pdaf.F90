@@ -23,7 +23,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
+  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
@@ -94,7 +94,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
-  do i=1,nea ! search in argumented
+  do i=1,ne ! search in non-argumented to avoid overlap use of observations
      if(idry_e(i)==1) cycle ! skip dry points
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
@@ -115,12 +115,12 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                 if(tmp<0) call area_coord(1,i,(/xctr(i),yctr(i),zctr(i)/), &
                   &eframe(:,:,i),xobsl,yobsl,arco_obs(l,1:3)) !fix A.C.
                 !skip data > dp, any node depth in this element > dp, then skip it 
-!                write(*,*) 'Check ics=2 for obs',zobs(l),dp(elnode(1,i)),dp(elnode(2,i)),dp(elnode(3,i))
                  if (ics==1) then
                      zcomp=abs(zobs(l))
                  else 
                      zcomp=abs(zzobs(l))
                  end if
+!                write(*,*) 'Check ics=2 for obs',zcomp,dp(elnode(1,i)),dp(elnode(2,i)),dp(elnode(3,i))
                  do j=1,i34(i)
                     nd=elnode(j,i)
                     if (zcomp.gt.dp(nd)) iep_obs(l)=0

@@ -23,7 +23,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
+  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
@@ -94,7 +94,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
-  do i=1,nea ! search in argumented
+  do i=1,ne ! search in non-argumented to avoid overlap use of observations
      if(idry_e(i)==1) cycle ! skip dry points 
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
