@@ -42,8 +42,8 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   character(len=17) fnDA
   character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
   real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),zzobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:)!,obs_coords_p(:,:)
-  integer nobs,i,l,itmp,ifl,iobs,istat,j,nd
-  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp
+  integer nobs,i,l,itmp,ifl,iobs,istat,j,nd,ifiletype
+  real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp,xoblast,yoblast
   logical fexist
 
 ! !CALLING SEQUENCE:
@@ -63,13 +63,23 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 
 
 ! Data inputs
+  ifiletype=0
 ! Specify i8 as steps
+  if (ifiletype.eq.0) then
   write(fnDA,'(a5,i8.8,a4)') 'data_',step,'.dat'
+  else
+  write(fnDA,'(a5,i8.8,a4)') 'data_',step,'.bin'
+  end if
 
   inquire(file='./DA_data/'//fnDA,exist=fexist)
   if (fexist) then ! file exist
+     if (ifiletype.eq.0) then
      open(31,file='./DA_data/'//fnDA,status='old')
      read(31,*) nobs
+     else
+     open(31,file='./DA_data/'//fnDA,status='old',form='unformatted')
+     read(31) nobs
+     end if
   else
      nobs=0
   end if
@@ -79,7 +89,11 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
 
   do i=1,nobs
+     if (ifiletype.eq.0) then
      read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+     else
+     read(31) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+     end if
      zobs(i)=0.-zobs(i) !negtive, Input zobs is Positive, this is for znl itp
      if(ics==2) then
         zzobs(i)=zobs(i) ! save for skip code
@@ -150,7 +164,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
          endif
       end do !l
       if(ifl==0) exit
-   enddo !i=1,nea
+   enddo !i=1,ne
 
 !  Count obs points in each sub domain
    iobs=0

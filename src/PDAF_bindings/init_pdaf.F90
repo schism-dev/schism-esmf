@@ -69,7 +69,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
            type_forget, forget, type_trans, type_sqrt, &
-           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF,outf
+           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF,outf,dim_ens
 
 
 ! ***************************

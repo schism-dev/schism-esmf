@@ -139,17 +139,17 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
                   if (zcomp.gt.dp(nd)) iep_obs(l)=0
                end do
           endif !i34
-      enddo !l; build pts
+     enddo !l; build pts
 
-      ifl=0 !flag
-      do l=1,nobs
-         if(iep_obs(l)==0) then
-            ifl=1
-            exit
-         endif
-      end do !l
-      if(ifl==0) exit
-   enddo !i=1,nea
+     ifl=0 !flag
+     do l=1,nobs
+        if(iep_obs(l)==0) then
+           ifl=1
+           exit
+        endif
+     end do !l
+     if(ifl==0) exit
+   enddo !i=1,ne
 
 !  Count obs points in each sub domain
    iobs=0
