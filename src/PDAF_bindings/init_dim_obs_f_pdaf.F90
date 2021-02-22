@@ -108,7 +108,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
-  do i=1,ne ! search in non-argumented to avoid overlap use of observations
+  do i=1,ne ! search in resident domain to avoid overlap use of observations
      if(idry_e(i)==1) cycle ! skip dry points
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
