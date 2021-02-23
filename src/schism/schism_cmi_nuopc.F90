@@ -3,7 +3,7 @@
 !
 ! @copyright (C) 2021 Helmholtz-Zentrum Hereon
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
-! 
+!
 ! @author Carsten Lemmen carsten.lemmen@hereon.de
 !
 ! @license Apache License, Version 2.0 (the "License");
@@ -264,7 +264,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   inquire(file='param.nml', exist=isPresent)
   if (.not.isPresent) then
-    write(message, '(A)') trim(compName)//' cannot find requred file "param.nml"'
+    write(message, '(A)') trim(compName)//' cannot start without required file "param.nml".'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_FILE_OPEN
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
