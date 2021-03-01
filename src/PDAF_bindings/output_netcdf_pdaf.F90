@@ -25,10 +25,10 @@
 
     module output_schism_pdaf
     use schism_glbl, only: nea,nsa,npa,nvrt,idry,idry_e,idry_s,znl,id_out_var,kbp,rkind,&
-                   & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt
+                   & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt,kbe,elnode,i34,kbs,isidenode
     use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
-    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf
+    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf,nhot_PDAF,nhot_write_PDAF
     implicit none
 !    include 'netcdf.inc'
     private
@@ -41,7 +41,8 @@
 
     character(len=12),save :: ifile_char_PDAF
     
-    integer,save :: ncid_PDAF_io,ifile_PDAF,ifile_len_PDAF,ncid_a,ncid_f,ifile_PDAF_a,ifile_PDAF_f
+    integer,save :: ncid_PDAF_io,ifile_PDAF,ifile_len_PDAF,ncid_a,ncid_f, &
+     &ifile_PDAF_a,ifile_PDAF_f,ifile_hot
     character(len=1000),save :: out_dir 
     integer,save :: len_out_dir,it_main_PDAF !specify it_main from step
     logical,save :: ifirst
@@ -61,11 +62,22 @@
       integer,intent(in) :: step,dim_p
       real(rkind),intent(in) :: state_p(dim_p)
 !     local var
-      integer :: itot,i,k,num_schism_steps
+      integer :: itot,i,j,k,num_schism_steps
       real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:)
+      real,allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
       character(len=1) :: typestr
-      character(len=72) :: fdb
-      integer :: lfdb
+      character(len=4) :: a_4
+      character(len=72) :: fdb,it_char
+      integer :: lfdb,lit,ncid_hot
+      integer :: node_dim,elem_dim,side_dim,nvrt_dim,ntracers_dim
+      integer :: one_dim,three_dim,two_dim,four_dim,five_dim,six_dim,seven_dim
+      integer :: eight_dim,nine_dim,ntracers
+      integer :: var1d_dim(1),var2d_dim(2),var3d_dim(3)
+      integer :: nwild(nea+300)
+
+!     Manual assign ntracers=2, if add more tracers, consider to get from module
+!     Note!!
+      ntracers=2
 
 !     Allocate var
       if (allocated(elev)) deallocate(elev)
@@ -75,6 +87,9 @@
       if (allocated(vv)) deallocate(vv)
       if (allocated(ww)) deallocate(ww)
       allocate(elev(npa),temp(nvrt,npa),salt(nvrt,npa),uu(nvrt,npa),vv(nvrt,npa),ww(nvrt,npa))
+      if (nhot_PDAF==1) then
+         allocate(tr_el(ntracers,nvrt,nea),tr_nd(ntracers,nvrt,npa),su2(nvrt,nsa),sv2(nvrt,nsa),we(nvrt,nea),zero(nvrt,npa))
+      end if
 
 !     Assign state_p to vars for outputs
       itot=0
@@ -218,6 +233,149 @@
        end if !step
       end if !outf
 
+!     Output rank hotstart file, here we only output analysis (after DA)
+      if (step==0) ifile_hot=1
+      if ((typestr=='a').and.(nhot_PDAF==1)) then
+         if (mod(it_main_PDAF,nhot_write_PDAF)==0) then
+            a_4='0000'
+            write(a_4,'(i4.4)') myrank
+            write(it_char,'(i72)') it_main_PDAF
+            it_char=adjustl(it_char)
+            lit=len_trim(it_char)
+            it_char=out_dir(1:len_out_dir)//'hotstart_'//a_4//'_'//it_char(1:lit)//'.nc'
+            j=nf90_create(trim(adjustl(it_char)),OR(NF90_NETCDF4,NF90_CLOBBER),ncid_hot)
+            j=nf90_def_dim(ncid_hot,'nResident_node',np,node_dim)
+            j=nf90_def_dim(ncid_hot,'nResident_elem',ne,elem_dim)
+            j=nf90_def_dim(ncid_hot,'nResident_side',ns,side_dim)
+            j=nf90_def_dim(ncid_hot,'nVert',nvrt,nvrt_dim)
+            j=nf90_def_dim(ncid_hot,'ntracers',ntracers,ntracers_dim)
+            j=nf90_def_dim(ncid_hot,'one',1,one_dim)
+            j=nf90_def_dim(ncid_hot,'three',3,three_dim)
+            j=nf90_def_dim(ncid_hot,'two',2,two_dim)
+            j=nf90_def_dim(ncid_hot,'four',4,four_dim)
+            j=nf90_def_dim(ncid_hot,'five',5,five_dim)
+            j=nf90_def_dim(ncid_hot,'six',6,six_dim)
+            j=nf90_def_dim(ncid_hot,'seven',7,seven_dim)
+            j=nf90_def_dim(ncid_hot,'eight',8,eight_dim)
+            j=nf90_def_dim(ncid_hot,'nine',9,nine_dim)
+
+            var1d_dim(1)=one_dim
+            j=nf90_def_var(ncid_hot,'time',NF90_DOUBLE,var1d_dim,nwild(1))
+            j=nf90_def_var(ncid_hot,'it',NF90_INT,var1d_dim,nwild(2))
+            j=nf90_def_var(ncid_hot,'ifile',NF90_INT,var1d_dim,nwild(3))
+
+            var1d_dim(1)=elem_dim
+            j=nf90_def_var(ncid_hot,'idry_e',NF90_INT,var1d_dim,nwild(4))
+            var1d_dim(1)=side_dim
+            j=nf90_def_var(ncid_hot,'idry_s',NF90_INT,var1d_dim,nwild(5))
+            var1d_dim(1)=node_dim
+            j=nf90_def_var(ncid_hot,'idry',NF90_INT,var1d_dim,nwild(6))
+            j=nf90_def_var(ncid_hot,'eta2',NF90_DOUBLE,var1d_dim,nwild(7))
+
+            !Note the order of multi-dim arrays not reversed here!
+            !As long as the write is consistent with def it's fine
+            var2d_dim(1)=nvrt_dim; var2d_dim(2)=elem_dim
+            j=nf90_def_var(ncid_hot,'we',NF90_DOUBLE,var2d_dim,nwild(8))
+            var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=elem_dim
+            j=nf90_def_var(ncid_hot,'tr_el',NF90_DOUBLE,var3d_dim,nwild(9))
+            var2d_dim(1)=nvrt_dim; var2d_dim(2)=side_dim
+            j=nf90_def_var(ncid_hot,'su2',NF90_DOUBLE,var2d_dim,nwild(10))
+            j=nf90_def_var(ncid_hot,'sv2',NF90_DOUBLE,var2d_dim,nwild(11))
+            var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=node_dim
+            j=nf90_def_var(ncid_hot,'tr_nd',NF90_DOUBLE,var3d_dim,nwild(12))
+            j=nf90_def_var(ncid_hot,'tr_nd0',NF90_DOUBLE,var3d_dim,nwild(13))
+            var2d_dim(1)=nvrt_dim; var2d_dim(2)=node_dim
+            j=nf90_def_var(ncid_hot,'q2',NF90_DOUBLE,var2d_dim,nwild(14))
+            j=nf90_def_var(ncid_hot,'xl',NF90_DOUBLE,var2d_dim,nwild(15))
+            j=nf90_def_var(ncid_hot,'dfv',NF90_DOUBLE,var2d_dim,nwild(16))
+            j=nf90_def_var(ncid_hot,'dfh',NF90_DOUBLE,var2d_dim,nwild(17))
+            j=nf90_def_var(ncid_hot,'dfq1',NF90_DOUBLE,var2d_dim,nwild(18))
+            j=nf90_def_var(ncid_hot,'dfq2',NF90_DOUBLE,var2d_dim,nwild(19))
+
+            j=nf90_enddef(ncid_hot)
+
+            !Assign tr_el, we, su2, sv2 with derived nd values 
+            ! initialize array values
+            tr_nd(1,:,:)=temp(:,:)
+            tr_nd(2,:,:)=salt(:,:)
+            tr_el=0.d0
+            su2=0.d0
+            sv2=0.d0
+            we=0.d0
+            zero=0.d0
+            !  Update tr_el
+            do i=1,nea
+               if (idry_e(i).eq.1) cycle !dry
+
+            !     Here we need to assign first, then extrapolation
+               do k=kbe(i)+1,nvrt
+                  do j=1,ntracers
+                     tr_el(j,k,i)=sum(tr_nd(j,k,elnode(1:i34(i),i))+tr_nd(j,k-1,elnode(1:i34(i),i)))/2.d0/real(i34(i),rkind)
+                  end do !j
+               end do !k
+
+            !     Specify 1st index tr_el
+            !     Do extrapolation
+               do k=1,kbe(i)!-1
+                  do j=1,ntracers
+                     tr_el(j,k,i)=tr_el(j,kbe(i),i) !extrapolation
+                  end do !j
+               end do !k
+            end do !i
+            !  Update su2,sv2
+            do j=1,nsa
+               if(idry_s(j)==1) cycle
+               do k=kbs(j),nvrt
+                  su2(k,j)=sum(uu(k,isidenode(:,j)))/2.d0
+                  sv2(k,j)=sum(vv(k,isidenode(:,j)))/2.d0
+               end do
+               do k=1,kbs(j)-1
+                  su2(k,j)=0.d0  !zero-out
+                  sv2(k,j)=0.d0  !zero-out
+               end do
+            end do
+            !  Update we
+            do i=1,nea
+               if(idry_e(j)==1) cycle
+               do k=kbe(i)+1,nvrt
+                  we(k,i)=sum(ww(k,elnode(1:i34(i),i)))/real(i34(i),rkind)
+               end do
+               do k=1,kbe(i)!-1
+                  we(k,i)=0.d0  !zero-out
+               end do
+            end do
+
+            !Write
+            j=nf90_put_var(ncid_hot,nwild(1),time_stamp) !use time_stamp
+            j=nf90_put_var(ncid_hot,nwild(2),it_main_PDAF)
+            j=nf90_put_var(ncid_hot,nwild(3),ifile_hot) 
+            j=nf90_put_var(ncid_hot,nwild(4),idry_e,(/1/),(/ne/))
+            j=nf90_put_var(ncid_hot,nwild(5),idry_s,(/1/),(/ns/))
+            j=nf90_put_var(ncid_hot,nwild(6),idry,(/1/),(/np/))
+            j=nf90_put_var(ncid_hot,nwild(7),elev,(/1/),(/np/))
+            j=nf90_put_var(ncid_hot,nwild(8),we(:,1:ne),(/1,1/),(/nvrt,ne/))
+            j=nf90_put_var(ncid_hot,nwild(9),tr_el(:,:,1:ne),(/1,1,1/),(/ntracers,nvrt,ne/))
+            j=nf90_put_var(ncid_hot,nwild(10),su2(:,1:ns),(/1,1/),(/nvrt,ns/))
+            j=nf90_put_var(ncid_hot,nwild(11),sv2(:,1:ns),(/1,1/),(/nvrt,ns/))
+            j=nf90_put_var(ncid_hot,nwild(12),tr_nd(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(13),tr_nd(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+            ! Fill turbulance var as zeros, like derived from hycom
+            j=nf90_put_var(ncid_hot,nwild(14),zero(:,1:np),(/1,1/),(/nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(15),zero(:,1:np),(/1,1/),(/nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(16),zero(:,1:np),(/1,1/),(/nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(17),zero(:,1:np),(/1,1/),(/nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(18),zero(:,1:np),(/1,1/),(/nvrt,np/))
+            j=nf90_put_var(ncid_hot,nwild(19),zero(:,1:np),(/1,1/),(/nvrt,np/))
+
+            j=nf90_close(ncid_hot)
+
+            ifile_hot=ifile_hot+1
+            if(myrank==0) write(*,*) 'hot start written in PDAF at step: ',it_main_PDAF
+
+      
+         end if ! mod
+      end if !typestr
+
 !     Deallocate var
       deallocate(elev)
       deallocate(temp)
@@ -225,6 +383,14 @@
       deallocate(uu)
       deallocate(vv)
       deallocate(ww)
+      if (nhot_PDAF==1) then
+         deallocate(tr_el)
+         deallocate(tr_nd)
+         deallocate(su2)
+         deallocate(sv2)
+         deallocate(we)
+         deallocate(zero)
+      end if
 
       end subroutine write_netcdf_pdaf
 

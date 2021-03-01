@@ -32,7 +32,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        ONLY: dim_state_p, screen, filtertype, subtype, dim_ens, &
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
-       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale,ihfskip_PDAF,nspool_PDAF,outf
+       filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
+       ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -69,7 +70,9 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
            type_forget, forget, type_trans, type_sqrt, &
-           locweight, local_range, srange,varscale,ihfskip_PDAF,nspool_PDAF,outf,dim_ens
+           locweight, local_range, srange,varscale, &
+           ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
+           nhot_PDAF, nhot_write_PDAF
 
 
 ! ***************************
@@ -197,6 +200,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   srange = local_range  ! Support range for 5th-order polynomial
                     ! or range for 1/e for exponential weighting
   varscale = 1.0    ! Init ensemble variance
+  outf = 1          ! output file switch
+  nhot_PDAF = 0     ! hotstart rank output switch
 
 ! *** File names
   filename = 'output.dat'
@@ -212,6 +217,11 @@ SUBROUTINE init_pdaf(schismCount,ierr)
      write(errmsg,*) 'ihfskip_PDAF, nspool_PDAF have to match delt_obs, please change accordingly!'
      CALL parallel_abort(errmsg)
   end if
+  if(nhot_PDAF/=0.and.nhot_PDAF/=1.or.nhot_PDAF*mod(nhot_write_PDAF,ihfskip_PDAF)/=0) then
+     write(errmsg,*)'Unknown hotout or hotout_write not multiple of ihfskip in PDAF',nhot_PDAF,ihfskip_PDAF
+     call parallel_abort(errmsg)
+  endif
+
 
 ! ***********************************
 ! *** Some optional functionality ***
