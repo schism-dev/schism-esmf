@@ -27,7 +27,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
-  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p,obs_coords_p
+  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p,obs_coords_p,rms_type,rms_obs,rms_obs2
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -42,6 +42,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   character(len=17) fnDA
   character(len=1), allocatable :: obstype(:) ! z/s/t/u/v
   real(rkind), allocatable :: xobs(:),yobs(:),zobs(:),zzobs(:),obsval(:),iep_obs(:),arco_obs(:,:),obs_p(:)!,obs_coords_p(:,:)
+  real(rkind), allocatable :: rmsval(:)
   integer nobs,i,l,itmp,ifl,iobs,istat,j,nd,ifiletype
   real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp,xoblast,yoblast
   logical fexist
@@ -84,16 +85,32 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
      nobs=0
   end if
   allocate(xobs(nobs),yobs(nobs),zobs(nobs),obsval(nobs),obstype(nobs),&
-          &iep_obs(nobs),arco_obs(nobs,4),stat=istat)
+          &iep_obs(nobs),arco_obs(nobs,4),rmsval(nobs),stat=istat)
   if (ics==2) allocate(zzobs(nobs))
   if(istat/=0) call parallel_abort('PDAF: observation allocation failure')
 
   do i=1,nobs
      if (ifiletype.eq.0) then
-     read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+        if ((rms_type==1).or.(rms_type==2)) then
+           read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+        else if (rms_type==3) then
+           read(31,*) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i),rmsval(i)
+        end if
      else
-     read(31) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+        if ((rms_type==1).or.(rms_type==2)) then
+           read(31) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i) 
+        else if (rms_type==3) then
+           read(31) obstype(i),xobs(i),yobs(i),zobs(i),obsval(i),rmsval(i)
+        end if
      end if
+     if (rms_type==2) then
+        if ((obstype(i).eq.'z').or.(obstype(i).eq.'Z')) rmsval(i)=rms_obs2(1) !Z
+        if ((obstype(i).eq.'t').or.(obstype(i).eq.'T')) rmsval(i)=rms_obs2(2) !T
+        if ((obstype(i).eq.'s').or.(obstype(i).eq.'S')) rmsval(i)=rms_obs2(3) !S
+        if ((obstype(i).eq.'u').or.(obstype(i).eq.'U')) rmsval(i)=rms_obs2(4) !U
+        if ((obstype(i).eq.'v').or.(obstype(i).eq.'V')) rmsval(i)=rms_obs2(5) !V
+     end if
+     if (rms_type==1) rmsval(i)=rms_obs !Uniform
      zobs(i)=0.-zobs(i) !negtive, Input zobs is Positive, this is for znl itp
      if(ics==2) then
         zzobs(i)=zobs(i) ! save for skip code
@@ -183,7 +200,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    allocate(iep_obs_mod(iobs))
    allocate(obstype_mod(iobs))
    allocate(arco_obs_mod(iobs,4))
-   allocate(obs_coords_p(3,iobs)) !3 dim, store x,y,z
+   allocate(obs_coords_p(4,iobs)) !4 dim, store x,y,z,rms_obs_vec
    
 !  We can Put simple QA/QC here, do this later
 !   call qaqc(obsval,obstype) 
@@ -201,6 +218,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
          obs_coords_p(1,iobs)=xobs(l)
          obs_coords_p(2,iobs)=yobs(l)
          obs_coords_p(3,iobs)=zobs(l)
+         obs_coords_p(4,iobs)=rmsval(l)
 !        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l),task_id,filterpe
       end if
    end do
@@ -215,20 +233,20 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    IF (ALLOCATED(obs_f)) DEALLOCATE(obs_f)
    IF (ALLOCATED(obs_coords_f)) DEALLOCATE(obs_coords_f)
    ALLOCATE(obs_f(dim_obs_f))
-   ALLOCATE(obs_coords_f(3, dim_obs_f))
+   ALLOCATE(obs_coords_f(4, dim_obs_f))
 
    ! Get full observation vector
    CALL PDAF_gather_obs_f(obs_p, obs_f, istat)
    if(istat/=0) call parallel_abort('PDAF: Local observation gather failure')
 
    ! Get full array of coordinates
-   CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 3, istat)
+   CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 4, istat)
    if(istat/=0) call parallel_abort('PDAF: Local observation gather f2 failure')
 !  write(*,*) 'init_dim_obs_f_pdaf,obs_coords_f',maxval(obs_coords_f)
    
 
 !  Clean-up
-   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p) !obs_coords_p is required in obs_op_f_pdaf
+   deallocate(xobs,yobs,zobs,obsval,obstype,iep_obs,arco_obs,obs_p,rmsval) !obs_coords_p is required in obs_op_f_pdaf
    if (ics==2) deallocate(zzobs)
 
 END SUBROUTINE init_dim_obs_f_pdaf

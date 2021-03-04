@@ -33,7 +33,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        rms_obs, incremental, covartype, type_forget, forget, &
        rank_analysis_enkf, locweight, local_range, srange, &
        filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
-       ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF
+       ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF, &
+       rms_type,rms_obs2
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -56,6 +57,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   INTEGER :: doexit, steps,i,lfdb     ! Not used in this implementation
   REAL    :: timenow           ! Not used in this implementation
   character(len=72) :: indir
+  integer :: j
 
 ! temp-add
 ! real :: state_p(dim_p)
@@ -72,7 +74,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
            type_forget, forget, type_trans, type_sqrt, &
            locweight, local_range, srange,varscale, &
            ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
-           nhot_PDAF, nhot_write_PDAF
+           nhot_PDAF, nhot_write_PDAF, &
+           rms_type,rms_obs2
 
 
 ! ***************************
@@ -221,6 +224,14 @@ SUBROUTINE init_pdaf(schismCount,ierr)
      write(errmsg,*)'Unknown hotout or hotout_write not multiple of ihfskip in PDAF',nhot_PDAF,ihfskip_PDAF
      call parallel_abort(errmsg)
   endif
+  if ((rms_type==2).and.(sum(rms_obs2(:)).eq.0.d0)) then
+     write(errmsg,*) 'Please specify rms_obs2, ', (rms_obs2(j),j=1,5)
+     call parallel_abort(errmsg)
+  end if
+  if ((rms_type<1).or.(rms_type>3)) then
+     write(errmsg,*) 'Please specify right rms_type (1~3), now is ', rms_type
+     call parallel_abort(errmsg)
+  end if
 
 
 ! ***********************************

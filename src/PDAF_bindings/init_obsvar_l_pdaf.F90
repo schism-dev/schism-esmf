@@ -29,7 +29,7 @@ SUBROUTINE init_obsvar_l_pdaf(domain, step, dim_obs_l, obs_l, meanvar_l)
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE mod_assimilation, ONLY: rms_obs
+  USE mod_assimilation, ONLY: rms_obs,rms_type,obs_coords_f,obs_index_l
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -39,6 +39,8 @@ SUBROUTINE init_obsvar_l_pdaf(domain, step, dim_obs_l, obs_l, meanvar_l)
   REAL, INTENT(in) :: obs_l(dim_obs_l) ! Local observation vector
   REAL, INTENT(out)   :: meanvar_l     ! Mean local observation error variance
 
+! Local vars
+  integer :: i,idx
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_set_forget_local    (as U_init_obsvar_l)
 !EOP
@@ -51,6 +53,15 @@ SUBROUTINE init_obsvar_l_pdaf(domain, step, dim_obs_l, obs_l, meanvar_l)
   ! Template reminder - delete when implementing functionality
 ! WRITE (*,*) 'TEMPLATE init_obsvar_l_pdaf.F90: Set mean observation variance here!'
 
-  meanvar_l = rms_obs**2
+  if (rms_type==1) then
+     meanvar_l = rms_obs**2
+  else
+     meanvar_l=0.d0
+     do i=1,dim_obs_l
+        idx=obs_index_l(i)
+        meanvar_l=meanvar_l+obs_coords_f(4,idx)**2
+     end do
+     meanvar_l=meanvar_l/dim_obs_l
+  end if
 
 END SUBROUTINE init_obsvar_l_pdaf

@@ -35,7 +35,7 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
 !
 ! !USES:
   USE mod_assimilation, &
-       ONLY: local_range, locweight, srange, rms_obs, distance_l
+       ONLY: local_range, locweight, srange, rms_obs, distance_l,rms_type,obs_coords_f,obs_index_l
   USE mod_parallel_pdaf, &
        ONLY: mype_filter
 
@@ -68,6 +68,7 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
   REAL, ALLOCATABLE :: weight(:)     ! Localization weights
   REAL, ALLOCATABLE :: A_obs(:,:)    ! Array for a single row of A_l
   REAL    :: var_obs                 ! Variance of observation error
+  integer :: idx ! obs_index
 
 
   ! *** initialize numbers (this is for constant observation errors)
@@ -152,6 +153,10 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
   END IF
 
   DO i=1, dim_obs_l
+     if (rms_type>1) then
+        idx=obs_index_l(i)
+        var_obs=obs_coords_f(4,idx)**2
+     end if
 
      ! Control verbosity of PDAF_local_weight
      IF (verbose==1 .AND. i==1) THEN
@@ -163,8 +168,8 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
      IF (locweight /= 4) THEN
         ! All localizations except regulated weight based on variance at 
         ! single observation point
-        CALL PDAF_local_weight(wtype, rtype, local_range, srange, distance_l(i), &
-             dim_obs_l, rank, A_l, var_obs, weight(i), verbose_w)
+           CALL PDAF_local_weight(wtype, rtype, local_range, srange, distance_l(i), &
+                dim_obs_l, rank, A_l, var_obs, weight(i), verbose_w)
      ELSE
         ! Regulated weight using variance at single observation point
         A_obs(1,:) = A_l(i,:)
@@ -182,6 +187,10 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
 
   DO j = 1, rank
      DO i = 1, dim_obs_l
+        if (rms_type>1) then
+           idx=obs_index_l(i)
+           ivariance_obs=1.d0/obs_coords_f(4,idx)**2
+        end if
         C_l(i, j) = ivariance_obs * weight(i) * A_l(i, j)
      END DO
   END DO

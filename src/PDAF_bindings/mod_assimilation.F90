@@ -158,6 +158,10 @@ MODULE mod_assimilation
   integer :: outf       ! output control handle 
   integer :: nhot_PDAF  ! output analysis hotstart rank file switch
   integer :: nhot_write_PDAF ! step to output hotstart rank files
+  integer :: rms_type  ! handle to control rms_obs type
+  real :: rms_obs2(5)  ! type 2 rms_obs, z/t/s/u/v
+! REAL, ALLOCATABLE    :: rms_obs3(:) ! type3 rms_obs
+  
 !    ! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
   INTEGER :: type_sqrt     ! Type of the transform matrix square-root 
                     !   (0) symmetric square root, (1) Cholesky decomposition

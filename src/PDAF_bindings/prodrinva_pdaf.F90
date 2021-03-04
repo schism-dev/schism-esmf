@@ -23,7 +23,7 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE mod_assimilation, ONLY: rms_obs
+  USE mod_assimilation, ONLY: rms_obs,rms_type,obs_coords_p
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -36,6 +36,9 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
   REAL, INTENT(in)    :: obs_p(dim_obs_p)    ! PE-local vector of observations
   REAL, INTENT(in)    :: A_p(dim_obs_p,rank) ! Input matrix from SEEK_ANALYSIS
   REAL, INTENT(out)   :: C_p(dim_obs_p,rank) ! Output matrix
+
+! Local vars
+  integer :: i
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_seek_analysis        (as U_prodRinvA)
@@ -65,7 +68,12 @@ SUBROUTINE prodRinvA_pdaf(step, dim_obs_p, rank, obs_p, A_p, C_p)
 ! *************************************
 
 ! C_p = ?
-
-  C_p = A_p/rms_obs
+  if (rms_type==1) then
+     C_p = A_p/rms_obs
+  else
+     do i=1,dim_obs_p
+        C_p(i,:)=A_p(i,:)/obs_coords_p(4,i)
+     end do
+  end if
 
 END SUBROUTINE prodRinvA_pdaf

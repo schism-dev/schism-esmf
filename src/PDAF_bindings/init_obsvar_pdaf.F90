@@ -32,7 +32,7 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE mod_assimilation, ONLY: rms_obs
+  USE mod_assimilation, ONLY: rms_obs,obs_coords_p,rms_type
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -45,6 +45,8 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
   REAL, INTENT(in) :: obs_p(dim_obs_p) ! PE-local observation vector
   REAL, INTENT(out)   :: meanvar       ! Mean observation error variance
 
+! Local vars
+  integer :: i
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_set_forget    (as U_init_init_obs_covar)
 !EOP
@@ -59,6 +61,14 @@ SUBROUTINE init_obsvar_pdaf(step, dim_obs_p, obs_p, meanvar)
   ! Here the mean variance is simply the
   ! error variance of each single observation.
 
-  meanvar = rms_obs**2
+  if (rms_type==1) then
+     meanvar = rms_obs**2
+  else
+     meanvar=0.d0
+     do i=1,dim_obs_p
+        meanvar=meanvar+obs_coords_p(4,i)**2
+     end do
+     meanvar=meanvar/dim_obs_p
+  end if
 
 END SUBROUTINE init_obsvar_pdaf
