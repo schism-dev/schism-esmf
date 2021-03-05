@@ -14,6 +14,7 @@
  outf = 1,  ! output handle, 0: no output, 1: ens-mean, 2: members (in schism_001...), 3: both ens-mean & members (has netcdf issues, don't use currently)
  nhot_PDAF = 0,   ! switch to output analysis hotstart rank files
  nhot_write_PDAF = 36, ! nhot_write for DA hotstart output, must be a multiple of ihfskip_PDAF if nhot_PDAF=1
- rms_type  = 1
+ rms_type  = 1,  ! obs error handle, 1: uniform error from rms_obs; 2: specify error from rms_obs2; 3: specify error from obs files with extra column
+ rms_obs2  = 0.02, 0.1, 0.1, 0.2, 0.2, ! specified error with different type obs, z/t/s/u/v
 /
 
