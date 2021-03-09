@@ -30,8 +30,8 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   use mod_parallel_pdaf, only: mype_filter,COMM_filter,mype_model!,task_id,filterpe
 ! new28
 ! The following is only use for lock-exchange experiment, delete them after done
-  use mod_assimilation, only: offset_field_p,varscale
-  use schism_glbl, only: npa,nvrt,np_global,ipgl
+  use mod_assimilation, only: offset_field_p,varscale,ens_init
+  use schism_glbl, only: npa,nvrt,np_global,ipgl,errmsg
   use schism_msgp, only: myrank,rtype,ierr,parallel_abort
   IMPLICIT NONE
 
@@ -52,7 +52,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Read eof vars
   integer :: rank,dim_state,rcheck,offset(6),offset_p(6),ir,idp,idg
   real,allocatable :: svals(:),meanstate(:)
-  real,allocatable :: eof(:),eof_p(:,:),omega(:,:),state_p2(:)
+  real,allocatable :: eof(:),eof_p(:,:),omega(:,:),state_p2(:),ens(:)
   real :: fac
 
 ! !CALLING SEQUENCE:
@@ -81,24 +81,29 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   offset_p(5) = offset_field_p(4) !vv
   offset_p(6) = offset_field_p(5) !ww
 
+! Do following with ens_init = 1 or 2
+  if (ens_init<3) then
 
   open(10,file='eofs.dat')
   read(10,*) rank
   close(10)
-  allocate(svals(rank),meanstate(dim_state),eof(dim_state)) !,rank))
-  allocate(eof_p(dim_p,rank),omega(dim_ens, dim_ens-1),state_p2(dim_p))
+  allocate(svals(rank),eof(dim_state)) !,rank))
+  allocate(eof_p(dim_p,rank),omega(dim_ens, dim_ens-1))
+  if (ens_init==2) allocate(state_p2(dim_p),meanstate(dim_state))
 ! open analysis binary file
 ! do this read file in all filter rank
 ! IF (mype_filter==0) THEN
-     open(11,file='meanstate.bin',form='unformatted')
      open(12,file='eofs.bin',form='unformatted')
      open(13,file='svd.bin',form='unformatted')
      read(13) rcheck
      if (rcheck.ne.rank) call parallel_abort('Please check svd & eofs binary inputs! ') ! check rank
      read(13) svals
      close(13)
-     read(11) meanstate
-     close(11)
+     if (ens_init==2) then
+        open(11,file='meanstate.bin',form='unformatted')
+        read(11) meanstate
+        close(11)
+     end if
 !    Check
 !    IF (mype_filter==0) THEN
 !        write(*,*) 'meanstate T666=',meanstate(np_global+665*nvrt+1:np_global+666*nvrt)
@@ -148,7 +153,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 !                    write(*,*) 'rank',ipgl(i)%rank
 !                    write(*,*) i,k,idp,idg,npa,np_global,dim_p,dim_state
 !                end if
-                 state_p2(idp)=meanstate(idg)
+                 if (ens_init==2) state_p2(idp)=meanstate(idg)
                  eof_p(idp,ir)=eof(idg) !,:) !reduce 1 dimension for eof
 !                ic=ic+1
               end do
@@ -206,7 +211,11 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 
   DO col = 1,dim_ens
 !    new28
-     ens_p(1:dim_p,col) = state_p2(1:dim_p) !choose p2 to test
+     if (ens_init==1) then
+        ens_p(1:dim_p,col) = state_p(1:dim_p) ! from hotstart
+     else ! ens_init=2
+        ens_p(1:dim_p,col) = state_p2(1:dim_p) ! from meanstate.bin
+     end if
   END DO
 
   IF (dim_ens>1) THEN
@@ -233,9 +242,55 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! *** clean up ***
 ! ****************
 
-  DEALLOCATE(svals, eof_p, omega,meanstate,eof,state_p2)
+  DEALLOCATE(svals, eof_p, omega,eof)
+  if (ens_init==2) DEALLOCATE(state_p2,meanstate)
 
+  else ! ens_init=3
+      open(10,file='ens.dat')
+      read(10,*) rank
+      close(10)
+      if (rank.ne.dim_ens) then
+          write(errmsg,*) 'Please specify right ens.dat & ens.bin, now is ', rank
+          call parallel_abort(errmsg)
+      end if
+      open(12,file='ens.bin',form='unformatted')
+      allocate(ens(dim_state))
+      do ir=1,rank ! read eof for each rank to reduce memory usage
+         read(12) ens
+         do j=1,6 !nfields
+            do i=1,np_global
+               if(ipgl(i)%rank==myrank) then
+                  if (j.eq.1) then
+                     kk=1 !elev
+                  else
+                     kk=nvrt
+                  end if
+                  do k=1,kk
+                     if (j.ge.2) then
+                        idp=offset_p(j)+(ipgl(i)%id-1)*nvrt+k
+                        idg=offset(j)+(i-1)*nvrt+k
+                     else
+                        idp=ipgl(i)%id+offset_p(j)
+                        idg=i+offset(j)
+                     end if
+                     ! check idx
+                     if (myrank.eq.0) then
+                        if (idp.gt.dim_p) write(*,*) 'idp',ir,i,j,k,idp
+                        if (idg.gt.dim_state) write(*,*) 'idg',ir,i,j,k,idg
+                     end if
+                     ens_p(idp,ir)=ens(idg) !assign ens_p 
+                  end do !k
+               end if !ipgl
+            end do!i
+         end do !j
+      end do !ir
+      close(12)
+      IF (mype_filter==0) THEN
+         WRITE (*,'(a,8x,a)') 'SCHISM-PDAF','--- Done reading restart ens '
+      end if
+      DEALLOCATE(ens)
 
+  end if !ens_init
 
 
 ! is=offset_field_p(2)+1

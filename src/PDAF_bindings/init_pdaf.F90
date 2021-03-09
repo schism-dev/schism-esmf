@@ -34,7 +34,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        rank_analysis_enkf, locweight, local_range, srange, &
        filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
        ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF, &
-       rms_type,rms_obs2
+       rms_type,rms_obs2,ens_init
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -75,7 +75,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
            locweight, local_range, srange,varscale, &
            ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
            nhot_PDAF, nhot_write_PDAF, &
-           rms_type,rms_obs2
+           rms_type,rms_obs2,ens_init
 
 
 ! ***************************
@@ -230,6 +230,10 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   end if
   if ((rms_type<1).or.(rms_type>3)) then
      write(errmsg,*) 'Please specify right rms_type (1~3), now is ', rms_type
+     call parallel_abort(errmsg)
+  end if
+  if ((ens_init<1).or.(ens_init>3)) then
+     write(errmsg,*) 'Please specify right ens_init (1~3), now is ', ens_init
      call parallel_abort(errmsg)
   end if
 

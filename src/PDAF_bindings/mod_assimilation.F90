@@ -160,6 +160,8 @@ MODULE mod_assimilation
   integer :: nhot_write_PDAF ! step to output hotstart rank files
   integer :: rms_type  ! handle to control rms_obs type
   real :: rms_obs2(5)  ! type 2 rms_obs, z/t/s/u/v
+  integer :: ens_init  ! ens init option
+
 ! REAL, ALLOCATABLE    :: rms_obs3(:) ! type3 rms_obs
   
 !    ! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
