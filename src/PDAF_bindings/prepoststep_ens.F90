@@ -197,7 +197,8 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! *************************
 ! *** Write output state_p for restart
 ! *************************
-! call write_ens_state(istep, dim_p, state_p)
+! Here we only output analysis for restart
+! if (step>0) call write_ens_state(istep, dim_ens, ens_p) 
 
 ! Debug
 ! i=offset_field_p(2)+1

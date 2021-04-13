@@ -216,12 +216,23 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   srange = local_range  ! Support range for 5th-order polynomial
 
 ! Check pdaf.nml, stop if parameters are wrongly set. 
-  if ((mod(ihfskip_PDAF,delt_obs).ne.0).or.(mod(nspool_PDAF,delt_obs).ne.0)) then
-     write(errmsg,*) 'ihfskip_PDAF, nspool_PDAF have to match delt_obs, please change accordingly!'
+  if (mod(ihfskip_PDAF,delt_obs).ne.0) then
+     write(errmsg,*) 'ihfskip_PDAF has to be multiple of delt_obs, please change accordingly!'
      CALL parallel_abort(errmsg)
   end if
+  if (delt_obs.ge.nspool_PDAF) then
+     if (mod(delt_obs,nspool_PDAF).ne.0) then
+        write(errmsg,*) 'nspool_PDAF and delt_obs must be multiple each other, please change accordingly!'
+        CALL parallel_abort(errmsg)
+     end if
+  else
+     if (mod(nspool_PDAF,delt_obs).ne.0) then
+        write(errmsg,*) 'nspool_PDAF and delt_obs must be multiple each other, please change accordingly!'
+        CALL parallel_abort(errmsg)
+     end if
+  end if
   if(nhot_PDAF/=0.and.nhot_PDAF/=1.or.nhot_PDAF*mod(nhot_write_PDAF,ihfskip_PDAF)/=0) then
-     write(errmsg,*)'Unknown hotout or hotout_write not multiple of ihfskip in PDAF',nhot_PDAF,ihfskip_PDAF
+     write(errmsg,*)'Unknown hotout or hotout_write is not multiple of ihfskip in PDAF',nhot_PDAF,ihfskip_PDAF
      call parallel_abort(errmsg)
   endif
   if ((rms_type==2).and.(sum(rms_obs2(:)).eq.0.d0)) then
