@@ -35,7 +35,7 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
 !
 ! !USES:
   USE mod_assimilation, &
-       ONLY: local_range, locweight, srange, rms_obs, distance_l,rms_type,obs_coords_f,obs_index_l
+       ONLY: local_range, locweight, srange, rms_obs, distance_l,rms_type,obs_coords_f,obs_index_l,rms_obs2
   USE mod_parallel_pdaf, &
        ONLY: mype_filter
 
@@ -96,8 +96,16 @@ SUBROUTINE prodRinvA_l_pdaf(domain_p, step, dim_obs_l, rank, obs_l, A_l, C_l)
 
   ! Screen output
   IF (verbose == 1) THEN
+     if (rms_type==1) then
      WRITE (*, '(8x, a, f12.3)') &
           '--- Use global rms for observations of ', rms_obs
+     elseif (rms_type==2) then
+     WRITE (*, '(8x, a, 5f12.3)') &
+          '--- Use global rms for different observation(z/t/s/u/v) of ', rms_obs2(1:5)
+     else
+     WRITE (*, '(8x, a )') &
+          '--- Use rms for observations from files ' 
+     end if
      WRITE (*, '(8x, a, 1x)') &
           '--- Domain localization'
      WRITE (*, '(12x, a, 1x, f12.2)') &

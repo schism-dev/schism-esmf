@@ -104,7 +104,7 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   IF (mype_filter==0) THEN
      IF (step==0) THEN
         !open rmse file
-        open(10,file='rmse.dat')
+        open(70,file='rmse.dat')
         WRITE (*,'(a, i7,3x,a)') 'SCHISM-PDAF', step,'Analyze initial state ensemble'
         WRITE (typestr,'(a1)') 'i'
      ELSE IF (step>0) THEN
@@ -177,13 +177,13 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
           'SCHISM-PDAF', ('-',i=1,81)
 !    Write RMSE to file
      if (step==0) then
-        WRITE (10,'(a, 10x,a)') &
+        WRITE (70,'(a, 10x,a)') &
               'SCHISM-PDAF', 'RMS error according to sampled covariance'
-        WRITE (10,'(a,7x,a9,1x,a14,a14,a14,a14,a14,/a, 10x,81a)') &
+        WRITE (70,'(a,7x,a9,1x,a14,a14,a14,a14,a14,/a, 10x,81a)') &
               '   step    ', 'ssh','temp','salt','u','v','w',&
               '           ', ('-',i=1,81)
      end if
-     WRITE (10,'(i,10x,es11.4,5es14.4,1x,a5,a1)') &
+     WRITE (70,'(i,10x,es11.4,5es14.4,1x,a5,a1)') &
            step, rmse(1), rmse(2), rmse(3), rmse(4), rmse(5), rmse(6), 'RMSe-', typestr
   END IF
 
