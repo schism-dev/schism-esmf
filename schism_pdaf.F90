@@ -5,7 +5,7 @@
 !
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister
-! @author Carsten Lemmen <carsten.lemmen@hzg.de>
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Y Joseph Zhang <yjzhang@vims.edu>
 !
 ! @license under the Apache License, Version 2.0 (the "License");

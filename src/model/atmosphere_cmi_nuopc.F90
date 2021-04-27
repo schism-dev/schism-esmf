@@ -2,7 +2,7 @@
 ! a dummy atmosphere component for a NUOPC coupled system.
 !
 ! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen <carsten.lemmen@hzg.de>
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Richard Hofmeister
 !
 ! @license under the Apache License, Version 2.0 (the "License");

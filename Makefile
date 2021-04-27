@@ -103,7 +103,8 @@ all: lib test
 lib: schism_esmf_lib
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
-test: schism_pdaf
+test: pdaf
+pdaf: schism_pdaf
 
 # Internal make targets for final linking
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
@@ -146,7 +147,9 @@ expand_fabmlibs:
 	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
 $(PDAF_OBJS):
+#ifdef USE_PDAF
 	make -C src/PDAF_bindings esmf
+#endif
 
 ifdef USE_PDAF
 $(SCHISM_OBJS): $(PDAF_OBJS)

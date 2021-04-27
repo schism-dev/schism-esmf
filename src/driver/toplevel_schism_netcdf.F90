@@ -2,8 +2,8 @@
 ! program for running the SCHISM component sequential with netcdf output
 !
 ! @copyright (C) 2018-2020 Helmholtz-Zentrum Geesthacht
-! @author Richard Hofmeister richard.hofmeister@hzg.de
-! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @author Richard Hofmeister richard.hofmeister@hereon.de
+! @author Carsten Lemmen carsten.lemmen@hereon.de
 !
 ! @license under the Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.

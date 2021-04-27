@@ -1,7 +1,8 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines a main() program
 ! for a NUOPC coupled system.
 !
-! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
+! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 ! @author Carsten Lemmen <carsten.lemmen@hzg.de>
 !
 ! @license under the Apache License, Version 2.0 (the "License");
@@ -72,7 +73,6 @@ program main
 
   call ESMF_GridCompSetServices(topComp, driverSetServices, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
-
 
 
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)

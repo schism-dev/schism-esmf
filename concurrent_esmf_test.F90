@@ -3,8 +3,8 @@
 ! dummy component (in src/model/atmosphere_cmi_esmf.F90).
 !
 ! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
-! @author Richard Hofmeister richard.hofmeister@hzg.de
-! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @author Richard Hofmeister richard.hofmeister@hereon.de
+! @author Carsten Lemmen carsten.lemmen@hereon.de
 !
 ! @license under the Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
