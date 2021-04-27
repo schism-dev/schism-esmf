@@ -98,9 +98,9 @@ default: all
 
 # User-callable make targets
 
-all: lib test
+all: lib test schism_nuopc_lib
 
-lib: schism_esmf_lib
+lib: schism_esmf_lib schism_nuopc_lib
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
@@ -108,6 +108,7 @@ pdaf: schism_pdaf
 
 # Internal make targets for final linking
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
+SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
             init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
             distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
@@ -129,6 +130,9 @@ endif
 
 schism_esmf_lib: $(SCHISM_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
+
+schism_nuopc_lib: $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
+	$(AR) crs libschism_nuopc.a  $(SCHISM_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
@@ -154,7 +158,7 @@ $(PDAF_OBJS):
 ifdef USE_PDAF
 $(SCHISM_OBJS): $(PDAF_OBJS)
 else
-$(SCHISM_OBJS): $(PDAF_OBJS)
+$(SCHISM_OBJS): 
 endif
 	make -C src/schism esmf
 
