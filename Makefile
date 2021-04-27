@@ -1,7 +1,7 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
 # @copyright (C) 2021 Helmholtz-Zentrum Hereon
-# @copyright (C) 2018-2020 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2018-2020-2021 Helmholtz-Zentrum Geesthacht
 # # 
 # @author Carsten Lemmen <carsten.lemmen@hereon.de>
 # @author Richard Hofmeister 
