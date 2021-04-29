@@ -25,7 +25,7 @@ if __name__ == '__main__':
     'version_number': 0.1,
     'institution': 'Helmholtz-Zentrum Geesthacht Zentrum für Material- und Küstenforschung',
     'source': 'automatically generated from FABM standard variables, with enhancements from MOSSCO',
-    'contact': 'Carsten Lemmen <carsten.lemmen@hzg.de>',
+    'contact': 'Carsten Lemmen <carsten.lemmen@hereon.de>',
     'last_modified': datetime.datetime.now().isoformat(),
     'description': 'Community-based dictionary for shared coupling fields',
     'entries': entries}

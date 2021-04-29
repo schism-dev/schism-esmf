@@ -1,10 +1,12 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
 ! the schism component for a NUOPC coupled system
 !
-! @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen carsten.lemmen@hzg.de
+! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
+! 
+! @author Carsten Lemmen carsten.lemmen@hereon.de
 !
-! @license under the Apache License, Version 2.0 (the "License");
+! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !
@@ -43,7 +45,7 @@ module schism_cmi_nuopc
   private
   public SetServices
 
-! The interal state saves data across ESMF phases and is
+! The internal state saves data across ESMF phases and is
 ! persistent throught the lifetime of an instance.  Here, we
 ! only provide a boilerplate implementation of an empty internal state
 
@@ -254,7 +256,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 #endif
 
   call ESMF_UtilIOMkDir ('./outputs',  relaxedFlag=.true., rc=localrc)
-  write(message, '(A)') trim(compName)//' writes results to directory ./outputs.'
+  write(message, '(A)') trim(compName)//' writes results to directory "./outputs".'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   write(message, '(A)') trim(compName)//' initializing science model ...'
@@ -262,7 +264,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   inquire(file='param.nml', exist=isPresent)
   if (.not.isPresent) then
-    write(message, '(A)') trim(compName)//' writes results to directory ./outputs.'
+    write(message, '(A)') trim(compName)//' cannot find requred file "param.nml"'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_FILE_OPEN
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)

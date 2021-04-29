@@ -1,12 +1,12 @@
 ! This code is a main driver
 ! program for running multiple schism components concurrently
 !
-! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
+! @copyright (C) 2018, 2019, 2020-2021 Helmholtz-Zentrum Geesthacht
 ! @author Richard Hofmeister
-! @author Carsten Lemmen <carsten.lemmen@hzg.de>
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Y Joseph Zhang <yjzhang@vims.edu>
 !
-! @license under the Apache License, Version 2.0 (the "License");
+! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !

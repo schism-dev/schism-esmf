@@ -1,9 +1,10 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2020 Helmholtz-Zentrum Geesthacht
-# @author Carsten Lemmen carsten.lemmen@hzg.de
+# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
+# @author Carsten Lemmen carsten.lemmen@hereon.de
 #
-# @license under the Apache License, Version 2.0 (the "License");
+# @license Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -30,10 +31,16 @@ ifeq ($(wildcard $(MOSSCO_DIR)/src/components/netcdf_component.F90),)
 $(error MOSSCO_DIR=$MOSSCO_DIR does not seem to be correct)
 endif
 
+ifeq ($(FORTRAN_COMPILER),XLF)
+CPPFLAGS += -WF,-DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -WF,-DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
+else
+CPPFLAGS += -DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
+endif
+
 .SUFFIXES: .F90
 
 %.o : %.F90
-	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
+	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(CPPFLAGS) $(F90FLAGS) $<
 
 default: all
 

@@ -1,5 +1,5 @@
 field_dictionary:
-  contact: Carsten Lemmen <carsten.lemmen@hzg.de>
+  contact: Carsten Lemmen <carsten.lemmen@hereon.de>
   description: Community-based dictionary for shared coupling fields
   entries:
   - canonical_units: mmol m-3

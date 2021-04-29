@@ -1,10 +1,12 @@
- ! This code is part of the SCHISM-ESMF interface
+! This code is part of the SCHISM-ESMF interface
 !
-! @copyright (C) 2018, 2019, 2020 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen carsten.lemmen@hzg.de
-! @author Richard Hofmeister richard.hofmeister@hzg.de
+! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2018--2021 Helmholtz-Zentrum Geesthacht
 !
-! @license under the Apache License, Version 2.0 (the "License");
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Richard Hofmeister
+!
+! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !
@@ -336,10 +338,11 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
+    !write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday*24,schism_dt2,dt
     write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday*24,schism_dt2,dt
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_VAL_OUTOFRANGE
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
   !Save init cohort states to prep for stepping
@@ -854,7 +857,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
   use schism_msgp, only: myrank,nproc
   use schism_io, only: writeout_nc,fill_nc_header!ncid
+#ifdef USE_PDAF
   use mod_assimilation, only: outf !PDAF module
+#endif
 !  USE PDAF_interfaces_module
 
 #ifdef USE_FABM
@@ -886,6 +891,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   character(len=72) :: fdb
   integer :: lfdb
 
+#ifdef USE_PDAF
 ! External subroutines
 ! comment out --> into generic interface (assimilate_pdaf)
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
@@ -894,6 +900,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
        prepoststep_ens !, &            ! User supplied pre/poststep routine
 !      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
+#endif
 
   rc = ESMF_SUCCESS
 

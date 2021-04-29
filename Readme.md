@@ -66,7 +66,7 @@ should exactly match those produced from a `pschism` uncoupled executable.
 
 ## Bugs and contributing
 
-Please report bugs to <carsten.lemmen@hzg.de>.  You are very welcome to contribute
+Please report bugs to <carsten.lemmen@hereon.de>.  You are very welcome to contribute
 to improving this cap. Fork on github, make changes, and file a pull request.
 
 ---------------------------------------------------------------------------------
