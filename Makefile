@@ -50,7 +50,7 @@ PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
 ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 $(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
 else
-CPPFLAGS+= -DUSE_PDAF=ON
+CPPFLAGS+= -DUSE_PDAF
 USE_PDAF=ON
 endif
 endif
@@ -74,7 +74,7 @@ ifdef USE_PDAF
 LDFLAGS+= -L$(PDAF_BUILD_DIR)/lib -lpdaf-d 
 endif
 ifeq ($(ESMF_COMPILER), intel)
-LDFLAGS+= -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm 
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm 
 else
 ifeq ($(ESMF_COMPILER), gfortran)
 # @todo still some lapack routines missing, so we need to link with either

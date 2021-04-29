@@ -32,6 +32,16 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
+ifdef PDAF_BUILD_DIR
+PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
+ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
+$(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
+else
+USE_PDAF=ON
+endif
+endif
+
+
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
