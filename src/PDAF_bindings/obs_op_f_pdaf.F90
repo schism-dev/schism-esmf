@@ -26,7 +26,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl,only : elnode,i34,nvrt,idry_e,kbp,znl,npa,nsa,ntracers,errmsg !,&
+  use schism_glbl,only : elnode,i34,nvrt,idry_e,kbp,znl,npa,nsa,ntracers,errmsg,ics !,&
 !                       &in_dir,out_dir,len_in_dir,len_out_dir,eta2,tr_nd,uu2,vv2               
   use schism_msgp, only: parallel_abort,myrank
 ! PDAF module
@@ -43,7 +43,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
   REAL, INTENT(inout) :: m_state_f(dim_obs_f) ! PE-local observed state
 
 ! Local vars
-  integer i,m,nd,k0,ie,k,ibad,istat,itot
+  integer i,m,nd,k0,ie,k,ibad,istat,itot,iz
   real swild(max(100,nsa+nvrt+12+ntracers)),swild2(nvrt,12) 
   real zrat
   character(len=72) :: fdb
@@ -66,6 +66,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
 
 !   m_state_p = ??
 
+  iz=3 ! ics=1, use zobs
 ! Assign state_p to local vars
 !  Allocate var
   if (allocated(elev)) deallocate(elev)
@@ -170,24 +171,25 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
             do m=1,i34(ie) !wet nodes
                nd=elnode(m,ie)
                !Vertical interplation
-               if(obs_coords_p(3,i)<=znl(kbp(nd),nd)) then
+               if (ics==2) iz=5
+               if(obs_coords_p(iz,i)<=znl(kbp(nd),nd)) then
                   k0=kbp(nd); zrat=0.d0
-               else if(obs_coords_p(3,i)>=znl(nvrt,nd)) then
+               else if(obs_coords_p(iz,i)>=znl(nvrt,nd)) then
                   k0=nvrt-1; zrat=1.d0
                else
                   k0=0
                   do k=kbp(nd),nvrt-1
-                     if(obs_coords_p(3,i)>=znl(k,nd).and.obs_coords_p(3,i)<=znl(k+1,nd)) then
+                     if(obs_coords_p(iz,i)>=znl(k,nd).and.obs_coords_p(iz,i)<=znl(k+1,nd)) then
                        k0=k
-                       zrat=(obs_coords_p(3,i)-znl(k,nd))/(znl(k+1,nd)-znl(k,nd))
+                       zrat=(obs_coords_p(iz,i)-znl(k,nd))/(znl(k+1,nd)-znl(k,nd))
                        exit
                      endif
                   enddo !k
                   if(k0==0) then
-                    write(errmsg,*)'PDAF: DA data depth error',i,obs_coords_p(3,i)
+                    write(errmsg,*)'PDAF: DA data depth error',i,obs_coords_p(iz,i)
                     call parallel_abort(errmsg)
                   endif
-               endif !obs_coords_p(3,i)
+               endif !obs_coords_p(iz,i)
                swild(m)=swild2(k0,m)*(1.d0-zrat)+swild2(k0+1,m)*zrat
             enddo !m
 

@@ -200,7 +200,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    allocate(iep_obs_mod(iobs))
    allocate(obstype_mod(iobs))
    allocate(arco_obs_mod(iobs,4))
-   allocate(obs_coords_p(4,iobs)) !4 dim, store x,y,z,rms_obs_vec
+   allocate(obs_coords_p(5,iobs)) !5 dim, store x,y,z,rms_obs_vec,zzobs(ics=2)
    
 !  We can Put simple QA/QC here, do this later
 !   call qaqc(obsval,obstype) 
@@ -219,6 +219,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
          obs_coords_p(2,iobs)=yobs(l)
          obs_coords_p(3,iobs)=zobs(l)
          obs_coords_p(4,iobs)=rmsval(l)
+         if (ics==2) obs_coords_p(5,iobs)=zzobs(l)
 !        write(*,*) 'check arco_obs_mod',arco_obs_mod(iobs,:),arco_obs(l,:),iep_obs(l),task_id,filterpe
       end if
    end do
@@ -233,14 +234,14 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
    IF (ALLOCATED(obs_f)) DEALLOCATE(obs_f)
    IF (ALLOCATED(obs_coords_f)) DEALLOCATE(obs_coords_f)
    ALLOCATE(obs_f(dim_obs_f))
-   ALLOCATE(obs_coords_f(4, dim_obs_f))
+   ALLOCATE(obs_coords_f(5, dim_obs_f))
 
    ! Get full observation vector
    CALL PDAF_gather_obs_f(obs_p, obs_f, istat)
    if(istat/=0) call parallel_abort('PDAF: Local observation gather failure')
 
    ! Get full array of coordinates
-   CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 4, istat)
+   CALL PDAF_gather_obs_f2(obs_coords_p, obs_coords_f, 5, istat)
    if(istat/=0) call parallel_abort('PDAF: Local observation gather f2 failure')
 !  write(*,*) 'init_dim_obs_f_pdaf,obs_coords_f',maxval(obs_coords_f)
    
