@@ -1,7 +1,7 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
 # @copyright (C) 2021 Helmholtz-Zentrum Hereon
-# @copyright (C) 2018-2020-2021 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2018-2021 Helmholtz-Zentrum Geesthacht
 # # 
 # @author Carsten Lemmen <carsten.lemmen@hereon.de>
 # @author Richard Hofmeister 
@@ -58,7 +58,6 @@ endif
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
-
 
 # Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
 # compiler flag is already set
@@ -132,7 +131,7 @@ schism_esmf_lib: $(SCHISM_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
 schism_nuopc_lib: $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
-	$(AR) crs libschism_nuopc.a  $(SCHISM_OBJS) .objs/*/*.o
+	$(AR) crs libschism_nuopc.a  $(SCHISM_NUOPC_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
