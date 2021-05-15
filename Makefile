@@ -107,13 +107,18 @@ install: install-esmf install-nuopc
 
 install-esmf:  schism_esmf_lib
 	mkdir -p $(DESTDIR)
+	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
+	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_esmf.a $(DESTDIR)
 	cp $(SCHISM_MODS) $(DESTDIR) 
 
 install-nuopc:  schism_nuopc_lib
 	mkdir -p $(DESTDIR)
+	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
+	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
 	cp $(SCHISM_NUOPC_MODS) $(DESTDIR) 
+	cp ./src/schism/schism_cmi_nuopc.mk $(DESTDIR)
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
