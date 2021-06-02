@@ -41,7 +41,12 @@ ESMF_DEP_INCPATH=$(SCHISM_CAP_INSTALL_DIR)
 ESMF_DEP_CMPL_OBJS=
 
 # 4. ESMF_DEP_LINK_OBJS - Object files that need to be considered as link dependencies. Must be specified with absolute path.
-ESMF_DEP_LINK_OBJS=$(SCHISM_CAP_INSTALL_DIR)/libschism_cap.a
+ESMF_DEP_LINK_OBJS=\
+$(SCHISM_CAP_INSTALL_DIR)/libschism_cap.a \
+$(SCHISM_CAP_INSTALL_DIR)/libparmetis.a \
+$(SCHISM_CAP_INSTALL_DIR)/libmetis.a \
+$(SCHISM_CAP_INSTALL_DIR)/libhydro.a \
+$(SCHISM_CAP_INSTALL_DIR)/libcore.a
 
 # 5. ESMF_DEP_SHRD_PATH - The path to find shared libraries during link-time (and during run-time unless over- ridden by LD_LIBRARY_PATH). Must be specified as absolute path.
 ESMF_DEP_SHRD_PATH=$(SCHISM_CAP_INSTALL_DIR)
