@@ -1,7 +1,7 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
 # @copyright (C) 2021 Helmholtz-Zentrum Hereon
-# @copyright (C) 2018-2021 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2018-2020-2021 Helmholtz-Zentrum Geesthacht
 # # 
 # @author Carsten Lemmen <carsten.lemmen@hereon.de>
 # @author Richard Hofmeister 
@@ -32,8 +32,6 @@ CPPFLAGS=$(ESMF_F90COMPILEOPTS)
 F90FLAGS=$(ESMF_F90COMPILEPATHS)
 LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 
-DESTDIR?=./lib
-
 # add SCHISM libraries
 ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment.)
@@ -60,6 +58,7 @@ endif
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
+
 
 # Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
 # compiler flag is already set
@@ -94,7 +93,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_esmf_lib schism_pdaf install install-esmf install-nuopc
+.PHONY: all lib test schism_esmf_lib schism_pdaf
 default: all
 
 # User-callable make targets
@@ -103,33 +102,12 @@ all: lib test schism_nuopc_lib
 
 lib: schism_esmf_lib schism_nuopc_lib
 
-install: install-esmf install-nuopc
-
-install-esmf:  schism_esmf_lib
-	mkdir -p $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
-	cp libschism_esmf.a $(DESTDIR)
-	cp $(SCHISM_MODS) $(DESTDIR) 
-
-install-nuopc:  schism_nuopc_lib
-	mkdir -p $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
-	cp libschism_cap.a $(DESTDIR)
-	cp $(SCHISM_NUOPC_MODS) $(DESTDIR) 
-	cp ./src/schism/schism_cmi_nuopc.mk $(DESTDIR)/schism.mk
-
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
-SCHISM_MODS=$(addprefix src/schism/,schism_cmi_esmf.mod schism_esmf_util.mod schism_bmi.mod)
 SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
-SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_cmi_nuopc.mod schism_esmf_util.mod schism_bmi.mod)
 SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
             init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
@@ -154,7 +132,7 @@ schism_esmf_lib: $(SCHISM_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
 schism_nuopc_lib: $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
-	$(AR) crs libschism_cap.a  $(SCHISM_NUOPC_OBJS) .objs/*/*.o
+	$(AR) crs libschism_nuopc.a  $(SCHISM_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \

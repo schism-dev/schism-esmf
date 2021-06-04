@@ -12,8 +12,8 @@ Earth System Modeling Framework (ESMF) and National Unified Operational Predicti
    installation, for example
 
     on femto: 
-      setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.openmpi.default/esmf.mk
-      setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.openmpi.default/
+      setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk
+      setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/sciclone/home10/yinglong/esmf_femto/lib/libO/Linux.intel.64.intelmpi.default
 
     on WW: 
       setenv ESMFMKFILE /sciclone/home10/yinglong/esmf_WW/lib/libO/Linux.intel.64.mvapich2.default/esmf.mk
@@ -51,18 +51,18 @@ Earth System Modeling Framework (ESMF) and National Unified Operational Predicti
    on Cyclops:
       setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Cyclops
 
-## Compilation (in schism-esmf)
+## Compilation
 
-    make distclean    [make version older than v3.82 will spit out an error on undef cmd]
-    make all 
+    make distclean
+    make all
 
-This will produce (1) the `libesmf_schism.a` `libschism_nuopc.a` library, which can be linked in
+This will produce (1) the `libesmf_schism.a` library, which can be linked in
 other ESMF applications that want to include SCHISM as a component.  This is
 the primary application.
 
-#Also (2) `schism_esmf_test` and (3) `concurrent_esmf_test` executables are produced
-#that can be executed from any directory that contains a schism setup.  Results
-#should exactly match those produced from a `pschism` uncoupled executable.
+Also (2) `schism_esmf_test` and (3) `concurrent_esmf_test` executables are produced
+that can be executed from any directory that contains a schism setup.  Results
+should exactly match those produced from a `pschism` uncoupled executable.
 
 ## Bugs and contributing
 
@@ -71,3 +71,4 @@ to improving this cap. Fork on github, make changes, and file a pull request.
 
 ---------------------------------------------------------------------------------
 Joseph's notes:
+1) param.nml: set large nspool, ihfskip to bypass outputs. rnday, dt must match global.nml 
