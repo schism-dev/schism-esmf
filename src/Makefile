@@ -88,6 +88,7 @@ driver/toplevel_schism_atm.o: driver/toplevel_schism_atm.F90 driver/Makefile Mak
 all: nuopc esmf
 nuopc: main_nuopc
 esmf: main_esmf
-clean:
+clean: 
+	@for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
 	$(RM) PET*.ESMF_LogFile *.nc *.stdout *.stderr
 	$(RM) main_nuopc main_esmf *.o *.mod */*.mod */*.o

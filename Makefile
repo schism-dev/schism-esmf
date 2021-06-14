@@ -94,7 +94,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_esmf_lib schism_pdaf install install-esmf install-nuopc
+.PHONY: all lib test schism_nuopc_lib schism_esmf_lib schism_pdaf install install-esmf install-nuopc
 default: all
 
 # User-callable make targets
@@ -127,10 +127,10 @@ test: pdaf
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
-SCHISM_MODS=$(addprefix src/schism/,schism_cmi_esmf.mod schism_esmf_util.mod schism_bmi.mod)
-SCHISM_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o schism_esmf_util.o schism_bmi.o)
-SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_cmi_nuopc.mod schism_esmf_util.mod schism_bmi.mod)
-SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o)
+SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod schism_cmi_nuopc.mod)
+SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_cmi_nuopc.o)
+SCHISM_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod schism_cmi_esmf.mod)
+SCHISM_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_cmi_esmf.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
             init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
             distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
@@ -178,6 +178,13 @@ $(PDAF_OBJS):
 #endif
 
 ifdef USE_PDAF
+$(SCHISM_NUOPC_OBJS): $(PDAF_OBJS)
+else
+$(SCHISM_NUOPC_OBJS): 
+endif
+	make -C src/schism nuopc
+
+ifdef USE_PDAF
 $(SCHISM_OBJS): $(PDAF_OBJS)
 else
 $(SCHISM_OBJS): 
@@ -188,12 +195,14 @@ endif
 #	make -C src/model esmf
 
 %.o: %.F90
+	echo "==============="
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
 
 %.mod: %.F90
 	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
 
 clean:
+	$(MAKE) -C src clean
 	$(RM) *.o *.mod
 	$(RM) $(SCHISM_OBJS) $(MODEL_OBJS) $(PDAF_OBJS)
 
