@@ -1,9 +1,10 @@
 ! This code is part of the SCHISM-ESMF interface, it defines utility
 ! functions used both by the NUOPC and ESMF caps
 !
-! @copyright (C) 2018, 2019, 2020-2021 Helmholtz-Zentrum Geesthacht
-! @author Carsten Lemmen carsten.lemmen@hereon.de
-! @author Richard Hofmeister richard.hofmeister@hereon.de
+! @copyright 2021 Helmholtz-Zentrum Hereon
+! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Richard Hofmeister
 !
 ! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -698,5 +699,98 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
 end subroutine SCHISM_FieldRealize
+
+subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState,
+    add_ws, rc)
+
+  use schism_glbl, only: tr_el, tr_nd, kbe, wsett, rkind, npa, np, nea, ne, nvrt
+  implicit none
+
+  character(len=ESMF_MAXSTR), intent(in) :: name
+  type(ESMF_Mesh), intent(in)            :: mesh2d
+  integer, intent(in)                    :: tr_id
+  type(ESMF_State), intent(inout)        :: exportState
+  type(ESMF_State), intent(inout), optional :: importState
+  integer, intent(inout), optional :: rc
+  logical, intent(in), optional    :: add_ws
+  logical                          :: add_ws_
+  real(kind=rkind), pointer        :: schism_ptr2d(:)
+  integer                          :: localrc, rc_, i
+  integer(ESMF_KIND_I4),dimension(1:1) :: maskValues=(/1/)
+  type(ESMF_Field)                 :: field
+
+  rc_ = ESMF_SUCCESS
+  add_ws_ = .false.
+  if (present(add_ws)) add_ws_ = add_ws
+
+  field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_at_soil_surface', &
+                           typekind=ESMF_TYPEKIND_R8, &
+                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  ! add maskValues to be used in regridding
+  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !   initialize
+  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  ! Consider all local elements from own and adjacent foreign nodes
+  ! (nea) as these are the ones that are considered "owned" by ESMF
+  do i=1,ne
+    schism_ptr2d(i) = tr_el(tr_id,max(1,kbe(i)+1),i)
+  end do
+
+  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (add_ws_) then
+    field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_z_velocity_at_soil_surface', &
+                           typekind=ESMF_TYPEKIND_R8, &
+                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    ! add maskValues to be used in regridding
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    !   initialize
+    call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    do i=1,ne
+      ! to-do: requires to interpolate wsett to nodes
+      schism_ptr2d(i) = wsett(tr_id,max(kbe(i)+1,1),i)
+    end do
+
+    call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  end if
+
+  if (present(importState)) then
+  ! add upward flux fields into importState
+    field = ESMF_FieldCreate(mesh2d, name = trim(name)//'_upward_flux_at_soil_surface', &
+                           typekind=ESMF_TYPEKIND_R8, &
+                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    ! add maskValues to be used in regridding
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    !   initialize
+    call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    schism_ptr2d = 0.0d0
+
+    call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  end if
+
+
+  if (present(rc)) rc = rc_
+
+end subroutine schism_esmf_add_bottom_tracer
+
+
+
 
 end module schism_esmf_util

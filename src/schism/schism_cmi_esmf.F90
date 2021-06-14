@@ -128,8 +128,14 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_msgp, only: parallel_init
   use schism_io, only: fill_nc_header!ncid
 ! use mod_assimilation, only: outf !PDAF module
+
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
+#endif
+
+#ifdef USE_SED
+  use sed_mod, only: Nbed   ! number of layers and fractions
+  use sed_mod, only: bed, bed_mass
 #endif
 
   type(ESMF_GridComp)   :: comp
@@ -865,6 +871,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
 #endif
+
+#ifdef USE_SED
+  use sed_mod, only: Nbed   ! number of layers and fractions
+  use sed_mod, only: bed, bed_mass
+#endif
+  
   implicit none
 
   type(ESMF_GridComp)     :: comp

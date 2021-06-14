@@ -1,9 +1,11 @@
 ! This code is part of the SCHISM-ESMF interface and defines
 ! a generic BMI (basic model interface) to schism
 !
-! @copyright (C) 2018, 2019, 2020-2021 Helmholtz-Zentrum Geesthacht
+! @copyright 2021 Helmholtz-Zentrum Hereon
+! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
+!
 ! @author Carsten Lemmen carsten.lemmen@hereon.de
-! @author Richard Hofmeister richard.hofmeister@hereon.de
+! @author Richard Hofmeister
 !
 ! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
