@@ -34,9 +34,7 @@ endif
 
 ifdef PDAF_BUILD_DIR
 PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
-ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
-$(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
-else
+ifneq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 USE_PDAF=ON
 endif
 endif
@@ -74,3 +72,4 @@ nuopc: schism_cmi_nuopc.o
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
 	$(RM) *.o *.mod
+	$(RM) nohup.out

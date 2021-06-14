@@ -1,7 +1,8 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
 ! a dummy atmosphere component for a NUOPC coupled system.
 !
-! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
+! @copyright 2021 Helmholtz-Zentrum Hereon
+! @copyright 2020-2021 Helmholtz-Zentrum Geesthacht
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Richard Hofmeister
 !

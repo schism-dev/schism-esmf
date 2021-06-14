@@ -355,7 +355,9 @@ subroutine addSchismMesh(comp, rc)
 
 end subroutine addSchismMesh
 
-subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState,importState,add_ws,rc)
+subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
+    importState,add_ws,rc)
+
   use schism_glbl, only: tr_el, kbe, wsett, rkind, nea, ne, nvrt
   implicit none
 
@@ -700,7 +702,7 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
 
 end subroutine SCHISM_FieldRealize
 
-subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState,
+subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState, & 
     add_ws, rc)
 
   use schism_glbl, only: tr_el, tr_nd, kbe, wsett, rkind, npa, np, nea, ne, nvrt
@@ -788,7 +790,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
 
   if (present(rc)) rc = rc_
 
-end subroutine schism_esmf_add_bottom_tracer
+end subroutine schism_esmf_topbottom_tracer
 
 
 
