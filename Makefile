@@ -2,9 +2,9 @@
 #
 # @copyright (C) 2021 Helmholtz-Zentrum Hereon
 # @copyright (C) 2018-2021 Helmholtz-Zentrum Geesthacht
-# # 
+# #
 # @author Carsten Lemmen <carsten.lemmen@hereon.de>
-# @author Richard Hofmeister 
+# @author Richard Hofmeister
 #
 # @license Apache License, Version 2.0 (the "License");
 #
@@ -38,17 +38,17 @@ DESTDIR?=./lib
 ifndef SCHISM_BUILD_DIR
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
-SCHISM_BUILD_DIR:= $(shell readlink --canonicalize ${SCHISM_BUILD_DIR})
+SCHISM_BUILD_DIR:= $(shell readlink  ${SCHISM_BUILD_DIR})
 
 # add PDAF libraries
 # @todo make optional
 ifndef PDAF_BUILD_DIR
-$(warning PDAF_BUILD_DIR not set, will not compile PDAF hooks.)
-undefine USE_PDAF
+$(info PDAF_BUILD_DIR not set, will not compile PDAF hooks.)
+#undefine USE_PDAF
 endif
 
 ifdef PDAF_BUILD_DIR
-PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
+PDAF_BUILD_DIR:= $(shell readlink  ${PDAF_BUILD_DIR})
 ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 $(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
 else
@@ -72,10 +72,10 @@ F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I 
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
 ifdef USE_PDAF
-LDFLAGS+= -L$(PDAF_BUILD_DIR)/lib -lpdaf-d 
+LDFLAGS+= -L$(PDAF_BUILD_DIR)/lib -lpdaf-d
 endif
 ifeq ($(ESMF_COMPILER), intel)
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm 
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
 # @todo still some lapack routines missing, so we need to link with either
@@ -110,7 +110,7 @@ install-esmf:  schism_esmf_lib
 	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_esmf.a $(DESTDIR)
-	cp $(SCHISM_MODS) $(DESTDIR) 
+	cp $(SCHISM_MODS) $(DESTDIR)
 
 install-nuopc:  schism_nuopc_lib
 	mkdir -p $(DESTDIR)
@@ -119,7 +119,7 @@ install-nuopc:  schism_nuopc_lib
 	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
-	cp $(SCHISM_NUOPC_MODS) $(DESTDIR) 
+	cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
 	cp ./src/schism/schism_cmi_nuopc.mk $(DESTDIR)/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
@@ -187,7 +187,7 @@ endif
 ifdef USE_PDAF
 $(SCHISM_OBJS): $(PDAF_OBJS)
 else
-$(SCHISM_OBJS): 
+$(SCHISM_OBJS):
 endif
 	make -C src/schism esmf
 
