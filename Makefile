@@ -24,6 +24,7 @@
 ifndef ESMFMKFILE
 $(error ESMFMKFILE has to be set in environment)
 endif
+$(info Found ESMF makefile include snippet $(SCHISM_BUILD_DIR))
 include $(ESMFMKFILE)
 
 F90=$(ESMF_F90COMPILER)
@@ -35,16 +36,18 @@ LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 DESTDIR?=./lib
 
 # add SCHISM libraries
-ifndef SCHISM_BUILD_DIR
+ifeq ("x$(SCHISM_BUILD_DIR)","x")
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
-SCHISM_BUILD_DIR:= $(shell readlink  ${SCHISM_BUILD_DIR})
+SCHISM_BUILD_DIR:= $(shell readlink  $(SCHISM_BUILD_DIR))
+
+$(info Found SCHISM build directory $(SCHISM_BUILD_DIR))
 
 # add PDAF libraries
-# @todo make optional
-ifndef PDAF_BUILD_DIR
-$(info PDAF_BUILD_DIR not set, will not compile PDAF hooks.)
+ifeq ("x$(PDAF_BUILD_DIR)","x")
 #undefine USE_PDAF
+else
+$(info Found PDAF build directory $(PDAF_BUILD_DIR))
 endif
 
 ifdef PDAF_BUILD_DIR
@@ -120,7 +123,7 @@ install-nuopc:  schism_nuopc_lib
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
 	cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
-	cp ./src/schism/schism_cmi_nuopc.mk $(DESTDIR)/schism.mk
+	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(DESTDIR)/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
@@ -180,7 +183,7 @@ $(PDAF_OBJS):
 ifdef USE_PDAF
 $(SCHISM_NUOPC_OBJS): $(PDAF_OBJS)
 else
-$(SCHISM_NUOPC_OBJS): 
+$(SCHISM_NUOPC_OBJS):
 endif
 	make -C src/schism nuopc
 

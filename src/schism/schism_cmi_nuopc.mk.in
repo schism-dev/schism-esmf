@@ -22,15 +22,8 @@
 # A NUOPC compliant Makefile snippet that defines the six variables ESMF_DEP_*
 # and is assembled in a driver Makefile.
 
-ifneq ($(origin SCHISM_BUILD_DIR), environment)
-$(error SCHISM_BUILD_DIR  has to be set in environment.)
-else
-$(info Using SCHISM build directory $(SCHISM_BUILD_DIR))
-endif
-
-SCHISM_BUILD_DIR:= $(shell readlink  ${SCHISM_BUILD_DIR})
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
+ifeq ($(wildcard @@SCHISM_BUILD_DIR@@/lib/libhydro.a),)
+$(error SCHISM has to be compiled before ESMF-SCHISM in build directory @@SCHISM_BUILD_DIR@@.)
 endif
 
 STEMS=schism_bmi schism_esmf_util schism_cmi_nuopc
@@ -43,7 +36,7 @@ CWD=$(shell pwd)/schism
 ESMF_DEP_FRONT=schism_cmi_nuopc
 
 # 2. ESMF_DEP_INCPATH - The include path to find module or header files during compilation. Must be specified as absolute path.
-ESMF_DEP_INCPATH=$(CWD) $(SCHISM_BUILD_DIR)/include
+ESMF_DEP_INCPATH=$(CWD) @@SCHISM_BUILD_DIR@@/include
 
 # 3. ESMF_DEP_CMPL_OBJS - Object files that need to be considered as compile dependencies. Must be specified with absolute path.
 ESMF_DEP_CMPL_OBJS=$(addprefix $(CWD)/, $(OBJS))
@@ -52,7 +45,7 @@ ESMF_DEP_CMPL_OBJS=$(addprefix $(CWD)/, $(OBJS))
 ESMF_DEP_LINK_OBJS=ESMF_DEP_LINK_OBJS=$(addprefix $(CWD)/, $(OBJS)) $(LIBS)
 
 # 5. ESMF_DEP_SHRD_PATH - The path to find shared libraries during link-time (and during run-time unless over- ridden by LD_LIBRARY_PATH). Must be specified as absolute path.
-ESMF_DEP_SHRD_PATH=$(SCHISM_BUILD_DIR)/lib
+ESMF_DEP_SHRD_PATH=@@SCHISM_BUILD_DIR@@/lib
 
 # 6. ESMF_DEP_SHRD_LIBS - Shared libraries that need to be specified during link-time, and must be available during run-time. Must be specified with absolute path.
 ESMF_DEP_SHRD_LIBS=
