@@ -122,8 +122,11 @@ install-nuopc:  schism_nuopc_lib
 	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
-	cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
+	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
+	#cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
+	cp $(SCHISM_NUOPC_MODS) $(SCHISM_BUILD_DIR)/include/
 	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(DESTDIR)/schism.mk
+	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
