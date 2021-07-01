@@ -34,7 +34,6 @@ $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
 ifdef PDAF_BUILD_DIR
-PDAF_BUILD_DIR:= $(shell readlink ${PDAF_BUILD_DIR})
 ifneq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 USE_PDAF=ON
 endif

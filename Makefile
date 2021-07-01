@@ -36,10 +36,12 @@ LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 DESTDIR?=./lib
 
 # add SCHISM libraries
+#
+
+
 ifeq ("x$(SCHISM_BUILD_DIR)","x")
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
-SCHISM_BUILD_DIR:= $(shell readlink  $(SCHISM_BUILD_DIR))
 
 $(info Found SCHISM build directory $(SCHISM_BUILD_DIR))
 
@@ -51,7 +53,6 @@ $(info Found PDAF build directory $(PDAF_BUILD_DIR))
 endif
 
 ifdef PDAF_BUILD_DIR
-PDAF_BUILD_DIR:= $(shell readlink  ${PDAF_BUILD_DIR})
 ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 $(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
 else

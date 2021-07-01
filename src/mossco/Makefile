@@ -25,8 +25,6 @@ ifneq ($(origin MOSSCO_DIR), environment)
 $(error MOSSCO_DIR has to be set in environment.)
 endif
 
-MOSSCO_DIR:= $(shell readlink --canonicalize ${MOSSCO_DIR})
-
 ifeq ($(wildcard $(MOSSCO_DIR)/src/components/netcdf_component.F90),)
 $(error MOSSCO_DIR=$MOSSCO_DIR does not seem to be correct)
 endif

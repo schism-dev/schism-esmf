@@ -28,7 +28,6 @@ else
 $(info Using SCHISM build directory $(SCHISM_BUILD_DIR))
 endif
 
-SCHISM_BUILD_DIR:= $(shell readlink  ${SCHISM_BUILD_DIR})
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
