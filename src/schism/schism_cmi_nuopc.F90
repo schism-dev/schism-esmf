@@ -393,7 +393,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo Disabled until we fix the coupling
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr2(1:np)
