@@ -39,6 +39,7 @@ module schism_cmi_nuopc
 
   use schism_bmi
   use schism_esmf_util
+  use schism_nuopc_util
 
   implicit none
 
@@ -310,6 +311,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   !   SharePolicyField='share', SharePolicyGeomObject='not share', &
   !   TransferOfferGeomObject='will provide',  rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  if (.not.NUOPC_FieldDictionaryHasEntry("x_velocity_at_10m_above_sea_surface", rc=localrc)) then
+      call NUOPC_FieldDictionaryAddEntry("x_velocity_at_10m_above_sea_surface", "m s-1", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
   call NUOPC_Advertise(importState, &
       StandardName="x_velocity_at_10m_above_sea_surface", &

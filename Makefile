@@ -133,8 +133,8 @@ test: pdaf
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
-SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod schism_cmi_nuopc.mod)
-SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_cmi_nuopc.o)
+SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_bmi.mod schism_nuopc_util.mod schism_esmf_util.mod schism_cmi_nuopc.mod)
+SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_nuopc_util.o schism_cmi_nuopc.o)
 SCHISM_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod schism_cmi_esmf.mod)
 SCHISM_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_cmi_esmf.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \

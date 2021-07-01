@@ -33,14 +33,13 @@ module schism_nuopc_util
 
   implicit none
 
-  public
+  public NUOPC_FieldAdvertise
   private
 
 contains
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "addSchismMesh"
-
+#define ESMF_METHOD "NUOPC_FieldDictionaryAddIfNeeded"
 subroutine NUOPC_FieldDictionaryAddIfNeeded(name, unit, rc)
 
   use NUOPC, only : NUOPC_FieldDictionaryHasEntry, NUOPC_FieldDictionaryAddEntry
@@ -63,6 +62,8 @@ subroutine NUOPC_FieldDictionaryAddIfNeeded(name, unit, rc)
 
 end subroutine NUOPC_FieldDictionaryAddIfNeeded
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "NUOPC_FieldAdvertise"
 subroutine NUOPC_FieldAdvertise(state, name, unit, rc)
 
   use NUOPC, only : NUOPC_Advertise
@@ -81,9 +82,8 @@ subroutine NUOPC_FieldAdvertise(state, name, unit, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call NUOPC_Advertise(state, trim(name), trim(unit),  &
-  !   &
-  !   SharePolicyField='share', SharePolicyGeomObject='not share', &
     TransferOfferGeomObject='will provide',  rc=localrc)
+  !   SharePolicyField='share', SharePolicyGeomObject='not share', &
    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (present(rc)) rc=localrc

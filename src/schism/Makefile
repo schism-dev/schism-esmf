@@ -22,23 +22,23 @@ $(error ESMFMKFILE has to be set in environment.)
 endif
 include $(ESMFMKFILE)
 
+# add SCHISM libraries
 ifeq ("x$(SCHISM_BUILD_DIR)","x")
 $(error SCHISM_BUILD_DIR has to be set in environment.)
 endif
 
-SCHISM_BUILD_DIR:= $(shell readlink ${SCHISM_BUILD_DIR})
+$(info $(SCHISM_BUILD_DIR))
 
 ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM.)
 endif
 
 ifdef PDAF_BUILD_DIR
-PDAF_BUILD_DIR:= $(shell readlink --canonicalize ${PDAF_BUILD_DIR})
+PDAF_BUILD_DIR:= $(shell readlink ${PDAF_BUILD_DIR})
 ifneq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
 USE_PDAF=ON
 endif
 endif
-
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
