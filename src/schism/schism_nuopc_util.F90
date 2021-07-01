@@ -33,7 +33,7 @@ module schism_nuopc_util
 
   implicit none
 
-  public NUOPC_FieldAdvertise
+  public NUOPC_FieldAdvertise, NUOPC_FieldDictionaryAddIfNeeded
   private
 
 contains
@@ -45,8 +45,8 @@ subroutine NUOPC_FieldDictionaryAddIfNeeded(name, unit, rc)
   use NUOPC, only : NUOPC_FieldDictionaryHasEntry, NUOPC_FieldDictionaryAddEntry
   implicit none
 
-  character(len=ESMF_MAXSTR), intent(in)           :: name
-  character(len=ESMF_MAXSTR), intent(in)           :: unit
+  character(len=*), intent(in)           :: name
+  character(len=*), intent(in)           :: unit
   integer(ESMF_KIND_I4), intent(out), optional     :: rc
 
   logical                 :: isPresent
@@ -69,10 +69,10 @@ subroutine NUOPC_FieldAdvertise(state, name, unit, rc)
   use NUOPC, only : NUOPC_Advertise
   implicit none
 
-  type(ESMF_State), intent(inout)                  :: state
-  character(len=ESMF_MAXSTR), intent(in)           :: name
-  character(len=ESMF_MAXSTR), intent(in)           :: unit
-  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+  type(ESMF_State), intent(inout)              :: state
+  character(len=*), intent(in)                 :: name
+  character(len=*), intent(in)                 :: unit
+  integer(ESMF_KIND_I4), intent(out), optional :: rc
 
   logical                 :: isPresent
   integer(ESMF_KIND_I4)   :: localrc, rc_
