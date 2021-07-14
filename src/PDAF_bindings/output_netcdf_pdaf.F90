@@ -66,7 +66,7 @@
       real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:)
       real,allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
       character(len=1) :: typestr
-      character(len=4) :: a_4
+      character(len=6) :: a_4
       character(len=72) :: fdb,it_char
       integer :: lfdb,lit,ncid_hot
       integer :: node_dim,elem_dim,side_dim,nvrt_dim,ntracers_dim
@@ -179,9 +179,9 @@
 !   Test for ascii
       num_schism_steps=rnday*86400.d0/dt+0.5d0
      if(abs(step)==num_schism_steps) then
-      fdb='surface_0000'
+      fdb='surface_000000'
       lfdb=len_trim(fdb)
-      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      write(fdb(lfdb-5:lfdb),'(i6.6)') myrank
       open(90,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(90,*)np,nproc
       do i=1,np
@@ -189,9 +189,9 @@
       enddo !i
       close(90)
 
-      fdb='bottom_0000'
+      fdb='bottom_000000'
       lfdb=len_trim(fdb)
-      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      write(fdb(lfdb-5:lfdb),'(i6.6)') myrank
       open(90,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(90,*)np,nproc
       do i=1,np
@@ -237,8 +237,8 @@
       if (step==0) ifile_hot=1
       if ((typestr=='a').and.(nhot_PDAF==1)) then
          if (mod(it_main_PDAF,nhot_write_PDAF)==0) then
-            a_4='0000'
-            write(a_4,'(i4.4)') myrank
+            a_4='000000'
+            write(a_4,'(i6.6)') myrank
             write(it_char,'(i72)') it_main_PDAF
             it_char=adjustl(it_char)
             lit=len_trim(it_char)
@@ -553,7 +553,7 @@
       integer, intent(in) :: iopen
       character(len=1), intent(in) :: typestr
       character(len=140) :: fname
-      character(len=4) :: fgb
+      character(len=6) :: fgb
 
       integer :: iret
 
@@ -572,8 +572,8 @@
       write(ifile_char_PDAF,'(i12)') ifile_PDAF !convert ifile to a string
       ifile_char_PDAF=adjustl(ifile_char_PDAF)  !place blanks at end
       ifile_len_PDAF=len_trim(ifile_char_PDAF)  !length without trailing blanks
-      fgb='0000' 
-      write(fgb,'(i4.4)') myrank
+      fgb='000000' 
+      write(fgb,'(i6.6)') myrank
       fname=out_dir(1:len_out_dir)//('schout_'//fgb//'_'//ifile_char_PDAF(1:ifile_len_PDAF)//'.nc')
 !'
 !     write(*,*) trim(adjustl(fname)),ifile_PDAF !check

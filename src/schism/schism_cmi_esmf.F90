@@ -1028,9 +1028,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
       write(message,*) 'starting output...'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-      fdb='surface_0000'
+      fdb='surface_000000'
       lfdb=len_trim(fdb)
-      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      write(fdb(lfdb-5:lfdb),'(i6.6)') myrank
       open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(10,*)np,nproc
       do i=1,np
@@ -1038,9 +1038,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
       enddo !i
       close(10)
 
-      fdb='bottom_0000'
+      fdb='bottom_000000'
       lfdb=len_trim(fdb)
-      write(fdb(lfdb-3:lfdb),'(i4.4)') myrank
+      write(fdb(lfdb-5:lfdb),'(i6.6)') myrank
       open(10,file=out_dir(1:len_out_dir)//trim(adjustl(fdb)),status='replace')
       write(10,*)np,nproc
       do i=1,np
