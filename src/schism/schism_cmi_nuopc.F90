@@ -276,7 +276,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Deal with setting up the Field dictionary here and advertising the
-  ! variables.   
+  ! variables.
   ! @todo this should be customized by a field dictionary-like configuration
   ! file,  for uncopuled applications, we cannot advertise as we get a NUOPC not
   ! connected error message
@@ -291,13 +291,22 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("y_velocity_at_10m_above_sea_surface", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
+
+!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  air_pressure_at_sea_level
+!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  inst_zonal_wind_height10m
+!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  inst_merid_wind_height10m
+
   !call NUOPC_FieldAdvertise(importState, "surface_air_pressure", "N m-2", localrc)
   !call NUOPC_FieldAdvertise(importState, "surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
 
+  ! for coupling to ATMESH, please comment for standalone
+  call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
+
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
-  
+
 
   !> The mesh information is usually not in CF standard and therefore needs
   !> to be added to the FieldDictionary before advertising
@@ -388,21 +397,30 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   !> @todo change variable here
   farrayPtr1 => pr2(1:np)
-  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
+!  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
+  field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo Disabled until we fix the coupling
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  field = ESMF_FieldCreate(name="inst_meridional_wind_height10m", mesh=mesh2d, &
+    farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> @todo Disabled until we fix the coupling
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr2(1:np)
-  field = ESMF_FieldCreate(name="air_pressure_at_water_surface", mesh=mesh2d, &
+  field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo Disabled until we fix the coupling
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
