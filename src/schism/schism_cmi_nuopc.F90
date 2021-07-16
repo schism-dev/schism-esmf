@@ -35,7 +35,8 @@ module schism_cmi_nuopc
   use NUOPC_Model, &
     model_routine_SS      => SetServices, &
     model_label_SetClock  => label_SetClock, &
-    model_label_Advance   => label_Advance
+    model_label_Advance   => label_Advance!, & 
+    !model_label_ModifyAdvertised   => label_ModifyAdvertised
 
   use schism_bmi
   use schism_esmf_util
@@ -45,7 +46,7 @@ module schism_cmi_nuopc
 
   private
   public SetServices
-
+ 
 ! The internal state saves data across ESMF phases and is
 ! persistent throught the lifetime of an instance.  Here, we
 ! only provide a boilerplate implementation of an empty internal state
@@ -95,6 +96,10 @@ subroutine SetServices(comp, rc)
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv00p2"/), userRoutine=InitializeRealize, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !call NUOPC_CompSpecialize(comp, specLabel=label_ModifyAdvertised, &
+  !  specRoutine=ModifyAdvertised, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompSpecialize(comp, specLabel=model_label_SetClock, &
     specRoutine=SetClock, rc=localrc)
@@ -291,7 +296,21 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("y_velocity_at_10m_above_sea_surface", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
+ 
+  ! The following are the inputs from WW3DATA component, not yet used here.
+  if (allocated(itemNameList)) deallocate(itemNameList)
+  allocate(itemNameList(3))
+  itemNameList=(/ 'radiation_stress_component_sxy', &
+                  'radiation_stress_component_sxx', &
+                  'radiation_stress_component_syy' /)
+ 
+  do i=1, ubound(itemNameList,1)
+    call NUOPC_FieldDictionaryAddIfNeeded(trim(itemNameList(i)), "N m-1", localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    call NUOPC_FieldAdvertise(importState, itemNameList(i), "N m-1", localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  enddo
+ 
   !call NUOPC_FieldAdvertise(importState, "surface_air_pressure", "N m-2", localrc)
   !call NUOPC_FieldAdvertise(importState, "surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
 
@@ -301,6 +320,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   !> The mesh information is usually not in CF standard and therefore needs
   !> to be added to the FieldDictionary before advertising
+  if (allocated(itemNameList)) deallocate(itemNameList)
   allocate(itemNameList(4))
   itemNameList=(/ 'mesh_topology                 ', &
                   'mesh_global_node_id           ', &
@@ -350,41 +370,56 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  type(ESMF_StateItem_Flag)               :: itemType
   integer(ESMF_KIND_I4)                   :: itemCount
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
+  character(len=ESMF_MAXSTR)  :: message
 
   rc = ESMF_SUCCESS
 
   call addSchismMesh(comp, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  ! call ESMF_StateGet(exportState,  itemCount=itemCount, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  ! allocate(itemTypeList(itemCount))
-  ! allocate(itemNameList(itemCount))
-  !
-  ! call ESMF_StateGet(exportState,  itemTypeList=itemTypeList, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  ! do i=1, itemCount
-  !   if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
-  !
-  !   call ESMF_StateGet(exportState, trim(itemNameList(i)), field=field, rc=localrc )
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !
-  !   call NUOPC_Realize(exportState, field=field, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! enddo
-  ! deallocate(itemTypeList)
-  ! deallocate(itemNameList)
-
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, importState=importState, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !call ESMF_StateGet(importState,  itemCount=itemCount, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !allocate(itemTypeList(itemCount))
+  !allocate(itemNameList(itemCount))
+  
+  !call ESMF_StateGet(importState,  itemTypeList=itemTypeList, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !do i=1, itemCount
+  !  if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+  
+  !  call ESMF_StateGet(importState, trim(itemNameList(i)), field=field, rc=localrc )
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !  if (NUOPC_IsConnected(importState, fieldName=trim(itemNameList(i)), rc=localrc)) then
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !    write(message,'(A)') 'Import field '//trim(itemNameList(i))//' is connected'
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  !  else
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !    write(message,'(A)') 'Import field '//trim(itemNameList(i))//' is not connected'
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  !    call ESMF_StateRemove(exportState, trim(itemNameList(i)), rc=localrc)
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  endif
+  
+  !   call NUOPC_Realize(exportState, field=field, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! enddo
+  !deallocate(itemTypeList)
+  !deallocate(itemNameList)
 
   !> @todo change variable here
   farrayPtr1 => pr2(1:np)
@@ -408,6 +443,34 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (allocated(itemNameList)) deallocate(itemNameList)
+  allocate(itemNameList(3))
+  itemNameList=(/ 'radiation_stress_component_sxy', &
+                  'radiation_stress_component_sxx', &
+                  'radiation_stress_component_syy' /)
+
+  do while (.true.)
+
+    field = ESMF_FieldCreate(name=trim(itemNameList(i)), &
+      mesh=mesh2d, typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    !call ESMF_StateGet(importstate, itemNameList(i), itemType, rc=localrc)
+    !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    !if (itemType == ESMF_STATEITEM_NOTFOUND) exit
+
+    if (NUOPC_IsConnected(importState, trim(itemNameList(i)), rc=localrc)) then 
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      exit
+    endif
+
+    call ESMF_StateRemove(importState,  (/trim(itemNameList(i))/), rc=localrc)
+    localrc = ESMF_SUCCESS
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    exit
+  end do
+  deallocate(itemNameList)
 
   !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -502,6 +565,17 @@ subroutine SetRunClock(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "ModifyAdvertised"
+subroutine ModifyAdvertised(comp, rc)
+
+  type(ESMF_GridComp)  :: comp
+  integer, intent(out) :: rc
+
+  rc = ESMF_SUCCESS
+
+end subroutine ModifyAdvertised
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "ModelAdvance"

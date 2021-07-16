@@ -34,6 +34,21 @@ module schism_bmi
   ! We *should not* use ESMF in a BMI, but this is used here for logging only
   use ESMF!, only:: ESMF_LogFoundError, ESMF_END_ABORT, ESMF_Finalize, ESMF_SUCCESS
 
+  type SCHISM_FieldList
+    character(len=ESMF_MAXSTR) :: standardName
+    character(len=ESMF_MAXSTR) :: name
+    character(len=ESMF_MAXSTR) :: unit
+    logical           :: isConnected = .false.
+    logical           :: isImported = .false.
+    logical           :: isExported = .true.
+    real(ESMF_KIND_R8), dimension(:), pointer :: farrayPtr1 => null()
+    real(ESMF_KIND_R8), dimension(:,:), pointer :: farrayPtr2 => null()
+  end type SCHISM_FieldList
+
+  !>@todo make allocatable
+  integer, parameter :: SCHISM_MAXFIELDLIST = 30
+  type(SCHISM_FieldList) :: fieldList(SCHISM_MAXFIELDLIST) 
+
   interface
     subroutine parallel_init(communicator)
       implicit none
