@@ -194,6 +194,9 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   istep=step
   CALL write_netcdf_pdaf(istep, dim_p, state_p)
 
+! Here we output ens-var to check ensemble variances
+! CALL write_netcdf_pdaf_var(istep, dim_p, var_p)
+
 ! *************************
 ! *** Write output state_p for restart
 ! *************************

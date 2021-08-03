@@ -25,7 +25,8 @@
 
     module output_schism_pdaf
     use schism_glbl, only: nea,nsa,npa,nvrt,idry,idry_e,idry_s,znl,id_out_var,kbp,rkind,&
-                   & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt,kbe,elnode,i34,kbs,isidenode
+                   & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt,kbe,elnode,i34,kbs,isidenode,&
+                   & nsteps_from_cold,cumsum_eta
     use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
     use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf,nhot_PDAF,nhot_write_PDAF
@@ -263,6 +264,7 @@
             j=nf90_def_var(ncid_hot,'time',NF90_DOUBLE,var1d_dim,nwild(1))
             j=nf90_def_var(ncid_hot,'it',NF90_INT,var1d_dim,nwild(2))
             j=nf90_def_var(ncid_hot,'ifile',NF90_INT,var1d_dim,nwild(3))
+            j=nf90_def_var(ncid_hot,'nsteps_from_cold',NF90_INT,var1d_dim,nwild(20))
 
             var1d_dim(1)=elem_dim
             j=nf90_def_var(ncid_hot,'idry_e',NF90_INT,var1d_dim,nwild(4))
@@ -271,6 +273,7 @@
             var1d_dim(1)=node_dim
             j=nf90_def_var(ncid_hot,'idry',NF90_INT,var1d_dim,nwild(6))
             j=nf90_def_var(ncid_hot,'eta2',NF90_DOUBLE,var1d_dim,nwild(7))
+            j=nf90_def_var(ncid_hot,'cumsum_eta',NF90_DOUBLE,var1d_dim,nwild(21))
 
             !Note the order of multi-dim arrays not reversed here!
             !As long as the write is consistent with def it's fine
@@ -349,10 +352,14 @@
             j=nf90_put_var(ncid_hot,nwild(1),time_stamp) !use time_stamp
             j=nf90_put_var(ncid_hot,nwild(2),it_main_PDAF)
             j=nf90_put_var(ncid_hot,nwild(3),ifile_hot) 
+            ! Add 1st member nsteps_from_cold for hotstart
+            j=nf90_put_var(ncid_hot,nwild(20),nsteps_from_cold)
             j=nf90_put_var(ncid_hot,nwild(4),idry_e,(/1/),(/ne/))
             j=nf90_put_var(ncid_hot,nwild(5),idry_s,(/1/),(/ns/))
             j=nf90_put_var(ncid_hot,nwild(6),idry,(/1/),(/np/))
             j=nf90_put_var(ncid_hot,nwild(7),elev,(/1/),(/np/))
+            ! Add 1st member cumsum_eta for hotstart
+            j=nf90_put_var(ncid_hot,nwild(21),cumsum_eta,(/1/),(/np/))
             j=nf90_put_var(ncid_hot,nwild(8),we(:,1:ne),(/1,1/),(/nvrt,ne/))
             j=nf90_put_var(ncid_hot,nwild(9),tr_el(:,:,1:ne),(/1,1,1/),(/ntracers,nvrt,ne/))
             j=nf90_put_var(ncid_hot,nwild(10),su2(:,1:ns),(/1,1/),(/nvrt,ns/))
