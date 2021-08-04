@@ -191,6 +191,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
       end do
    end do
    
-   end if !ifill
+   end if !ifill2
+
+!  Adding some limiters to avoid weird analysis result
 
 END SUBROUTINE distribute_state_pdaf

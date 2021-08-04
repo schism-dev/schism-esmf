@@ -57,14 +57,15 @@
 !===============================================================================
 !===============================================================================
 !
-      subroutine write_netcdf_pdaf( step, dim_p, state_p)
+      subroutine write_netcdf_pdaf( step, dim_p, state_p, std_p)
       implicit none
 !     character(len=1),intent(in) :: typestr
       integer,intent(in) :: step,dim_p
-      real(rkind),intent(in) :: state_p(dim_p)
+      real(rkind),intent(in) :: state_p(dim_p),std_p(dim_p)
 !     local var
       integer :: itot,i,j,k,num_schism_steps
       real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:)
+      real,allocatable :: elev_std(:),salt_std(:,:),temp_std(:,:),uu_std(:,:),vv_std(:,:),ww_std(:,:)
       real,allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
       character(len=1) :: typestr
       character(len=6) :: a_4
@@ -87,60 +88,80 @@
       if (allocated(uu)) deallocate(uu)
       if (allocated(vv)) deallocate(vv)
       if (allocated(ww)) deallocate(ww)
+!     For variance
+      if (allocated(elev_std)) deallocate(elev_std)
+      if (allocated(temp_std)) deallocate(temp_std)
+      if (allocated(salt_std)) deallocate(salt_std)
+      if (allocated(uu_std)) deallocate(uu_std)
+      if (allocated(vv_std)) deallocate(vv_std)
+      if (allocated(ww_std)) deallocate(ww_std)
       allocate(elev(npa),temp(nvrt,npa),salt(nvrt,npa),uu(nvrt,npa),vv(nvrt,npa),ww(nvrt,npa))
+!     For variance
+      allocate(elev_std(npa),temp_std(nvrt,npa),salt_std(nvrt,npa),uu_std(nvrt,npa),vv_std(nvrt,npa),ww_std(nvrt,npa))
       if (nhot_PDAF==1) then
          allocate(tr_el(ntracers,nvrt,nea),tr_nd(ntracers,nvrt,npa),su2(nvrt,nsa),sv2(nvrt,nsa),we(nvrt,nea),zero(nvrt,npa))
       end if
 
-!     Assign state_p to vars for outputs
+!     Assign state_p & std_p to vars for outputs
       itot=0
       do i=1,npa
          itot=itot+1
          elev(i)=state_p(itot)
+         elev_std(i)=std_p(itot)
       enddo !i
       do i=1,npa
          do k=1,nvrt
             itot=itot+1
             temp(k,i)=state_p(itot)
+            temp_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
             temp(k,i)=temp(kbp(i),i)
+            temp_std(k,i)=temp_std(kbp(i),i)
          end do
       end do
       do i=1,npa
          do k=1,nvrt
             itot=itot+1
             salt(k,i)=state_p(itot)
+            salt_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
             salt(k,i)=salt(kbp(i),i)
+            salt_std(k,i)=salt_std(kbp(i),i)
          end do
       end do
       do i=1,npa
          do k=1,nvrt
             itot=itot+1
             uu(k,i)=state_p(itot)
+            uu_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
             uu(k,i)=0.d0
+            uu_std(k,i)=0.d0
          end do
       end do
       do i=1,npa
          do k=1,nvrt
             itot=itot+1
             vv(k,i)=state_p(itot)
+            vv_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
             vv(k,i)=0.d0
+            vv_std(k,i)=0.d0
          end do
       end do
       do i=1,npa
          do k=1,nvrt
             itot=itot+1
             ww(k,i)=state_p(itot)
+            ww_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
             ww(k,i)=0.d0
+            ww_std(k,i)=0.d0
          end do
       end do
 
@@ -222,6 +243,12 @@
              call writeout_nc_PDAF(typestr,id_out_var(23),'salt',2,nvrt,npa,salt)
              call writeout_nc_PDAF(typestr,id_out_var(29),'hvel',2,nvrt,npa,uu,vv)
              call writeout_nc_PDAF(typestr,id_out_var(21),'vertical_velocity',2,nvrt,npa,ww)
+!            output variance of ssh,T,S,u,v,w
+             call writeout_nc_PDAF(typestr,id_out_var(5+10),'elev_std',1,1,npa,elev_std)
+             call writeout_nc_PDAF(typestr,id_out_var(22+10),'temp_std',2,nvrt,npa,temp_std)
+             call writeout_nc_PDAF(typestr,id_out_var(23+10),'salt_std',2,nvrt,npa,salt_std)
+             call writeout_nc_PDAF(typestr,id_out_var(29+10),'hvel_std',2,nvrt,npa,uu_std,vv_std)
+             call writeout_nc_PDAF(typestr,id_out_var(21+10),'vertical_velocity_std',2,nvrt,npa,ww_std)
          end if
 
 

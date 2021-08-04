@@ -192,10 +192,8 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! Here we only output ens-avg rank nc, follow schism output
 ! **************************
   istep=step
-  CALL write_netcdf_pdaf(istep, dim_p, state_p)
+  CALL write_netcdf_pdaf(istep, dim_p, state_p, sqrt(var_p)) ! Add std for ens_spread
 
-! Here we output ens-var to check ensemble variances
-! CALL write_netcdf_pdaf_var(istep, dim_p, var_p)
 
 ! *************************
 ! *** Write output state_p for restart
