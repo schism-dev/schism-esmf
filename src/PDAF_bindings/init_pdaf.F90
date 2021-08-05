@@ -34,7 +34,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        rank_analysis_enkf, locweight, local_range, srange, &
        filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
        ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF, &
-       rms_type,rms_obs2,ens_init
+       rms_type,rms_obs2,ens_init,Zdepth_limit
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -75,7 +75,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
            locweight, local_range, srange,varscale, &
            ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
            nhot_PDAF, nhot_write_PDAF, &
-           rms_type,rms_obs2,ens_init
+           rms_type,rms_obs2,ens_init,Zdepth_limit
 
 
 ! ***************************
@@ -205,6 +205,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   varscale = 1.0    ! Init ensemble variance
   outf = 1          ! output file switch
   nhot_PDAF = 0     ! hotstart rank output switch
+  Zdepth_limit = 200. ! Control SSH/SSH-A data depth limiter, default: 200m, shelf depth
 
 ! *** File names
   filename = 'output.dat'
