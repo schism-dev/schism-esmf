@@ -23,11 +23,11 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind
+  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind,nsteps_from_cold,dt
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
-  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p,obs_coords_p,rms_type,rms_obs,rms_obs2
+  use mod_assimilation, only: obs_f,iep_obs_mod,obstype_mod,arco_obs_mod,obs_coords_f,dim_obs_p,obs_coords_p,rms_type,rms_obs,rms_obs2,Zdepth_limit
 ! Check only
   use mod_parallel_pdaf, only: mype_world,task_id,filterpe
 
@@ -104,6 +104,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
         end if
      end if
      if (rms_type==2) then
+        if ((obstype(i).eq.'a').or.(obstype(i).eq.'A')) rmsval(i)=rms_obs2(1) !SSH-A
         if ((obstype(i).eq.'z').or.(obstype(i).eq.'Z')) rmsval(i)=rms_obs2(1) !Z
         if ((obstype(i).eq.'t').or.(obstype(i).eq.'T')) rmsval(i)=rms_obs2(2) !T
         if ((obstype(i).eq.'s').or.(obstype(i).eq.'S')) rmsval(i)=rms_obs2(3) !S
@@ -156,6 +157,15 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                     nd=elnode(j,i)
                     if (zcomp.gt.dp(nd)) iep_obs(l)=0
                  end do
+                !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on
+                !shelf)
+                 if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+                    &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+                    do j=1,i34(i)
+                       nd=elnode(j,i)
+                       if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
+                    end do
+                 end if
              endif
           else !quad
              call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
@@ -170,7 +180,21 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                   nd=elnode(j,i)
                   if (zcomp.gt.dp(nd)) iep_obs(l)=0
                end do
+               !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on
+               !shelf)
+               if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+                  &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+                  do j=1,i34(i)
+                     nd=elnode(j,i)
+                     if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
+                  end do
+               end if
           endif !i34
+          !Check nsteps_from_cold for SSH-A, skip if nsteps_from_cold too small
+          if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
+             if ((nsteps_from_cold*dt/86400.d0).lt.10.d0) iep_obs(l)=0 ! set 10 days
+          end if
+
       enddo !l; build pts
 
       ifl=0 !flag

@@ -139,8 +139,8 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
                     if (zcomp.gt.dp(nd)) iep_obs(l)=0
                  end do
                 !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on shelf)
-                 if ((obstype(i).eq.'a').or.(obstype(i).eq.'A').or. &
-                    &(obstype(i).eq.'z').or.(obstype(i).eq.'Z')) then
+                 if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+                    &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
                     do j=1,i34(i)
                        nd=elnode(j,i)
                        if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
@@ -161,8 +161,8 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
                   if (zcomp.gt.dp(nd)) iep_obs(l)=0
                end do
                !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on shelf)
-               if ((obstype(i).eq.'a').or.(obstype(i).eq.'A').or. &
-                  &(obstype(i).eq.'z').or.(obstype(i).eq.'Z')) then
+               if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+                  &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
                   do j=1,i34(i)
                      nd=elnode(j,i)
                      if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
@@ -170,7 +170,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
                end if         
           endif !i34
           !Check nsteps_from_cold for SSH-A, skip if nsteps_from_cold too small
-          if ((obstype(i).eq.'a').or.(obstype(i).eq.'A')) then
+          if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
              if ((nsteps_from_cold*dt/86400.d0).lt.10.d0) iep_obs(l)=0 ! set 10 days
           end if
           
