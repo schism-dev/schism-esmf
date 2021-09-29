@@ -383,7 +383,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !   initialize
@@ -405,7 +405,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -428,7 +428,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -511,50 +511,50 @@ subroutine addCIM(comp, rc)
   convention='CIM 1.5'
   purpose='ModelComp'
 
-  call ESMF_AttributeAdd(comp, convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeAdd(comp, convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'ShortName', 'schism', &
-    convention=convention, purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'ShortName', 'schism', &
+  !  convention=convention, purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'LongName', 'schism', convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'LongName', 'schism', convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'ModelType', 'ocean', convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'ModelType', 'ocean', convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, importState=importState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
+!  call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'SimulationStartDate', message, convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'SimulationStartDate', message, convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeGet(importState, name='simulation_stop', value=message, defaultvalue='Untitled', rc=localrc)
+!  call ESMF_AttributeGet(importState, name='simulation_stop', value=message, defaultvalue='Untitled', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'SimulationDuration', message, convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'SimulationDuration', message, convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message,'(I4)') petCount
-  call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   purpose='Platform'
   !call ESMF_AttributeGetAttPack(comp, convention, purpose, attpack=attpack, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, 'MachineName', 'unknown', convention=convention, &
-    purpose=purpose, rc=localrc)
+  !call ESMF_AttributeSet(comp, 'MachineName', 'unknown', convention=convention, &
+  !  purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine addCIM
@@ -615,9 +615,13 @@ function clockCreateFrmParam(filename, kwe, relaxedFlag, rc) result(clock)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
+  write(message,'(I4,A,I2,A,I2,A,I2,A)') start_year,'-',start_month,'-', &
+    start_day, 'T', start_hour,':00:00'
+
   ! Set day as timestep temporarily to count later to stop time
-  call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
-    h=start_hour, rc=localrc)
+  !call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
+  !  h=start_hour, rc=localrc)
+  call ESMF_TimeSet(startTime, trim(message), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
@@ -702,7 +706,7 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
 
 end subroutine SCHISM_FieldRealize
 
-subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState, & 
+subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState, &
     add_ws, rc)
 
   use schism_glbl, only: tr_el, tr_nd, kbe, wsett, rkind, npa, np, nea, ne, nvrt
@@ -729,8 +733,10 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
                            typekind=ESMF_TYPEKIND_R8, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
   ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  !> @todo re-enable when converted to eSMF_Info
+  !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !   initialize
@@ -752,7 +758,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -774,8 +780,9 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
                            typekind=ESMF_TYPEKIND_R8, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
     ! add maskValues to be used in regridding
-    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
