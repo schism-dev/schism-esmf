@@ -360,6 +360,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   integer(ESMF_KIND_I4)                   :: itemCount
+  character(len=ESMF_MAXSTR)              :: message, compName
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
 
@@ -392,7 +393,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   ! deallocate(itemTypeList)
   ! deallocate(itemNameList)
 
-  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo change variable here
@@ -404,31 +405,34 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   !> @todo Disabled until we fix the coupling
   call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (localrc /= ESMF_SUCCESS) then 
+    write(message,'(A)')  trim(compName)//' could not find zonal wind for coupling'
+  else
+    write(message,'(A)')  trim(compName)//' obtained zonal wind from coupling'
+  endif
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   field = ESMF_FieldCreate(name="inst_meridional_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo Disabled until we fix the coupling
   call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr2(1:np)
   field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo Disabled until we fix the coupling
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
@@ -622,7 +626,7 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
     if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-      call ESMF_StateRemove(state, trim(itemNameList(i)), rc=localrc)
+      call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     endif
 
