@@ -287,6 +287,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("surface_temperature", "degree C", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("inst_meridional_wind_height10m", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("x_velocity_at_10m_above_sea_surface", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("y_velocity_at_10m_above_sea_surface", "m s-1", localrc)
@@ -300,9 +304,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   !call NUOPC_FieldAdvertise(importState, "surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
 
   ! for coupling to ATMESH, please comment for standalone
-  call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
+  !call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
+  call NUOPC_Advertise(importState, "surface_air_pressure", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
-  call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_meridional_wind_height10m", rc=localrc)
 
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
@@ -398,41 +403,24 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   !> @todo change variable here
   farrayPtr1 => pr2(1:np)
-!  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
-  field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
+  call SCHISM_FieldRealize(importState, "inst_zonal_wind_height10m", &
+    mesh=mesh2d, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !> @todo Disabled until we fix the coupling
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  if (localrc /= ESMF_SUCCESS) then 
-    write(message,'(A)')  trim(compName)//' could not find zonal wind for coupling'
-  else
-    write(message,'(A)')  trim(compName)//' obtained zonal wind from coupling'
-  endif
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  field = ESMF_FieldCreate(name="inst_meridional_wind_height10m", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr2(1:np)
-  field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
+  call SCHISM_FieldRealize(importState, "inst_meridional_wind_height10m", &
+    mesh=mesh2d, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  farrayPtr1 => pr2(1:np)
+  call SCHISM_FieldRealize(importState, "surface_air_pressure", &
+    mesh=mesh2d, farrayPtr=farrayPtr1,  rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  farrayPtr1 => pr2(1:np)
+  !call SCHISM_FieldRealize(importState, "downwelling_short_photosynthetic_radiation_at_water_surface", &
+  !  mesh=mesh2d, farrayPtr=farrayPtr1,  rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
@@ -621,14 +609,14 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
   do i=1, itemCount
 
-    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+    !if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
+    !if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-      call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-    endif
+    !  call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
+    !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    !endif
 
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields

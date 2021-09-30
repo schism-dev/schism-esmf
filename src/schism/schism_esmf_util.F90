@@ -383,7 +383,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   ! add maskValues to be used in regridding
-  !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !   initialize
@@ -405,7 +405,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -428,7 +428,7 @@ subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -511,50 +511,50 @@ subroutine addCIM(comp, rc)
   convention='CIM 1.5'
   purpose='ModelComp'
 
-  !call ESMF_AttributeAdd(comp, convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeAdd(comp, convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'ShortName', 'schism', &
-  !  convention=convention, purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'ShortName', 'schism', &
+    convention=convention, purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'LongName', 'schism', convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'LongName', 'schism', convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'ModelType', 'ocean', convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'ModelType', 'ocean', convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, importState=importState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
+  call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'SimulationStartDate', message, convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'SimulationStartDate', message, convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  call ESMF_AttributeGet(importState, name='simulation_stop', value=message, defaultvalue='Untitled', rc=localrc)
+  call ESMF_AttributeGet(importState, name='simulation_stop', value=message, defaultvalue='Untitled', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'SimulationDuration', message, convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'SimulationDuration', message, convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message,'(I4)') petCount
-  !call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   purpose='Platform'
   !call ESMF_AttributeGetAttPack(comp, convention, purpose, attpack=attpack, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_AttributeSet(comp, 'MachineName', 'unknown', convention=convention, &
-  !  purpose=purpose, rc=localrc)
+  call ESMF_AttributeSet(comp, 'MachineName', 'unknown', convention=convention, &
+    purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine addCIM
@@ -640,21 +640,25 @@ end function clockCreateFrmParam
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldRealize"
-subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
+subroutine SCHISM_FieldRealize(state, itemName, kwe, farrayPtr, grid, mesh, &
+  typekind, rc)
 
   use NUOPC, only: NUOPC_Realize
 
   type(ESMF_State), intent(inout)    :: state
   character(len=*), intent(in)       :: itemName
   type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  real(ESMF_KIND_R8), intent(in), optional, pointer :: farrayPtr(:)
   type(ESMF_Grid), intent(in), optional :: grid
   type(ESMF_Mesh), intent(in), optional :: mesh
   type(ESMF_TypeKind_Flag), intent(in), optional :: typekind
   integer(ESMF_KIND_I4), intent(out), optional :: rc
 
-  integer(ESMF_KIND_I4)      :: rc_, localrc
-  character(len=ESMF_MAXSTR) :: message
-  type(ESMF_Field)           :: field
+  integer(ESMF_KIND_I4)       :: rc_, localrc
+  character(len=ESMF_MAXSTR)  :: message
+  type(ESMF_Field)            :: field
+  type(ESMF_FieldStatus_Flag) :: fieldStatus
+  type(ESMF_StateItem_Flag)   :: itemType
 
   rc_ = ESMF_SUCCESS
 
@@ -663,6 +667,14 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
     rc_ = ESMF_RC_ARG_BAD
   elseif (.not.present(mesh).and..not.present(grid)) then
     write(message, '(A)') '-- needs either mesh or grid as argument'
+    rc_ = ESMF_RC_ARG_BAD
+  endif
+
+  if (present(farrayPtr).and.present(typeKind)) then
+    write(message, '(A)') '-- does not accept both farrayPtr and typekind'
+    rc_ = ESMF_RC_ARG_BAD
+  elseif (.not.present(mesh).and..not.present(grid)) then
+    write(message, '(A)') '-- needs either farrayPtr or typeKind as argument'
     rc_ = ESMF_RC_ARG_BAD
   endif
 
@@ -676,36 +688,115 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  !> @todo check for existence in state and stateItemType field
-
-  call ESMF_StateGet(state, field=field, itemName=trim(itemName), rc=localrc)
+  call ESMF_StateGet(state, itemName, itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !> @todo check for empty status
+  if (itemType == ESMF_STATEITEM_NOTFOUND) then
 
-  if (present(grid)) then
-    call ESMF_FieldEmptySet(field, grid=grid, rc=localrc)
+    if (present(farrayPtr)) then
+      field = ESMF_FieldCreate(name=trim(itemName), mesh=mesh, &
+        farrayPtr=farrayPtr, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    else
+      field = ESMF_FieldEmptyCreate(name=trim(itemName), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif
+
+    call ESMF_StateAddReplace(state, (/field/), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  else
-    call ESMF_FieldEmptySet(field, mesh=mesh, rc=localrc)
+
+  elseif  (itemType == ESMF_STATEITEM_FIELD) then
+    call ESMF_StateGet(state, itemName=trim(itemName), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  if (present(typekind)) then
-    call ESMF_FieldEmptyComplete(field, typekind=typekind, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  else
-    call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  call SCHISM_StateInfoPrint(state, itemName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+
+  call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (fieldStatus /= ESMF_FIELDSTATUS_COMPLETE) then
+    if (present(grid)) then
+      call ESMF_FieldEmptySet(field, grid=grid, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    else
+      call ESMF_FieldEmptySet(field, mesh=mesh, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif
+
+    if (present(typekind)) then
+      call ESMF_FieldEmptyComplete(field, typekind=typekind, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    else
+      call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif
   endif
+
+  call SCHISM_StateInfoPrint(state, itemName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! There is not need to formally call Realize() when completing the
-  ! adverised field directly. However, calling Realize() also works.
+  ! adverised field directly. However, calling Realize() also works. Note that
+  ! we accept failure here and don't check the return code
   call NUOPC_Realize(state, field=field, rc=localrc)
+  if (localrc /= ESMF_SUCCESS) then
+    write(message,'(A)') ' -- could not realize '//trim(itemName)
+  else
+    write(message,'(A)') ' -- realized '//trim(itemName)
+  endif
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call SCHISM_StateInfoPrint(state, itemName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
 end subroutine SCHISM_FieldRealize
 
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateInfoPrint"
+subroutine SCHISM_StateInfoPrint(state, itemName, kwe, rc)
+
+  type(ESMF_State), intent(inout)    :: state
+  character(len=*), intent(in)       :: itemName
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional :: rc
+
+  integer(ESMF_KIND_I4)       :: rc_, localrc
+  character(len=ESMF_MAXSTR)  :: message
+  type(ESMF_Field)            :: field
+  type(ESMF_StateItem_Flag)   :: itemType
+  type(ESMF_Info)             :: info
+
+  rc_ = ESMF_SUCCESS
+  if (present(rc)) rc = rc_
+
+  call ESMF_StateGet(state, itemName, itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_LogWrite('D1 '//trim(itemName), ESMF_LOGMSG_WARNING)
+
+  if  (itemType /= ESMF_STATEITEM_FIELD) return
+
+  call ESMF_StateGet(state, itemName=trim(itemName), field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_LogWrite('D2 '//trim(itemName), ESMF_LOGMSG_WARNING)
+  call ESMF_InfoGetFromHost(field, info=info, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_InfoPrint(info, indent=0, prestring='-- ', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_InfoWriteJSON(info, filename=trim(itemName)//'.json', rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+end subroutine SCHISM_StateInfoPrint
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "schism_esmf_topbottom_tracer"
 subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, importState, &
     add_ws, rc)
 
@@ -736,7 +827,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
 
   ! add maskValues to be used in regridding
   !> @todo re-enable when converted to eSMF_Info
-  !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !   initialize
@@ -758,7 +849,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
                            meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
-    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -782,7 +873,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     ! add maskValues to be used in regridding
-    !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+    call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     !   initialize
@@ -798,8 +889,5 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
   if (present(rc)) rc = rc_
 
 end subroutine schism_esmf_topbottom_tracer
-
-
-
 
 end module schism_esmf_util
