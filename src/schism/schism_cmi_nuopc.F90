@@ -609,14 +609,14 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
   do i=1, itemCount
 
-    !if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    !if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
+    if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-    !  call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
-    !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-    !endif
+      call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif
 
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields

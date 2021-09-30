@@ -710,10 +710,6 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, farrayPtr, grid, mesh, &
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  call SCHISM_StateInfoPrint(state, itemName, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-
   call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
@@ -734,9 +730,6 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, farrayPtr, grid, mesh, &
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     endif
   endif
-
-  call SCHISM_StateInfoPrint(state, itemName, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! There is not need to formally call Realize() when completing the
   ! adverised field directly. However, calling Realize() also works. Note that
@@ -776,18 +769,15 @@ subroutine SCHISM_StateInfoPrint(state, itemName, kwe, rc)
   call ESMF_StateGet(state, itemName, itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  call ESMF_LogWrite('D1 '//trim(itemName), ESMF_LOGMSG_WARNING)
-
   if  (itemType /= ESMF_STATEITEM_FIELD) return
 
   call ESMF_StateGet(state, itemName=trim(itemName), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  call ESMF_LogWrite('D2 '//trim(itemName), ESMF_LOGMSG_WARNING)
   call ESMF_InfoGetFromHost(field, info=info, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  call ESMF_InfoPrint(info, indent=0, prestring='-- ', rc=localrc)
+  !call ESMF_InfoPrint(info, indent=0, prestring='-- ', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_InfoWriteJSON(info, filename=trim(itemName)//'.json', rc=localrc)
