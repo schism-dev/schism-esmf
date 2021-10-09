@@ -428,6 +428,27 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  field = ESMF_FieldCreate(name="iradiation_stress_component_sxx", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="iradiation_stress_component_sxy", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="iradiation_stress_component_syy", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 
 
 
