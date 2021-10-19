@@ -139,9 +139,11 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
      ie=iep_obs_mod(i)
      if ((obstype_mod(i).eq.'a').or.(obstype_mod(i).eq.'A')) then
         swild2(1,1:i34(ie))=elev(elnode(1:i34(ie),ie))-cumsum_eta(elnode(1:i34(ie),ie))/nsteps_from_cold
+!       swild2(1,1:i34(ie))=cumsum_eta(elnode(1:i34(ie),ie))/nsteps_from_cold !assimilate mean ssh
      elseif ((obstype_mod(i).eq.'z').or.(obstype_mod(i).eq.'Z')) then
 !       swild2(1,1:i34(ie))=eta2(elnode(1:i34(ie),ie))
         swild2(1,1:i34(ie))=elev(elnode(1:i34(ie),ie))
+!       swild2(1,1:i34(ie))=cumsum_eta(elnode(1:i34(ie),ie))/nsteps_from_cold !assimilate mean ssh
      elseif ((obstype_mod(i).eq.'t').or.(obstype_mod(i).eq.'T')) then
 !       swild2(1:nvrt,1:i34(ie))=tr_nd(1,1:nvrt,elnode(1:i34(ie),ie))
         swild2(1:nvrt,1:i34(ie))=temp(1:nvrt,elnode(1:i34(ie),ie))

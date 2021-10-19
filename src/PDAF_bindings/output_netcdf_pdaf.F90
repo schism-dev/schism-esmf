@@ -26,7 +26,7 @@
     module output_schism_pdaf
     use schism_glbl, only: nea,nsa,npa,nvrt,idry,idry_e,idry_s,znl,id_out_var,kbp,rkind,&
                    & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt,kbe,elnode,i34,kbs,isidenode,&
-                   & nsteps_from_cold,cumsum_eta
+                   & nsteps_from_cold,cumsum_eta,windx,windy
     use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
     use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf,nhot_PDAF,nhot_write_PDAF
@@ -64,7 +64,7 @@
       real(rkind),intent(in) :: state_p(dim_p),std_p(dim_p)
 !     local var
       integer :: itot,i,j,k,num_schism_steps
-      real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:)
+      real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:),sla(:),msl(:)
       real,allocatable :: elev_std(:),salt_std(:,:),temp_std(:,:),uu_std(:,:),vv_std(:,:),ww_std(:,:)
       real,allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
       character(len=1) :: typestr
@@ -88,6 +88,8 @@
       if (allocated(uu)) deallocate(uu)
       if (allocated(vv)) deallocate(vv)
       if (allocated(ww)) deallocate(ww)
+      if (allocated(sla)) deallocate(sla)
+      if (allocated(msl)) deallocate(msl)
 !     For variance
       if (allocated(elev_std)) deallocate(elev_std)
       if (allocated(temp_std)) deallocate(temp_std)
@@ -95,7 +97,7 @@
       if (allocated(uu_std)) deallocate(uu_std)
       if (allocated(vv_std)) deallocate(vv_std)
       if (allocated(ww_std)) deallocate(ww_std)
-      allocate(elev(npa),temp(nvrt,npa),salt(nvrt,npa),uu(nvrt,npa),vv(nvrt,npa),ww(nvrt,npa))
+      allocate(elev(npa),temp(nvrt,npa),salt(nvrt,npa),uu(nvrt,npa),vv(nvrt,npa),ww(nvrt,npa),sla(npa),msl(npa))
 !     For variance
       allocate(elev_std(npa),temp_std(nvrt,npa),salt_std(nvrt,npa),uu_std(nvrt,npa),vv_std(nvrt,npa),ww_std(nvrt,npa))
       if (nhot_PDAF==1) then
@@ -164,6 +166,9 @@
             ww_std(k,i)=0.d0
          end do
       end do
+!     Calc sla base on ens-mem 1 cumsum_sta
+      msl=cumsum_eta/nsteps_from_cold
+      sla=elev-msl
 
 !     Define typestr to avoid other rank has weird value
       if (step==0) typestr='i'
@@ -237,8 +242,11 @@
              !zcor MUST be 1st 3D var output for combine scripts to work!
              call writeout_nc_PDAF(typestr,id_out_var(4),'zcor',2,nvrt,npa,znl(:,:))
 
-!            output ssh,T,S,u,v,w
+!            output ssh,sla,msl,pertWind,T,S,u,v,w
              call writeout_nc_PDAF(typestr,id_out_var(5),'elev',1,1,npa,elev)
+             call writeout_nc_PDAF(typestr,id_out_var(6),'sla',1,1,npa,sla)
+             call writeout_nc_PDAF(typestr,id_out_var(7),'msl',1,1,npa,msl)
+             call writeout_nc_PDAF(typestr,id_out_var(18),'wind_speed',1,1,npa,windx,windy) !Add iturb_wind control later
              call writeout_nc_PDAF(typestr,id_out_var(22),'temp',2,nvrt,npa,temp)
              call writeout_nc_PDAF(typestr,id_out_var(23),'salt',2,nvrt,npa,salt)
              call writeout_nc_PDAF(typestr,id_out_var(29),'hvel',2,nvrt,npa,uu,vv)

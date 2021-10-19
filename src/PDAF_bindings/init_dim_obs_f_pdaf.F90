@@ -23,7 +23,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind,nsteps_from_cold,dt
+  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind,nsteps_from_cold,dt,cumsum_eta
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
@@ -163,7 +163,10 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                     &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
                     do j=1,i34(i)
                        nd=elnode(j,i)
-                       if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
+                       if (dp(nd).lt.Zdepth_limit) then
+                          iep_obs(l)=0
+!                         write(*,*) 'Debug in tri dep' 
+                       end if
                     end do
                  end if
              endif
@@ -186,12 +189,17 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                   &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
                   do j=1,i34(i)
                      nd=elnode(j,i)
-                     if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
+                     if (dp(nd).lt.Zdepth_limit) then
+                        iep_obs(l)=0
+!                       write(*,*) 'Debug in quad dep' 
+                     end if
                   end do
                end if
           endif !i34
           !Check nsteps_from_cold for SSH-A, skip if nsteps_from_cold too small
           if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
+!            write(*,*) 'nsteps_from_cold=',nsteps_from_cold
+!            write(*,*) 'cumsum_eta(1)=',cumsum_eta(1)
              if ((nsteps_from_cold*dt/86400.d0).lt.10.d0) iep_obs(l)=0 ! set 10 days
           end if
 
