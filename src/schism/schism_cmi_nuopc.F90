@@ -293,13 +293,6 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  air_pressure_at_sea_level
-!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  inst_zonal_wind_height10m
-!  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  inst_merid_wind_height10m
-
-  !call NUOPC_FieldAdvertise(importState, "surface_air_pressure", "N m-2", localrc)
-  !call NUOPC_FieldAdvertise(importState, "surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
-
   ! for coupling to ATMESH, please comment for standalone
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
@@ -415,13 +408,13 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   farrayPtr1 => pr(1:np)
-  !field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
   field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 
 #if 0
   farrayPtr1 => srad(1:np)
@@ -456,12 +449,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 #endif
-
-
-
-
-
-
 
   !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
