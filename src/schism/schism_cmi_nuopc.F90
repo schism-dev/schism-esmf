@@ -281,15 +281,16 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   ! file,  for uncopuled applications, we cannot advertise as we get a NUOPC not
   ! connected error message
 
-  call NUOPC_FieldDictionaryAddIfNeeded("surface_air_pressure", "N m-2", localrc)
+  !call NUOPC_FieldDictionaryAddIfNeeded("surface_air_pressure", "N m-2", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("air_pressure_at_sea_level", "N m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("surface_temperature", "degree C", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("x_velocity_at_10m_above_sea_surface", "m s-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("inst_merid_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("y_velocity_at_10m_above_sea_surface", "m s-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 !  20210716 114822.089 INFO             PET0  (ATMESH:AdvertiseFields)fldsFrATM(num)%stdname  air_pressure_at_sea_level
@@ -342,7 +343,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
-  use schism_glbl, only: np, pr2, airt2
+  use schism_glbl, only: np, pr, windx, windy, srad
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -396,39 +397,71 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo change variable here
-  farrayPtr1 => pr2(1:np)
+  farrayPtr1 => windx(1:np)
 !  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
   field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo Disabled until we fix the coupling
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  field = ESMF_FieldCreate(name="inst_meridional_wind_height10m", mesh=mesh2d, &
+  farrayPtr1 => windy(1:np)
+  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo Disabled until we fix the coupling
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtr1 => pr2(1:np)
-  field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
+  farrayPtr1 => pr(1:np)
+  !field = ESMF_FieldCreate(name="surface_air_pressure", mesh=mesh2d, &
+  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo Disabled until we fix the coupling
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+#if 0
+  farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+! As far as hydrodynamics is concerned, we only deal with waveforc, commented
+! for now
+  farrayPtr1 => waveforce(1:np)
+  field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="radiation_stress_component_sxy", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="radiation_stress_component_syy", mesh=mesh2d, &
+    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+#endif
+
+
+
+
+
+
 
   !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
