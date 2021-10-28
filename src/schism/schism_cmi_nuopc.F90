@@ -423,6 +423,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+#if 0
   farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
@@ -433,7 +434,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
 ! As far as hydrodynamics is concerned, we only deal with waveforc, commented
 ! for now
-#if 0
   farrayPtr1 => waveforce(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
