@@ -471,6 +471,12 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   enddo
 
+
+  !> As IPDv01p3 (NUOPC Provided) fails when fields are not connected, we here
+  !> remove all unconnected fields from the import and export stabilityTimeStep
+  call SCHISM_RemoveUnconnectedFields(importState, rc=localrc)
+  call SCHISM_RemoveUnconnectedFields(exportState, rc=localrc)
+
 end subroutine
 
 #undef ESMF_METHOD
@@ -605,5 +611,44 @@ _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
+
+
+subroutine SCHISM_RemoveUnconnectedFields(state, rc)
+
+  implicit none
+
+  type(ESMF_State), intent(inout) :: state
+  integer(kind=ESMF_KIND_I4), optional :: rc
+
+  integer(kind=ESMF_KIND_I4)              :: rc_, localrc, itemCount, i
+  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  type(ESMF_Field)                        :: field
+
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  call ESMF_StateGet(state, itemCount=itemCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  allocate(itemTypeList(itemCount))
+  allocate(itemNameList(itemCount))
+
+  call ESMF_StateGet(state, itemTypeList=itemTypeList,  &
+    itemNameList=itemNameList, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  do i=1, itemCount
+
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
+
+    if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+      call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif
+
+  enddo
+end subroutine SCHISM_RemoveUnconnectedFields
 
 end module schism_cmi_nuopc
