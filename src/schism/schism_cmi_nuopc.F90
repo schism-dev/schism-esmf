@@ -336,7 +336,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
-  use schism_glbl, only: np, pr, windx, windy, srad
+  use schism_glbl, only: np, pr, windx, windy, srad, nws
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -399,6 +399,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  if (NUOPC_IsConnected(importState, "inst_zonal_wind_height10m", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected zonal wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
+
   farrayPtr1 => windy(1:np)
   field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
@@ -406,6 +411,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (NUOPC_IsConnected(importState, "inst_merid_wind_height10m", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected meridional wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
 
   farrayPtr1 => pr(1:np)
   field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
@@ -415,6 +425,10 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  if (NUOPC_IsConnected(importState, "air_pressure_at_sea_level", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
 
 #if 0
   farrayPtr1 => srad(1:np)
