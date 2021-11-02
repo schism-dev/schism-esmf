@@ -336,7 +336,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
-  use schism_glbl, only: np, pr, windx, windy, srad, nws
+  use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -389,8 +389,9 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo change variable here
-  farrayPtr1 => windx(1:np)
+  ! The postfix 2 on windx, windy, pr denotes the information at the next
+  ! timestep 
+  farrayPtr1 => windx2(1:np)
 !  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
   field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
@@ -404,7 +405,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite("Connected zonal wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
 
-  farrayPtr1 => windy(1:np)
+  farrayPtr1 => windy2(1:np)
   field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -417,7 +418,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite("Connected meridional wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
 
-  farrayPtr1 => pr(1:np)
+  farrayPtr1 => pr2(1:np)
   field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -567,6 +568,8 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
+  use schism_glbl, only: windy,windy1,windy2, np
+
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
@@ -578,6 +581,9 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)       :: localrc
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
+
+  type(ESMF_Field) :: field
+  !real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
 
   rc = ESMF_SUCCESS
 
@@ -594,6 +600,13 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_ClockGet(clock, advanceCount=advanceCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !call ESMF_StateGet(importState, "inst_merid_wind_height10m", field, &
+  !rc=localrc) 
+  !call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  !write(message, '(A,F7.3)') 'Max merid wind speed ',maxval(farrayPtr1(:))
+  !call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+
+  !windy2(1:np) = farrayPtr1(1:np)
   call schism_step(it)
   it = it + 1
 
@@ -622,6 +635,8 @@ _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    
 
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
