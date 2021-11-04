@@ -357,6 +357,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
 
+  !> @todo move to internal state
+  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_sxx(:)
+  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_sxy(:)
+  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_syy(:)
+
   rc = ESMF_SUCCESS
 
   call addSchismMesh(comp, localrc)
@@ -431,7 +436,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
 
-#if 0
   farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
@@ -440,9 +444,13 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-! As far as hydrodynamics is concerned, we only deal with waveforc, commented
-! for now
-  farrayPtr1 => waveforce(1:np)
+  if (NUOPC_IsConnected(importState, "downwelling_short_photosynthetic_radiation_at_water_surface", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected downwelling par will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
+
+  allocate(radiation_stress_component_sxx(np))
+  farrayPtr1 => radiation_stress_component_sxx(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -450,6 +458,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
+  allocate(radiation_stress_component_sxy(np))
+  farrayPtr1 => radiation_stress_component_sxy(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_sxy", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -457,15 +467,15 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
+  allocate(radiation_stress_component_syy(np))
+  farrayPtr1 => radiation_stress_component_syy(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_syy", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-#endif
 
-  !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -644,6 +654,10 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Obtain radiation tensor from wave component and calculate the wave stress
+  call SCHISM_StateImportWaveTensor(importState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call schism_step(it)
