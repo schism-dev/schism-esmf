@@ -502,6 +502,7 @@ end subroutine
 subroutine SetClock(comp, rc)
 
   use schism_bmi, only : schismTimeStep
+  use schism_glbl, only : wtiminc
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -510,12 +511,31 @@ subroutine SetClock(comp, rc)
   type(ESMF_TimeInterval)       :: timeStep
   integer(ESMF_KIND_I4)         :: localrc
   real(ESMF_KIND_R8)            :: seconds
+  character(len=ESMF_MAXSTR)    :: message
 
   rc = ESMF_SUCCESS
 
   call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Check that wtiminc, i.e. the time between two new atmospheric inputs
+  !>  corresponds to the parent (coupling) time step
+  call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_TimeIntervalGet(timeStep, s_r8=seconds, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (abs(wtiminc - seconds) > 1e-6) then 
+    write(message, '(A,I7,A,I7)') 'Check setting of wtiminc = ', int(wtiminc), &
+      ' in param.nml! Auto-resetting to wtiminc = ', int(seconds)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif
+
+  wtiminc = seconds
+
+  !> Now get schism's internal timestep and synchronize that with the 
+  !> component's time step
   call schismTimeStep(seconds)
   call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -568,7 +588,7 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl, only: windy,windy1,windy2, np
+  use schism_glbl, only: wtiminc
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -600,16 +620,6 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_ClockGet(clock, advanceCount=advanceCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_StateGet(importState, "inst_merid_wind_height10m", field, &
-  !rc=localrc) 
-  !call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  !write(message, '(A,F7.3)') 'Max merid wind speed ',maxval(farrayPtr1(:))
-  !call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
-
-  !windy2(1:np) = farrayPtr1(1:np)
-  call schism_step(it)
-  it = it + 1
-
     ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
 
     ! Because of the way that the internal Clock was set in SetClock(),
@@ -624,19 +634,20 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_TimePrint(currTime + timeStep, &
+  call ESMF_TimePrint(currTime + timeStep, &
       preString="---------------------> to: ", unit=message, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    
+  call schism_step(it)
+  it = it + 1
 
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
