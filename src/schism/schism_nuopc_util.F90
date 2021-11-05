@@ -97,6 +97,7 @@ end subroutine NUOPC_FieldAdvertise
 subroutine SCHISM_StateImportWaveTensor(state, rc)
 
   use schism_glbl, only: wwave_force, nvrt, nsa, np
+  use compute_wave_force
   implicit none
 
   type(ESMF_State), intent(in)                 :: state
@@ -133,6 +134,9 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
 
   allocate(radiation_stress_component_sxy(np))
   allocate(radiation_stress_component_syy(np))
+
+!@todo: Broadcast 3 arrays into SCHISM, which will compute wwave_force()
+  call compute_wave_force_lon(RSXX,RSXY,RSYY)
 
   nullify(farrayPtr1)
   deallocate(radiation_stress_component_sxx)

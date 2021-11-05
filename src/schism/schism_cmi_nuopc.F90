@@ -436,6 +436,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
 
+!@TODO: add other air vars: airt2, shum2, hradd, fluxprc
   farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
