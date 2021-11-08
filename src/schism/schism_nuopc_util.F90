@@ -136,6 +136,7 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
   allocate(radiation_stress_component_syy(np))
 
 !@todo: Broadcast 3 arrays into SCHISM, which will compute wwave_force()
+! RSXX etc must have dimnesion of m*m/s/s!
   call compute_wave_force_lon(RSXX,RSXY,RSYY)
 
   nullify(farrayPtr1)
