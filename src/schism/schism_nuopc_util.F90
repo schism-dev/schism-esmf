@@ -154,7 +154,9 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
   nullify(farrayPtr1)
 
   ! @todo check RSXX etc must have dimnesion of m*m/s/s!
-  call compute_waveforce_from_stress(radiation_stress_component_sxx, & 
+!  call compute_waveforce_from_stress(radiation_stress_component_sxx, & 
+!    radiation_stress_component_sxy,radiation_stress_component_syy)
+  call compute_wave_force_lon(radiation_stress_component_sxx, & 
     radiation_stress_component_sxy,radiation_stress_component_syy)
 
   deallocate(radiation_stress_component_sxx)
