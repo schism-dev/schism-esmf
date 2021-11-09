@@ -122,6 +122,7 @@ install-nuopc:  schism_nuopc_lib
 	cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
+	test -f $(SCHISM_BUILD_DIR)/lib/libww3.a && cp $(SCHISM_BUILD_DIR)/lib/libww3.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
 	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
 	#cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
@@ -170,6 +171,8 @@ expand_schismlibs:
 		$(AR) x $(SCHISM_BUILD_DIR)/lib/libparmetis.a ; \
 		$(AR) x $(SCHISM_BUILD_DIR)/lib/libmetis.a ; \
 	)
+	test -f  $(SCHISM_BUILD_DIR)/lib/libww3.a || $(shell mkdir -p .objs/d; cd .objs/d; \
+        $(AR) x $(SCHISM_BUILD_DIR)/lib/libww3.a )
 
 # @todo the fabm lib symbols should be renamed, e.g., prefixed with schism_ to
 # avoid duplicate symbols when coupling to other systems that also contain fabm

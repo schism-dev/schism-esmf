@@ -96,8 +96,8 @@ end subroutine NUOPC_FieldAdvertise
 #define ESMF_METHOD "SCHISM_StateImportWaveTensor""
 subroutine SCHISM_StateImportWaveTensor(state, rc)
 
-  use schism_glbl, only: wwave_force, nvrt, nsa, np
-  use compute_wave_force
+  use schism_glbl, only: nsa
+
   implicit none
 
   type(ESMF_State), intent(in)                 :: state
@@ -117,33 +117,49 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
   if (present(rc)) rc=localrc
 
   call ESMF_StateGet(state, "radiation_stress_component_sxx", itemType=itemType, rc=localrc)
-
   if (itemType /= ESMF_STATEITEM_FIELD) return
 
-  allocate(radiation_stress_component_sxx(np))
+  allocate(radiation_stress_component_sxx(nsa))
   call ESMF_StateGet(state, "radiation_stress_component_sxx", field=field, rc=localrc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
 
-  do i=1,np
+  do i=1,nsa
     radiation_stress_component_sxx(i) = farrayPtr1(i)
   enddo
+  
+  call ESMF_StateGet(state, "radiation_stress_component_sxy", itemType=itemType, rc=localrc)
+  if (itemType /= ESMF_STATEITEM_FIELD) return
 
-  !> @todo Do the same with sxy and sxx components
-  !> Then convert to schism vars
+  allocate(radiation_stress_component_sxy(nsa))
+  call ESMF_StateGet(state, "radiation_stress_component_sxy", field=field, rc=localrc)
 
-  allocate(radiation_stress_component_sxy(np))
-  allocate(radiation_stress_component_syy(np))
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
 
-!@todo: Broadcast 3 arrays into SCHISM, which will compute wwave_force()
-! RSXX etc must have dimnesion of m*m/s/s!
-  call compute_wave_force_lon(RSXX,RSXY,RSYY)
+  do i=1,nsa
+    radiation_stress_component_sxy(i) = farrayPtr1(i)
+  enddo
 
+  call ESMF_StateGet(state, "radiation_stress_component_syy", itemType=itemType, rc=localrc)
+  if (itemType /= ESMF_STATEITEM_FIELD) return
+
+  allocate(radiation_stress_component_syy(nsa))
+  call ESMF_StateGet(state, "radiation_stress_component_syy", field=field, rc=localrc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+
+  do i=1,nsa
+    radiation_stress_component_syy(i) = farrayPtr1(i)
+  enddo
   nullify(farrayPtr1)
+
+  ! @todo check RSXX etc must have dimnesion of m*m/s/s!
+  call compute_waveforce_from_stress(radiation_stress_component_sxx, & 
+    radiation_stress_component_sxy,radiation_stress_component_syy)
+
   deallocate(radiation_stress_component_sxx)
   deallocate(radiation_stress_component_sxy)
   deallocate(radiation_stress_component_syy)
-
   
 end subroutine SCHISM_StateImportWaveTensor
 

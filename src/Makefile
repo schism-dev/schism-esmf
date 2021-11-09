@@ -49,7 +49,7 @@ SCHISM_ESMF_OBJS:=$(addprefix ../schism/,$(SCHISM_ESMF))
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lhydro -lcore -lparmetis -lmetis
+LIBS+= -lhydro -lcore -lparmetis -lmetis -lww3
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I./model -I./schism -I./driver -I./mossco
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
 
