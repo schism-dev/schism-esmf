@@ -442,7 +442,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (NUOPC_IsConnected(importState, "downwelling_short_photosynthetic_radiation_at_water_surface", rc=localrc) & 
@@ -456,7 +456,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
   allocate(radiation_stress_component_sxy(np))
@@ -465,7 +465,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
   allocate(radiation_stress_component_syy(np))
@@ -474,7 +474,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
