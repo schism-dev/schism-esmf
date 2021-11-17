@@ -292,11 +292,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_sxx", "N m-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("eastward_wave_radiation_stress", "N m-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_sxy", "N m-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("eastward_northward_wave_radiation_stress", "N m-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_syy", "N m-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("northward_wave_radiation_stress", "N m-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! for coupling to ATMESH
@@ -305,9 +305,9 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
 
   ! for coupling to WW3DATA
-  call NUOPC_Advertise(importState, "radiation_stress_component_sxx", rc=localrc)
-  call NUOPC_Advertise(importState, "radiation_stress_component_sxy", rc=localrc)
-  call NUOPC_Advertise(importState, "radiation_stress_component_syy", rc=localrc)
+  call NUOPC_Advertise(importState, "eastward_wave_radiation_stress", rc=localrc)
+  call NUOPC_Advertise(importState, "eastward_northward_wave_radiation_stress", rc=localrc)
+  call NUOPC_Advertise(importState, "northward_wave_radiation_stress", rc=localrc)
 
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
@@ -369,9 +369,9 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
 
   !> @todo move to internal state
-  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_sxx(:)
-  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_sxy(:)
-  real(ESMF_KIND_R8), target, allocatable :: radiation_stress_component_syy(:)
+  real(ESMF_KIND_R8), target, allocatable :: eastward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), target, allocatable :: eastward_northward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), target, allocatable :: northward_wave_radiation_stress(:)
 
   rc = ESMF_SUCCESS
 
@@ -463,27 +463,27 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   endif
 #endif
 
-  allocate(radiation_stress_component_sxx(np))
-  farrayPtr1 => radiation_stress_component_sxx(1:np)
-  field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
+  allocate(eastward_wave_radiation_stress(np))
+  farrayPtr1 => eastward_wave_radiation_stress(1:np)
+  field = ESMF_FieldCreate(name="eastward_wave_radiation_stress", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
-  allocate(radiation_stress_component_sxy(np))
-  farrayPtr1 => radiation_stress_component_sxy(1:np)
-  field = ESMF_FieldCreate(name="radiation_stress_component_sxy", mesh=mesh2d, &
+  allocate(eastward_northward_wave_radiation_stress(np))
+  farrayPtr1 => eastward_northward_wave_radiation_stress(1:np)
+  field = ESMF_FieldCreate(name="eastward_northward_wave_radiation_stress", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
-  allocate(radiation_stress_component_syy(np))
-  farrayPtr1 => radiation_stress_component_syy(1:np)
-  field = ESMF_FieldCreate(name="radiation_stress_component_syy", mesh=mesh2d, &
+  allocate(northward_wave_radiation_stress(np))
+  farrayPtr1 => northward_wave_radiation_stress(1:np)
+  field = ESMF_FieldCreate(name="northward_wave_radiation_stress", mesh=mesh2d, &
     farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

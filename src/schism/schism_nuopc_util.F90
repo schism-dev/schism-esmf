@@ -110,59 +110,59 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
   type(ESMF_StateItem_Flag)  :: itemType
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
-  real(ESMF_KIND_R8), pointer :: radiation_stress_component_sxx(:) => null()
-  real(ESMF_KIND_R8), pointer :: radiation_stress_component_sxy(:) => null()
-  real(ESMF_KIND_R8), pointer :: radiation_stress_component_syy(:) => null()
+  real(ESMF_KIND_R8), pointer :: eastward_wave_radiation_stress(:) => null()
+  real(ESMF_KIND_R8), pointer :: eastward_northward_wave_radiation_stress(:) => null()
+  real(ESMF_KIND_R8), pointer :: northward_wave_radiation_stress(:) => null()
 
   if (present(rc)) rc=ESMF_SUCCESS
 
-  call ESMF_StateGet(state, "radiation_stress_component_sxx", itemType=itemType, rc=localrc)
+  call ESMF_StateGet(state, "eastward_wave_radiation_stress", itemType=itemType, rc=localrc)
   !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   if (itemType /= ESMF_STATEITEM_FIELD) return
 
-  allocate(radiation_stress_component_sxx(nsa))
-  call ESMF_StateGet(state, "radiation_stress_component_sxx", field=field, rc=localrc)
+  allocate(eastward_wave_radiation_stress(nsa))
+  call ESMF_StateGet(state, "eastward_wave_radiation_stress", field=field, rc=localrc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
 
   do i=1,nsa
-    radiation_stress_component_sxx(i) = farrayPtr1(i)
+    eastward_wave_radiation_stress(i) = farrayPtr1(i)
   enddo
   
-  call ESMF_StateGet(state, "radiation_stress_component_sxy", itemType=itemType, rc=localrc)
+  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", itemType=itemType, rc=localrc)
   if (itemType /= ESMF_STATEITEM_FIELD) return
 
-  allocate(radiation_stress_component_sxy(nsa))
-  call ESMF_StateGet(state, "radiation_stress_component_sxy", field=field, rc=localrc)
+  allocate(eastward_northward_wave_radiation_stress(nsa))
+  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", field=field, rc=localrc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
 
   do i=1,nsa
-    radiation_stress_component_sxy(i) = farrayPtr1(i)
+    eastward_northward_wave_radiation_stress(i) = farrayPtr1(i)
   enddo
 
-  call ESMF_StateGet(state, "radiation_stress_component_syy", itemType=itemType, rc=localrc)
+  call ESMF_StateGet(state, "northward_wave_radiation_stress", itemType=itemType, rc=localrc)
   if (itemType /= ESMF_STATEITEM_FIELD) return
 
-  allocate(radiation_stress_component_syy(nsa))
-  call ESMF_StateGet(state, "radiation_stress_component_syy", field=field, rc=localrc)
+  allocate(northward_wave_radiation_stress(nsa))
+  call ESMF_StateGet(state, "northward_wave_radiation_stress", field=field, rc=localrc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
 
   do i=1,nsa
-    radiation_stress_component_syy(i) = farrayPtr1(i)
+    northward_wave_radiation_stress(i) = farrayPtr1(i)
   enddo
   nullify(farrayPtr1)
 
   ! @todo check RSXX etc must have dimnesion of m*m/s/s!
-!  call compute_waveforce_from_stress(radiation_stress_component_sxx, & 
-!    radiation_stress_component_sxy,radiation_stress_component_syy)
-  call compute_wave_force_lon(radiation_stress_component_sxx, & 
-    radiation_stress_component_sxy,radiation_stress_component_syy)
+!  call compute_waveforce_from_stress(eastward_wave_radiation_stress, & 
+!    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
+  call compute_wave_force_lon(eastward_wave_radiation_stress, & 
+    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
 
-  deallocate(radiation_stress_component_sxx)
-  deallocate(radiation_stress_component_sxy)
-  deallocate(radiation_stress_component_syy)
+  deallocate(eastward_wave_radiation_stress)
+  deallocate(eastward_northward_wave_radiation_stress)
+  deallocate(northward_wave_radiation_stress)
   
 end subroutine SCHISM_StateImportWaveTensor
 
