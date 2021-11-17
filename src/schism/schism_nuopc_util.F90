@@ -114,9 +114,10 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
   real(ESMF_KIND_R8), pointer :: radiation_stress_component_sxy(:) => null()
   real(ESMF_KIND_R8), pointer :: radiation_stress_component_syy(:) => null()
 
-  if (present(rc)) rc=localrc
+  if (present(rc)) rc=ESMF_SUCCESS
 
   call ESMF_StateGet(state, "radiation_stress_component_sxx", itemType=itemType, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   if (itemType /= ESMF_STATEITEM_FIELD) return
 
   allocate(radiation_stress_component_sxx(nsa))

@@ -292,11 +292,22 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_sxx", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_sxy", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("radiation_stress_component_syy", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! for coupling to ATMESH, please comment for standalone
+  ! for coupling to ATMESH
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
+
+  ! for coupling to WW3DATA
+  call NUOPC_Advertise(importState, "radiation_stress_component_sxx", rc=localrc)
+  call NUOPC_Advertise(importState, "radiation_stress_component_sxy", rc=localrc)
+  call NUOPC_Advertise(importState, "radiation_stress_component_syy", rc=localrc)
 
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
@@ -436,6 +447,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
 
+#if 0
 !@TODO: add other air vars: airt2, shum2, hradd, fluxprc
   farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
@@ -449,32 +461,33 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     .and. nws /= 3) then
     call ESMF_LogWrite("Connected downwelling par will not be used if nws /=3", ESMF_LOGMSG_WARNING)
   endif
+#endif
 
   allocate(radiation_stress_component_sxx(np))
   farrayPtr1 => radiation_stress_component_sxx(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
   allocate(radiation_stress_component_sxy(np))
   farrayPtr1 => radiation_stress_component_sxy(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_sxy", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
   allocate(radiation_stress_component_syy(np))
   farrayPtr1 => radiation_stress_component_syy(1:np)
   field = ESMF_FieldCreate(name="radiation_stress_component_syy", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+    farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call NUOPC_Realize(importState, field=field, rc=localrc)
+  call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
