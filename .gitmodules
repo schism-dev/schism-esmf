@@ -1,0 +1,3 @@
+[submodule "schism"]
+	path = schism
+	url = https://github.com/schism-dev/schism
