@@ -113,36 +113,36 @@ subroutine addSchismMesh(comp, rc)
 !  end do
 
   ! define mesh
-  allocate(nodeids(npa), stat=localrc)
+  allocate(nodeids(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(nodecoords2d(2*npa), stat=localrc)
+  allocate(nodecoords2d(2*np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(nodecoords3d(3*npa), stat=localrc)
+  allocate(nodecoords3d(3*np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !interface nodes are owned by multiple ranks
-  allocate(nodeowners(npa), stat=localrc)
+  allocate(nodeowners(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(nodemask(npa), stat=localrc)
+  allocate(nodemask(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(elementids(nea), stat=localrc)
+  allocate(elementids(ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(elementtypes(nea), stat=localrc)
+  allocate(elementtypes(ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(elementmask(nea), stat=localrc)
+  allocate(elementmask(ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(elementcoords2d(2*nea), stat=localrc)
+  allocate(elementcoords2d(2*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !allocate(elementcoords2d(3*nea), stat=localrc)
-  allocate(nv(4*nea), stat=localrc)
+  allocate(nv(4*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
@@ -155,7 +155,7 @@ subroutine addSchismMesh(comp, rc)
     coordsys=ESMF_COORDSYS_CART
   endif
 
-  do ip=1, npa
+  do ip=1, np
     i = ip !localNodes(ip)
     ! iplg(i) is global node index of local node i in the augmented domain
     nodeids(ip)=iplg(i) !global node #
@@ -170,14 +170,11 @@ subroutine addSchismMesh(comp, rc)
     end if
 
     rank2=ipgl(iplg(i))%rank
+    nodeowners(ip) =rank2 !init 
     if(associated(ipgl(iplg(i))%next)) then !interface or ghost node
       if(ipgl(iplg(i))%next%rank<rank2) then
         nodeowners(ip) =ipgl(iplg(i))%next%rank
-      else
-        nodeowners(ip) =rank2
       endif
-    else !not interface
-      nodeowners(ip) =rank2    
     endif
 
 !    if (i<=np) then
@@ -198,7 +195,7 @@ subroutine addSchismMesh(comp, rc)
   end do !ip
 
   nvcount=0
-  do i=1,nea
+  do i=1,ne
     elementids(i)=ielg(i)
     elementtypes(i)=i34(i)
     elementmask(i)=idry_e(i)
