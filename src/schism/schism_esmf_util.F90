@@ -65,7 +65,7 @@ subroutine addSchismMesh(comp, rc)
   integer, dimension(:), allocatable            :: schismTolocalNodes
   integer, dimension(1:4)                       :: elLocalNode
   integer               :: numNodeHaloIdx
-  integer               :: i,n,nvcount
+  integer               :: i,n,nvcount,nvcount2
   integer               :: ii,ip,ie, localrc
   integer               :: mynp,myne,rank2
   type(llist_type),pointer :: nextp=>null()
@@ -142,7 +142,9 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !allocate(elementcoords2d(3*nea), stat=localrc)
-  allocate(nv(4*ne), stat=localrc)
+  nvcount2=sum(i34(1:ne))
+  !allocate(nv(4*ne), stat=localrc)
+  allocate(nv(nvcount2), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
@@ -216,6 +218,11 @@ subroutine addSchismMesh(comp, rc)
     elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
   end do !i
 
+  if(nvcount2/=nvcount) then
+    localrc=ESMF_RC_ARG_SIZE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
+  endif
+
 #if 0
   write(0,*) 'Local Nodes, np=',np
   do i=1,npa
@@ -239,7 +246,7 @@ subroutine addSchismMesh(comp, rc)
              elementIds=elementids, elementTypes=elementtypes, &
              elementCoords=elementcoords2d, &
              elementDistgrid=elementDistgrid, &
-             elementConn=nv(1:nvcount), rc=localrc)
+             elementConn=nv, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #if 0
