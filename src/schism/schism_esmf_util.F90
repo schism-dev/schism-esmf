@@ -197,7 +197,12 @@ subroutine addSchismMesh(comp, rc)
   nvcount=0
   do i=1,ne
     elementids(i)=ielg(i)
-    elementtypes(i)=i34(i)
+!    elementtypes(i)=i34(i)
+    if(i34(i)==3) then
+      elementtypes(i)=ESMF_MESHELEMTYPE_TRI
+    else
+      elementtypes(i)=ESMF_MESHELEMTYPE_QUAD
+    endif
     elementmask(i)=idry_e(i)
 !    elLocalNode(:)=-1 ! get local elnode
     do ii=1,i34(i)
