@@ -296,7 +296,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtrI41 = nodeIds(1:npa)
+  farrayPtrI41 = nodeIds(1:np)
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -315,7 +315,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtrI41 = elementIds(1:nea)
+  farrayPtrI41 = elementIds(1:ne)
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -335,7 +335,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI42, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do i=1,nea
+  do i=1,ne
     do n=1,i34(i)
       farrayPtrI42(i,n) = iplg(elnode(n,i))
     end do
