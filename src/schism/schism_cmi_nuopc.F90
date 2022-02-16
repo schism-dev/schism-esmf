@@ -659,7 +659,7 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl, only: wtiminc
+  use schism_glbl, only: wtiminc,windx2,windy2,pr2,np
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -674,7 +674,7 @@ subroutine ModelAdvance(comp, rc)
   integer, save               :: it=1
 
   type(ESMF_Field) :: field
-  !real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
+  real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
 
   rc = ESMF_SUCCESS
 
@@ -720,6 +720,27 @@ subroutine ModelAdvance(comp, rc)
   !> Obtain radiation tensor from wave component and calculate the wave stress
   call SCHISM_StateImportWaveTensor(importState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  windx2(1:np)=farrayPtr1(1:np)
+
+  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  windy2(1:np)=farrayPtr1(1:np)
+
+  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  pr2(1:np)=farrayPtr1(1:np)
 
   call schism_step(it)
   it = it + 1
