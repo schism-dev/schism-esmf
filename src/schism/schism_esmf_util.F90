@@ -206,7 +206,7 @@ subroutine addSchismMesh(comp, rc)
     do ii=1,i34(i)
       elLocalNode(ii)=elnode(ii,i) !schismToLocalNodes(elnode(ii,i))
       nvcount = nvcount+1 !i34(i)
-      nv(nvcount+1) =elnode(ii,i) !schismTolocalNodes(elnode(ii,i))
+      nv(nvcount) =elnode(ii,i) !schismTolocalNodes(elnode(ii,i))
     end do
 
     ! Element coord is the sum of nodes divided by number of nodes
@@ -237,7 +237,7 @@ subroutine addSchismMesh(comp, rc)
              elementIds=elementids, elementTypes=elementtypes, &
              elementCoords=elementcoords2d, &
              elementDistgrid=elementDistgrid, &
-             elementConn=nv(1:nvcount-1), rc=localrc)
+             elementConn=nv(1:nvcount), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #if 0
