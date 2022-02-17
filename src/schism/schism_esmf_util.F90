@@ -113,22 +113,26 @@ subroutine addSchismMesh(comp, rc)
 !  end do
 
   ! define mesh
+  !Points to global node #
   allocate(nodeids(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !Global coordinates
   allocate(nodecoords2d(2*np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(nodecoords3d(3*np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !Not used
+!  allocate(nodecoords3d(3*np), stat=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !interface nodes are owned by multiple ranks
+  !A node is owned by same rank across PETs; interface nodes are owned by min rank
   allocate(nodeowners(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   allocate(nodemask(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !Points to global elem #
   allocate(elementids(ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -141,9 +145,9 @@ subroutine addSchismMesh(comp, rc)
   allocate(elementcoords2d(2*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !allocate(elementcoords2d(3*nea), stat=localrc)
+  !nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
+  !Outputs local node # 
   nvcount2=sum(i34(1:ne))
-  !allocate(nv(4*ne), stat=localrc)
   allocate(nv(nvcount2), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -158,59 +162,58 @@ subroutine addSchismMesh(comp, rc)
   endif
 
   do ip=1, np
-    i = ip !localNodes(ip)
-    ! iplg(i) is global node index of local node i in the augmented domain
-    nodeids(ip)=iplg(i) !global node #
+    !i = ip !localNodes(ip)
+    ! iplg() is global node index of local node ip in the augmented domain
+    nodeids(ip)=iplg(ip) !global node #
     if (ics==2) then
       ! if geographical coordinates present
-      nodecoords2d(2*ip-1) = rad2deg*xlon(i)
-      nodecoords2d(2*ip)   = rad2deg*ylat(i)
+      nodecoords2d(2*ip-1) = rad2deg*xlon(ip)
+      nodecoords2d(2*ip)   = rad2deg*ylat(ip)
     else
       ! use cartesian coordinates
-      nodecoords2d(2*ip-1) = xnd(i)
-      nodecoords2d(2*ip)   = ynd(i)
+      nodecoords2d(2*ip-1) = xnd(ip)
+      nodecoords2d(2*ip)   = ynd(ip)
     end if
 
-    rank2=ipgl(iplg(i))%rank
+    !nodeowners must be unique cross all PETs
+    rank2=ipgl(iplg(ip))%rank
     nodeowners(ip) =rank2 !init 
-    if(associated(ipgl(iplg(i))%next)) then !interface or ghost node
-      if(ipgl(iplg(i))%next%rank<rank2) then
-        nodeowners(ip) =ipgl(iplg(i))%next%rank
+    if(associated(ipgl(iplg(ip))%next)) then !interface or ghost node
+      if(ipgl(iplg(ip))%next%rank<rank2) then
+        nodeowners(ip) =ipgl(iplg(ip))%next%rank
       endif
     endif
 
-!    if (i<=np) then
-!      ! if iplg(i) is resident, ipgl(iplg(i))%rank=myrank
-!      nodeowners(ip) = ipgl(iplg(i))%rank
+!    if (ip<=np) then
+!      ! if iplg() is resident, ipgl(iplg(i))%rank=myrank
+!      nodeowners(ip) = ipgl(iplg(ip))%rank
 !    else !not executed at the moment
 !      ! get owner of foreign node, the SCHISM manual tells us to not use
 !      ! ipgl for foreign nodes ???
 !      ! ipgl%next%next%next.... is the linked list, with ranks in ascending order.  Unless ipgb is an interface node (i.e., resident in more than 1 process), the list has only 1 entry
-!      nextp => ipgl(iplg(i))
+!      nextp => ipgl(iplg(ip))
 !      ! We here advance to the end of the list, Joseph suggested to just take the next element
 !      do while (associated(nextp%next))
 !        nextp => nextp%next
 !      end do
 !      nodeowners(ip) = nextp%rank
 !    end if
-    nodemask(ip)         = idry(i)
+    nodemask(ip)         = idry(ip)
   end do !ip
 
   nvcount=0
   do i=1,ne
     elementids(i)=ielg(i)
-!    elementtypes(i)=i34(i)
     if(i34(i)==3) then
       elementtypes(i)=ESMF_MESHELEMTYPE_TRI
     else
       elementtypes(i)=ESMF_MESHELEMTYPE_QUAD
     endif
     elementmask(i)=idry_e(i)
-!    elLocalNode(:)=-1 ! get local elnode
     do ii=1,i34(i)
-      elLocalNode(ii)=elnode(ii,i) !schismToLocalNodes(elnode(ii,i))
-      nvcount = nvcount+1 !i34(i)
-      nv(nvcount) =elnode(ii,i) !schismTolocalNodes(elnode(ii,i))
+      elLocalNode(ii)=elnode(ii,i)
+      nvcount = nvcount+1
+      nv(nvcount) =elnode(ii,i) 
     end do
 
     ! Element coord is the sum of nodes divided by number of nodes
@@ -235,7 +238,7 @@ subroutine addSchismMesh(comp, rc)
   end do
 #endif
 
-  ! create element distgrid
+  ! create element distgrid (distribute)
   elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -269,13 +272,14 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 !YJZ: error
-  return
+!  return
   !> @todo the following steps don't work in the NUOPC cap yet
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)
   !> @todo remove this part of the code once there is a suitable ESMF implementation
 
+#if 0
   !> Create a dummy field to satisfy ugrid conventions
   field = ESMF_FieldEmptyCreate(name='mesh_topology', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -361,6 +365,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   nullify(farrayPtrI42)
+#endif
 
   ! clean up
   deallocate(nodeids, stat=localrc)
