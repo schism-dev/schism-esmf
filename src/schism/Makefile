@@ -1,9 +1,9 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # 
-# @author Carsten Lemmen carsten.lemmen@hereon.de
+# @author Carsten Lemmen <carsten.lemmen@hereon.de>
 #
 # @license Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
