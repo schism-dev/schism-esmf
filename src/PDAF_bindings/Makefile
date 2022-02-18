@@ -73,7 +73,7 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 
 #schism_nuopc_cap.o: schism_esmf_util.o schism_bmi.o
-#schism_cmi_esmf.o: schism_esmf_util.o schism_bmi.o
+#schism_esmf_cap.o: schism_esmf_util.o schism_bmi.o
 #schism_esmf_util.o: schism_bmi.o
 
 .PHONY:  clean default all

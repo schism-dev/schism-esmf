@@ -58,7 +58,7 @@ else
 endif
 
 schism_nuopc_cap.o:  schism_nuopc_util.o schism_esmf_util.o schism_bmi.o
-schism_cmi_esmf.o:   schism_esmf_util.o schism_bmi.o
+schism_esmf_cap.o:   schism_esmf_util.o schism_bmi.o
 schism_esmf_util.o:  schism_bmi.o
 schism_nuopc_util.o: schism_bmi.o
 
@@ -66,7 +66,7 @@ schism_nuopc_util.o: schism_bmi.o
 
 default: all
 all: nuopc esmf
-esmf: schism_cmi_esmf.o
+esmf: schism_esmf_cap.o
 nuopc: schism_nuopc_cap.o
 common: schism_esmf_util.o schism_bmi.o
 

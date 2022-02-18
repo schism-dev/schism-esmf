@@ -24,11 +24,11 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_cmi_esmf.F90"
+#define ESMF_FILENAME "schism_esmf_cap.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module schism_cmi_esmf
+module schism_esmf_cap
 
   use schism_bmi
   use schism_esmf_util
@@ -1577,4 +1577,4 @@ subroutine schism_get_state(ci)
   ncid_schism_io=ncid_c(ci)
 end subroutine schism_get_state
 
-end module schism_cmi_esmf
+end module schism_esmf_cap
