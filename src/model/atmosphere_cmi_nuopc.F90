@@ -1,7 +1,7 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
 ! a dummy atmosphere component for a NUOPC coupled system.
 !
-! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
@@ -26,7 +26,6 @@
 #define ESMF_FILENAME "atmosphere_cmi_nuopc.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
-
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 module atmosphere_cmi_nuopc
@@ -212,9 +211,15 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
 
   ! create a northwestern hemisphere grid
+  !gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/100, 10/), &
+  !  minCornerCoord=(/-150._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
+  !  maxCornerCoord=(/30._ESMF_KIND_R8, 80._ESMF_KIND_R8/), &
+  !  coordSys=ESMF_COORDSYS_SPH_DEG, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
+  !  rc=localrc)
+  ! create a Shinnecock inlet covering grid
   gridIn = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/100, 10/), &
-    minCornerCoord=(/-150._ESMF_KIND_R8, 20._ESMF_KIND_R8/), &
-    maxCornerCoord=(/30._ESMF_KIND_R8, 80._ESMF_KIND_R8/), &
+    minCornerCoord=(/-73._ESMF_KIND_R8, 40._ESMF_KIND_R8/), &
+    maxCornerCoord=(/-72._ESMF_KIND_R8, 41._ESMF_KIND_R8/), &
     coordSys=ESMF_COORDSYS_SPH_DEG, staggerLocList=(/ESMF_STAGGERLOC_CENTER/), &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -228,7 +233,6 @@ subroutine InitializeP2(comp, importState, exportState, clock, rc)
   ! Disabled for now as we disabled coupling OCN->ATM
   !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
 
   !> Realize all export fields using the utility function from schism_esmf_util
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)

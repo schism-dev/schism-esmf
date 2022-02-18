@@ -68,6 +68,7 @@ default: all
 all: nuopc esmf
 esmf: schism_cmi_esmf.o
 nuopc: schism_cmi_nuopc.o
+common: schism_esmf_util.o schism_bmi.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
