@@ -4,5 +4,5 @@ ESMF gridded component.
 For each NUOPC_Model, there is a corresponding Makefile snippet. Currently
 available components are
 
-schism_cmi_nuopc
+schism_nuopc_cap
 : NUOPC cap for SCHISM

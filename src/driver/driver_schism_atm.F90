@@ -41,7 +41,7 @@ module driver_schism_atm
     driver_label_SetModelServices => label_SetModelServices
 
   use atmosphere_cmi_nuopc, only: atmosphereSS => SetServices
-  use schism_cmi_nuopc, only: schismSS => SetServices
+  use schism_nuopc_cap, only: schismSS => SetServices
 
   use NUOPC_Connector, only: cplSS => SetServices
 

@@ -22,13 +22,13 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_cmi_nuopc.F90"
+#define ESMF_FILENAME "schism_nuopc_cap.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module schism_cmi_nuopc
+module schism_nuopc_cap
 
   use esmf
   use nuopc
@@ -844,4 +844,4 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields
 
-end module schism_cmi_nuopc
+end module schism_nuopc_cap

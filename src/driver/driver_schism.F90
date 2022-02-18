@@ -37,7 +37,7 @@ module driver_schism
     driver_routine_SS             => SetServices, &
     driver_label_SetModelServices => label_SetModelServices
 
-  use schism_cmi_nuopc, only: schismSS => SetServices
+  use schism_nuopc_cap, only: schismSS => SetServices
 
   implicit none
 

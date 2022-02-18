@@ -35,8 +35,8 @@ endif
 CMI_NUOPC_OBJS:=$(addprefix ../model/,$(CMI_NUOPC))
 CMI_ESMF_OBJS:=$(addprefix ../model/,$(CMI_ESMF))
 CMI_MOSSCO_OBJS:=$(addprefix ../mossco/,$(CMI_MOSSCO))
-CMI_NUOPC_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_nuopc.o)
-CMI_ESMF_SCHISM_OBJ:=$(addprefix ../schism/,schism_cmi_esmf.o)
+CMI_NUOPC_SCHISM_OBJ:=$(addprefix ../schism/,schism_nuopc_cap.o)
+CMI_ESMF_SCHISM_OBJ:=$(addprefix ../schism/,schism_esmf_cap.o)
 
 F90FLAGS += -I../model -I ../schism
 ifeq ($(origin MOSSCO_DIR), environment)

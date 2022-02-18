@@ -126,18 +126,18 @@ install-nuopc:  schism_nuopc_lib
 	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
 	#cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
 	cp $(SCHISM_NUOPC_MODS) $(SCHISM_BUILD_DIR)/include/
-	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(DESTDIR)/schism.mk
-	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
+	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(DESTDIR)/schism.mk
+	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
-SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_cmi_nuopc.mod)
-SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_nuopc_util.o schism_cmi_nuopc.o)
-SCHISM_ESMF_MODS=$(addprefix src/schism/,schism_cmi_esmf.mod)
-SCHISM_ESMF_OBJS=$(addprefix src/schism/,schism_cmi_esmf.o)
+SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_nuopc_cap.mod)
+SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_nuopc_util.o schism_nuopc_cap.o)
+SCHISM_ESMF_MODS=$(addprefix src/schism/,schism_esmf_cap.mod)
+SCHISM_ESMF_OBJS=$(addprefix src/schism/,schism_esmf_cap.o)
 SCHISM_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod)
 SCHISM_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
