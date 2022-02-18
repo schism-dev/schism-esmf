@@ -18,8 +18,6 @@
 ! See the License for the specific language governing permissions and
 ! limitations under the License.
 !
-! This version accounts for halo(ghost) zone, because ESMF by default
-! partitions among nodes instead of elements
 
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
@@ -41,7 +39,7 @@ contains
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"
 subroutine addSchismMesh(comp, rc)
-
+! Define ESMF domain partition
   !> @todo apply only filter to 'use schism_glbl'
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
@@ -62,7 +60,7 @@ subroutine addSchismMesh(comp, rc)
   integer, dimension(:), allocatable            :: nodeowners, elementtypes
   integer, dimension(:), allocatable            :: nodemask, elementmask
   integer, dimension(:), allocatable            :: tmpIdx, tmpIdx2, localNodes, nodeHaloIdx
-  integer, dimension(:), allocatable            :: schismTolocalNodes
+  integer, dimension(:), allocatable            :: schismTolocalNodes,testids
   integer, dimension(1:4)                       :: elLocalNode
   integer               :: numNodeHaloIdx
   integer               :: i,n,nvcount,nvcount2
@@ -162,8 +160,6 @@ subroutine addSchismMesh(comp, rc)
   endif
 
   do ip=1, np
-    !i = ip !localNodes(ip)
-    ! iplg() is global node index of local node ip in the augmented domain
     nodeids(ip)=iplg(ip) !global node #
     if (ics==2) then
       ! if geographical coordinates present
@@ -252,7 +248,7 @@ subroutine addSchismMesh(comp, rc)
              elementConn=nv, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#if 0
+!#if 0
   ! output mesh information from schism and esmf
   call ESMF_MeshGet(mesh2d,numOwnedNodes=mynp,numOwnedElements=myne,elementDistgrid=distgrid,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -260,13 +256,16 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  write(0,*) 'esmf   owned nodes,elements',mynp,myne
-  write(0,*) 'schism owned nodes,elements',np,ne
-  write(0,*) 'schism   all nodes,elements',npa,nea
-  write(0,*) 'elementIds',elementIds
-  write(0,*) 'distgridElementIds',testids
+  write(message,*) 'esmf   owned nodes,elements:',mynp,myne
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  write(message,*) 'schism owned nodes,elements:',np,ne
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  write(message,*) 'elementIds:',elementIds
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  write(message,*) 'distgridElementIds:',testids
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   deallocate(testids)
-#endif
+!#endif
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)

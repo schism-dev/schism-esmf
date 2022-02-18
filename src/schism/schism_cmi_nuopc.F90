@@ -379,8 +379,10 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   rc = ESMF_SUCCESS
 
+!  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
   call addSchismMesh(comp, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
 
   ! call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
