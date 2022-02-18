@@ -34,6 +34,9 @@ schism_esmf_test
 *.a
 *.lib
 
+# Editor temporaries
+*.swp
+
 # Executables
 *.exe
 *.out
