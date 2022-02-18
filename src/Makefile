@@ -41,8 +41,8 @@ endif
 
 MODELS=atmosphere_cmi_nuopc.o
 
-SCHISM_NUOPC=schism_cmi_nuopc.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o
-SCHISM_ESMF=schism_cmi_nuopc.o schism_esmf_util.o schism_bmi.o
+SCHISM_NUOPC=schism_nuopc_cap.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o
+SCHISM_ESMF=schism_nuopc_cap.o schism_esmf_util.o schism_bmi.o
 MODEL_OBJS:=$(addprefix ../model/,$(MODELS))
 SCHISM_NUOPC_OBJS:=$(addprefix ../schism/,$(SCHISM_NUOPC))
 SCHISM_ESMF_OBJS:=$(addprefix ../schism/,$(SCHISM_ESMF))
@@ -65,7 +65,7 @@ main_esmf: main_esmf.o driver/toplevel_schism_netcdf.o model/atmosphere_cmi_nuop
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(MOSSCO_LIB) $(LDFLAGS) $(LIBS)
 
 main_nuopc: main_nuopc.o driver/driver_schism_atm.o model/atmosphere_cmi_nuopc.o \
-	$(addprefix schism/,schism_cmi_nuopc.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o)
+	$(addprefix schism/,schism_nuopc_cap.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
 main_esmf.o: driver/toplevel_schism_atm.o main_esmf.F90 Makefile
