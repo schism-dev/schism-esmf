@@ -1,9 +1,12 @@
 ! This code is part of the SCHISM-ESMF interface, it defines utility
 ! functions used both by the NUOPC and ESMF caps
 !
-! @copyright 2021 Helmholtz-Zentrum Hereon
+! @copyright 2022 Virginia Institute of Marine Science
+! @copyright 2021-2022 Helmholtz-Zentrum Hereon
 ! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
+!
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Joseph Zhang <yjzhang@vims.edu>
 ! @author Richard Hofmeister
 !
 ! @license Apache License, Version 2.0 (the "License");
@@ -51,19 +54,19 @@ subroutine addSchismMesh(comp, rc)
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Mesh)          :: mesh2d, mesh3d
+  type(ESMF_Mesh)          :: mesh2d
   type(ESMF_DistGrid)      :: elementDistgrid, distgrid
   type(ESMF_CoordSys_Flag) :: coordsys
   integer, dimension(:), allocatable            :: nodeids, elementids, nv
-  real(ESMF_KIND_R8), dimension(:), allocatable :: nodecoords2d, nodecoords3d
-  real(ESMF_KIND_R8), dimension(:), allocatable :: elementcoords2d, elementcoords3d
+  real(ESMF_KIND_R8), dimension(:), allocatable :: nodecoords2d
+  real(ESMF_KIND_R8), dimension(:), allocatable :: elementcoords2d
   integer, dimension(:), allocatable            :: nodeowners, elementtypes
   integer, dimension(:), allocatable            :: nodemask, elementmask
   integer, dimension(:), allocatable            :: tmpIdx, tmpIdx2, localNodes, nodeHaloIdx
   integer, dimension(:), allocatable            :: schismTolocalNodes,testids
   integer, dimension(1:4)                       :: elLocalNode
   integer               :: numNodeHaloIdx
-  integer               :: i,n,nvcount,nvcount2
+  integer               :: i,n,nvcount
   integer               :: ii,ip,ie, localrc
   integer               :: mynp,myne,rank2
   type(llist_type),pointer :: nextp=>null()
@@ -119,10 +122,6 @@ subroutine addSchismMesh(comp, rc)
   allocate(nodecoords2d(2*np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !Not used
-!  allocate(nodecoords3d(3*np), stat=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   !A node is owned by same rank across PETs; interface nodes are owned by min rank
   allocate(nodeowners(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -143,10 +142,9 @@ subroutine addSchismMesh(comp, rc)
   allocate(elementcoords2d(2*ne), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
-  !Outputs local node # 
-  nvcount2=sum(i34(1:ne))
-  allocate(nv(nvcount2), stat=localrc)
+  ! nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
+  ! Outputs local node # 
+  allocate(nv(sum(i34(1:ne))), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
@@ -217,7 +215,7 @@ subroutine addSchismMesh(comp, rc)
     elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
   end do !i
 
-  if(nvcount2/=nvcount) then
+  if(ubound(nv,1)/=nvcount) then
     localrc=ESMF_RC_ARG_SIZE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
   endif
@@ -248,37 +246,40 @@ subroutine addSchismMesh(comp, rc)
              elementConn=nv, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!#if 0
-  ! output mesh information from schism and esmf
-  call ESMF_MeshGet(mesh2d,numOwnedNodes=mynp,numOwnedElements=myne,elementDistgrid=distgrid,rc=localrc)
+  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, elementDistgrid=distgrid, &
+    rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   allocate(testids(myne))
   call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  write(message,*) 'esmf   owned nodes,elements:',mynp,myne
+  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
+    'resident nodes and ', myne, ' resident elements in SCHISM'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-  write(message,*) 'schism owned nodes,elements:',np,ne
+
+  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh with "', mynp, &
+    'owned nodes and ', myne, ' owned elements'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+
+  !> @todo the following might overflow the message buffer easily ...
   write(message,*) 'elementIds:',elementIds
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+
   write(message,*) 'distgridElementIds:',testids
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+
   deallocate(testids)
-!#endif
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!YJZ: error
-!  return
   !> @todo the following steps don't work in the NUOPC cap yet
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)
   !> @todo remove this part of the code once there is a suitable ESMF implementation
 
-#if 0
   !> Create a dummy field to satisfy ugrid conventions
   field = ESMF_FieldEmptyCreate(name='mesh_topology', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -364,7 +365,6 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   nullify(farrayPtrI42)
-#endif
 
   ! clean up
   deallocate(nodeids, stat=localrc)
@@ -376,8 +376,9 @@ subroutine addSchismMesh(comp, rc)
   deallocate(elementtypes, stat=localrc)
   if (allocated(elementCoords2d)) deallocate(elementCoords2d, stat=localrc)
   deallocate(nv, stat=localrc)
-!  deallocate(LocalNodes, stat=localrc)
-!  deallocate(schismToLocalNodes, stat=localrc)
+
+  write(message, '(A)') trim(compName)//' created 2D mesh"'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
 end subroutine addSchismMesh
 
