@@ -1,9 +1,9 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # 
-# @author Carsten Lemmen carsten.lemmen@hereon.de
+# @author Carsten Lemmen <carsten.lemmen@hereon.de>
 #
 # @license Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,8 +57,8 @@ else
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 endif
 
-schism_cmi_nuopc.o:  schism_nuopc_util.o schism_esmf_util.o schism_bmi.o
-schism_cmi_esmf.o:   schism_esmf_util.o schism_bmi.o
+schism_nuopc_cap.o:  schism_nuopc_util.o schism_esmf_util.o schism_bmi.o
+schism_esmf_cap.o:   schism_esmf_util.o schism_bmi.o
 schism_esmf_util.o:  schism_bmi.o
 schism_nuopc_util.o: schism_bmi.o
 
@@ -66,8 +66,9 @@ schism_nuopc_util.o: schism_bmi.o
 
 default: all
 all: nuopc esmf
-esmf: schism_cmi_esmf.o
-nuopc: schism_cmi_nuopc.o
+esmf: schism_esmf_cap.o
+nuopc: schism_nuopc_cap.o
+common: schism_esmf_util.o schism_bmi.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout

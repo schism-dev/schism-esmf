@@ -1,8 +1,8 @@
-This directory contains NUOPC cap for schism instances of NUOPC_Model and for the
-ESMF gridded component.
+This directory contains the ESMF/NUOPC caps for the SCHISM model, as well as supporting infrastructure and interfaces.
 
-For each NUOPC_Model, there is a corresponding Makefile snippet. Currently
-available components are
+The ESMF cap `schism_esmf_cap` relies on utilities in `schism_esmf_utils` and the basic model interface `schism_bmi`.
+The NUOPC cap `schism_nuopc_cap` relies on utilities in `schism_nuop_utils`and `schism_esmf_utils`and the `schism_bmi`.
 
-schism_cmi_nuopc
-: NUOPC cap for SCHISM
+For the NUOPC model instance in `schism_nuopc_cap` there are also corresponding Makefile snippets for standardized
+inclusion in NUOPC compliant model systems.
+

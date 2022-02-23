@@ -2,7 +2,7 @@
 ! a driver for a NUOPC coupled system of SCHISM with a
 ! dummy atmosphere without a mediator.
 !
-! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen carsten.lemmen@hereon.de
@@ -41,7 +41,7 @@ module driver_schism_atm
     driver_label_SetModelServices => label_SetModelServices
 
   use atmosphere_cmi_nuopc, only: atmosphereSS => SetServices
-  use schism_cmi_nuopc, only: schismSS => SetServices
+  use schism_nuopc_cap, only: schismSS => SetServices
 
   use NUOPC_Connector, only: cplSS => SetServices
 

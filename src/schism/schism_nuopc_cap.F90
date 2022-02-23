@@ -22,13 +22,13 @@
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
-#define ESMF_FILENAME "schism_cmi_nuopc.F90"
+#define ESMF_FILENAME "schism_nuopc_cap.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
-module schism_cmi_nuopc
+module schism_nuopc_cap
 
   use esmf
   use nuopc
@@ -292,11 +292,22 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_zonal_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("eastward_wave_radiation_stress", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("eastward_northward_wave_radiation_stress", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("northward_wave_radiation_stress", "N m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! for coupling to ATMESH, please comment for standalone
+  ! for coupling to ATMESH
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
+
+  ! for coupling to WW3DATA
+  call NUOPC_Advertise(importState, "eastward_wave_radiation_stress", rc=localrc)
+  call NUOPC_Advertise(importState, "eastward_northward_wave_radiation_stress", rc=localrc)
+  call NUOPC_Advertise(importState, "northward_wave_radiation_stress", rc=localrc)
 
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
@@ -336,7 +347,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
-  use schism_glbl, only: np, pr, windx, windy, srad
+  use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -355,12 +366,23 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   integer(ESMF_KIND_I4)                   :: itemCount
 
+  type(ESMF_DistGrid)                :: nodalDistgrid
+  type(ESMF_Array)                   :: array
+
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
+!  real(ESMF_KIND_R8), target, allocatable :: farray1(:)
+
+  !> @todo move to internal state
+  real(ESMF_KIND_R8), target, allocatable :: eastward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), target, allocatable :: eastward_northward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), target, allocatable :: northward_wave_radiation_stress(:)
 
   rc = ESMF_SUCCESS
 
+!  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
   call addSchismMesh(comp, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
 
   ! call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -389,68 +411,158 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo change variable here
-  farrayPtr1 => windx(1:np)
-!  field = ESMF_FieldCreate(name="x_velocity_at_10m_above_sea_surface", mesh=mesh2d, &
-  field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
+  call ESMF_MeshGet(mesh2d, nodalDistgrid=nodalDistgrid, rc=rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="inst_zonal_wind_height10m", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  farrayPtr1(1:np) = windx2(1:np)
+
+  ! The postfix 2 on windx, windy, pr denotes the information at the next
+  ! timestep 
+!  if(.not.allocated(farray1)) allocate(farray1(np))
+!  farray1=windx2(1:np)
+
+!  farrayPtr1 =>windx2(1:np)
+!  field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtr1 => windy(1:np)
-  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
+  if (NUOPC_IsConnected(importState, "inst_zonal_wind_height10m", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected zonal wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
+
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="inst_merid_wind_height10m", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  farrayPtr1(1:np) = windy2(1:np)
+
+!  farrayPtr1 => windy2(1:np)
+!  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (NUOPC_IsConnected(importState, "inst_merid_wind_height10m", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected meridional wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
+
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="air_pressure_at_sea_level", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  farrayPtr1(1:np) = pr2(1:np)
+
+!  farrayPtr1 => pr2(1:np)
+!  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtr1 => pr(1:np)
-  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
-    farrayPtr=farrayPtr1, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
+  if (NUOPC_IsConnected(importState, "air_pressure_at_sea_level", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
 
 #if 0
+!@TODO: add other air vars: airt2, shum2, hradd, fluxprc
   farrayPtr1 => srad(1:np)
   field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
     typekind=ESMF_TYPEKIND_R8, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !call NUOPC_Realize(importState, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-! As far as hydrodynamics is concerned, we only deal with waveforc, commented
-! for now
-  farrayPtr1 => waveforce(1:np)
-  field = ESMF_FieldCreate(name="radiation_stress_component_sxx", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  field = ESMF_FieldCreate(name="radiation_stress_component_sxy", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  field = ESMF_FieldCreate(name="radiation_stress_component_syy", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (NUOPC_IsConnected(importState, "downwelling_short_photosynthetic_radiation_at_water_surface", rc=localrc) & 
+    .and. nws /= 3) then
+    call ESMF_LogWrite("Connected downwelling par will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  endif
 #endif
 
-  !> Realize all export fields using the utility function from schism_esmf_util
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="eastward_wave_radiation_stress", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="eastward_wave_radiation_stress", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!  allocate(eastward_wave_radiation_stress(np))
+!  farrayPtr1 => eastward_wave_radiation_stress(1:np)
+!  field = ESMF_FieldCreate(name="eastward_wave_radiation_stress", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="eastward_northward_wave_radiation_stress", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="eastward_northward_wave_radiation_stress", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!  allocate(eastward_northward_wave_radiation_stress(np))
+!  farrayPtr1 => eastward_northward_wave_radiation_stress(1:np)
+!  field = ESMF_FieldCreate(name="eastward_northward_wave_radiation_stress", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+!  allocate(northward_wave_radiation_stress(np))
+
+  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="northward_wave_radiation_stress", rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  field = ESMF_FieldCreate(name="northward_wave_radiation_stress", mesh=mesh2d, array=array, &
+     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!  farrayPtr1 => northward_wave_radiation_stress(1:np)
+!  field = ESMF_FieldCreate(name="northward_wave_radiation_stress", mesh=mesh2d, &
+!    farrayPtr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_Realize(importState, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -476,6 +588,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call SCHISM_RemoveUnconnectedFields(importState, rc=localrc)
   call SCHISM_RemoveUnconnectedFields(exportState, rc=localrc)
 
+  !@TODO: should we destroy field & array vars?
 end subroutine
 
 #undef ESMF_METHOD
@@ -486,6 +599,7 @@ end subroutine
 subroutine SetClock(comp, rc)
 
   use schism_bmi, only : schismTimeStep
+  use schism_glbl, only : wtiminc
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -494,12 +608,31 @@ subroutine SetClock(comp, rc)
   type(ESMF_TimeInterval)       :: timeStep
   integer(ESMF_KIND_I4)         :: localrc
   real(ESMF_KIND_R8)            :: seconds
+  character(len=ESMF_MAXSTR)    :: message
 
   rc = ESMF_SUCCESS
 
   call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Check that wtiminc, i.e. the time between two new atmospheric inputs
+  !>  corresponds to the parent (coupling) time step
+  call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_TimeIntervalGet(timeStep, s_r8=seconds, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (abs(wtiminc - seconds) > 1e-6) then 
+    write(message, '(A,I7,A,I7)') 'Check setting of wtiminc = ', int(wtiminc), &
+      ' in param.nml! Auto-resetting to wtiminc = ', int(seconds)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif
+
+  wtiminc = seconds
+
+  !> Now get schism's internal timestep and synchronize that with the 
+  !> component's time step
   call schismTimeStep(seconds)
   call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -552,6 +685,8 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
+  use schism_glbl, only: wtiminc,windx2,windy2,pr2,np
+
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
@@ -563,6 +698,10 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)       :: localrc
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
+
+  type(ESMF_Field) :: field
+  real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
+  type(ESMF_StateItem_Flag) :: itemType
 
   rc = ESMF_SUCCESS
 
@@ -579,9 +718,6 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_ClockGet(clock, advanceCount=advanceCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call schism_step(it)
-  it = it + 1
-
     ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
 
     ! Because of the way that the internal Clock was set in SetClock(),
@@ -596,17 +732,74 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_TimePrint(currTime + timeStep, &
+  call ESMF_TimePrint(currTime + timeStep, &
       preString="---------------------> to: ", unit=message, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
-_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Obtain radiation tensor from wave component and calculate the wave stress
+  call SCHISM_StateImportWaveTensor(importState, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    windx2(1:np)=farrayPtr1(1:np)
+  endif 
+
+  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    windy2(1:np)=farrayPtr1(1:np)
+  endif 
+
+  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    pr2(1:np)=farrayPtr1(1:np)
+  endif 
+
+!  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  windy2(1:np)=farrayPtr1(1:np)
+
+!  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  pr2(1:np)=farrayPtr1(1:np)
+
+  call schism_step(it)
+  it = it + 1
 
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
@@ -649,4 +842,4 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields
 
-end module schism_cmi_nuopc
+end module schism_nuopc_cap
