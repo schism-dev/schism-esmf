@@ -41,8 +41,8 @@ module schism_esmf_util
   type type_InternalStateStruct
     ! Store the number of and indices in the 1:np resident nodes
     integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes
-    integer(ESMF_KIND_I4), pointer :: ownedNodeIds => null()
-    integer(ESMF_KIND_I4), pointer :: foreignNodeIds=>null()
+    integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
+    integer(ESMF_KIND_I4), pointer :: foreignNodeIds(:) => null()
   end type
 
   type type_InternalState
@@ -97,20 +97,24 @@ subroutine addSchismMesh(comp, rc)
   type(ESMF_State)                     :: exportState
   type(ESMF_Field)                     :: field
 
-  integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes
+  integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes, localPet
+  integer(ESMF_KIND_I4) :: ownedCount, foreignCount
+
   integer(ESMF_KIND_I4), allocatable, target :: ownedNodeIdx(:)
   integer(ESMF_KIND_I4), allocatable, target :: foreignNodeIdx(:)
+
   type(type_InternalState) :: internalState
-  type(type_InternalStateStruct), target  :: isData
   type(type_InternalStateStruct), pointer :: isDataPtr => null()
 
   rc = ESMF_SUCCESS
 
-  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  call ESMF_GridCompGet(comp, name=compName, localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
 
   !> @todo all non-ESMF stuff should be outsourced to schism_bmi.F90
   ! prepare mesh
@@ -221,14 +225,47 @@ subroutine addSchismMesh(comp, rc)
     nodemask(ip)         = idry(ip)
   end do !ip
 
-!  do ip=1,np
-!    if nodeowners(ip) == myrank) then 
-!      numOwnedNodes = numOwnedNodes + 1
-!    else 
-!      numForeignNodes = numForeignNodes + 1
-!    endif
-!  enddo
+  isDataPtr%numOwnedNodes = 0
+  isDataPtr%numForeignNodes = 0
+  do ip=1,np
+    if (nodeowners(ip) == localPet) then 
+      isDataPtr%numOwnedNodes = isDataPtr%numOwnedNodes + 1
+    else 
+      isDataPtr%numForeignNodes = isDataPtr%numForeignNodes + 1
+    endif
+  enddo
 
+  if (isDataPtr%numForeignNodes + isDataPtr%numOwnedNodes /= np) then 
+    localrc = ESMF_RC_ARG_SIZE
+    write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+      'mismatching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+      ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  allocate(isDataPtr%ownedNodeIds(isDataPtr%numOwnedNodes), stat=localrc)
+  allocate(isDataPtr%foreignNodeIds(isDataPtr%numForeignNodes), stat=localrc)
+
+  ownedCount = 0
+  foreignCount = 0
+  do i=1,np
+    if (nodeowners(ip) == localPet) then
+      ownedCount=ownedCount + 1
+      isDataPtr%ownedNodeIds(ownedCount) = ip
+    else
+      foreignCount=foreignCount + 1
+      isDataPtr%foreignNodeIds(foreignCount) = ip
+    endif
+  enddo
+
+  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  write(*,*) 'Owned nodes on PET ',localPet,isDataPtr%ownedNodeIds
+  write(*,*) 'Foreign nodes on PET ',localPet,isDataPtr%foreignNodeIds
 
   nvcount=0
   do i=1,ne
