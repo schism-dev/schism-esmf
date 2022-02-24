@@ -347,8 +347,6 @@ end subroutine
 subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   use schism_esmf_util, only : addSchismMesh
-  use schism_esmf_util, only : type_InternalState, type_internalStateStruct
-
   !> @todo move all use statements of schism into schism_bmi
   use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
   implicit none
@@ -380,22 +378,13 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   real(ESMF_KIND_R8), target, allocatable :: eastward_northward_wave_radiation_stress(:)
   real(ESMF_KIND_R8), target, allocatable :: northward_wave_radiation_stress(:)
 
-  type(type_InternalState) :: internalState
-  type(type_InternalStateStruct), pointer :: isDataPtr => null()
-
   rc = ESMF_SUCCESS
 
 !  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
+  !call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
   call addSchismMesh(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 !  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
-
-  !>@todo this next call returns an error. We got to fix this to be able to
-  ! access the internally stored information on foreignNodes
-  call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  isDataPtr => internalState%wrap
 
   ! call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -484,8 +473,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   endif
 
   array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    haloSeqIndexList=isDataPtr%foreignNodeIds, &
     name="air_pressure_at_sea_level", rc=localrc)
+  !farrayPtr1 => pr2(1:np)
 
   !write(0,*) 'farrayptr1 ',ubound(farrayPtr1,1), ubound(pr2,1)
   !array = ESMF_ArrayCreate(nodalDistgrid, farrayPtr=farrayPtr1, &
@@ -719,13 +708,9 @@ subroutine ModelAdvance(comp, rc)
   integer, save               :: it=1
   integer                     :: npe ! number of exclusive nodes <= np
 
-  type(ESMF_Field)            :: field
+  type(ESMF_Field) :: field
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
-  type(ESMF_StateItem_Flag)   :: itemType
-
-  integer(ESMF_KIND_I4)                   :: ip
-  type(type_internalState)                :: internalState
-  type(type_InternalStateStruct), pointer :: isDataPtr => null()
+  type(ESMF_StateItem_Flag) :: itemType
 
   rc = ESMF_SUCCESS
 
@@ -734,11 +719,6 @@ subroutine ModelAdvance(comp, rc)
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  isDataPtr => internalState%wrap
 
   call NUOPC_ModelGet(comp, modelClock=clock, importState=importState, &
     exportState=exportState, rc=localrc)
@@ -819,15 +799,6 @@ subroutine ModelAdvance(comp, rc)
     
     npe = ubound(farrayPtr1,1)
     pr2(1:npe)=farrayPtr1(1:npe)
-
-    !> @todo  updated implementation
-    do ip=1,isDataPtr%numOwnedNodes
-      pr2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-    enddo
-    do ip=1,isDataPtr%numForeignNodes
-      pr2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip + isDataPtr%numOwnedNodes)
-    enddo
-
   endif 
 
 !  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)

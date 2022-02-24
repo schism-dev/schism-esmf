@@ -50,7 +50,7 @@ module schism_esmf_util
   end type
 
   public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
-  public type_InternalState, type_InternalStateStruct
+  public type_InternalState
   private
 
 contains
