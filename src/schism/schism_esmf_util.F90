@@ -34,7 +34,23 @@ module schism_esmf_util
   use esmf
   implicit none
 
+! The internal state saves data across ESMF phases and is
+! persistent throught the lifetime of an instance.  Here, we
+! only provide a boilerplate implementation of an empty internal state
+
+  type type_InternalStateStruct
+    ! Store the number of and indices in the 1:np resident nodes
+    integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes
+    integer(ESMF_KIND_I4), pointer :: ownedNodeIds => null()
+    integer(ESMF_KIND_I4), pointer :: foreignNodeIds=>null()
+  end type
+
+  type type_InternalState
+    type(type_InternalStateStruct), pointer :: wrap
+  end type
+
   public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
+  public type_InternalState
   private
 
 contains
@@ -81,9 +97,19 @@ subroutine addSchismMesh(comp, rc)
   type(ESMF_State)                     :: exportState
   type(ESMF_Field)                     :: field
 
+  integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes
+  integer(ESMF_KIND_I4), allocatable, target :: ownedNodeIdx(:)
+  integer(ESMF_KIND_I4), allocatable, target :: foreignNodeIdx(:)
+  type(type_InternalState) :: internalState
+  type(type_InternalStateStruct), target  :: isData
+  type(type_InternalStateStruct), pointer :: isDataPtr => null()
+
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo all non-ESMF stuff should be outsourced to schism_bmi.F90
@@ -194,6 +220,15 @@ subroutine addSchismMesh(comp, rc)
 !    end if
     nodemask(ip)         = idry(ip)
   end do !ip
+
+!  do ip=1,np
+!    if nodeowners(ip) == myrank) then 
+!      numOwnedNodes = numOwnedNodes + 1
+!    else 
+!      numForeignNodes = numForeignNodes + 1
+!    endif
+!  enddo
+
 
   nvcount=0
   do i=1,ne

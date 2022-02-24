@@ -1,7 +1,7 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
 ! the schism component for a NUOPC coupled system
 !
-! @copyright (C) 2021 Helmholtz-Zentrum Hereon
+! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen carsten.lemmen@hereon.de
@@ -50,12 +50,13 @@ module schism_nuopc_cap
 ! persistent throught the lifetime of an instance.  Here, we
 ! only provide a boilerplate implementation of an empty internal state
 
-  type type_InternalStateStruct
-  end type
+  !type type_InternalStateStruct
+  !  integer(ESMF_KIND_I4): numOwnedNodes, numForeignNodes
+  !end type
 
-  type type_InternalState
-    type(type_InternalStateStruct), pointer :: wrap
-  end type
+  !type type_InternalState
+  !  type(type_InternalStateStruct), pointer :: wrap
+  !end type
 
   character(len=ESMF_MAXSTR), parameter :: &
     label_InternalState = 'InternalState'
@@ -380,7 +381,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
 
 !  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
-  call addSchismMesh(comp, localrc)
+  !call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
+  call addSchismMesh(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 !  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
 
@@ -424,7 +426,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  farrayPtr1(1:np) = windx2(1:np)
+
+  !farrayPtr1(1:npe) = windx2(1:npe)
 
   ! The postfix 2 on windx, windy, pr denotes the information at the next
   ! timestep 
@@ -454,7 +457,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  farrayPtr1(1:np) = windy2(1:np)
+  !farrayPtr1(1:np) = windy2(1:np)
 
 !  farrayPtr1 => windy2(1:np)
 !  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, &
@@ -471,6 +474,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
     name="air_pressure_at_sea_level", rc=localrc)
+  !farrayPtr1 => pr2(1:np)
+
+  !write(0,*) 'farrayptr1 ',ubound(farrayPtr1,1), ubound(pr2,1)
+  !array = ESMF_ArrayCreate(nodalDistgrid, farrayPtr=farrayPtr1, &
+  !  name="air_pressure_at_sea_level", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
   field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, array=array, &
@@ -479,7 +487,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  farrayPtr1(1:np) = pr2(1:np)
+  !farrayPtr1(1:np) = pr2(1:np)
 
 !  farrayPtr1 => pr2(1:np)
 !  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
@@ -698,6 +706,7 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)       :: localrc
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
+  integer                     :: npe ! number of exclusive nodes <= np
 
   type(ESMF_Field) :: field
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
@@ -757,7 +766,11 @@ subroutine ModelAdvance(comp, rc)
 
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    windx2(1:np)=farrayPtr1(1:np)
+
+    ! The following assumes that halo exchange on nodes is done inside SCHISM
+    ! and we do not have to worry about this here
+    npe = ubound(farrayPtr1,1)
+    windx2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
@@ -769,7 +782,9 @@ subroutine ModelAdvance(comp, rc)
 
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    windy2(1:np)=farrayPtr1(1:np)
+ 
+    npe = ubound(farrayPtr1,1)
+    windy2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
@@ -781,7 +796,9 @@ subroutine ModelAdvance(comp, rc)
 
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    pr2(1:np)=farrayPtr1(1:np)
+    
+    npe = ubound(farrayPtr1,1)
+    pr2(1:npe)=farrayPtr1(1:npe)
   endif 
 
 !  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
