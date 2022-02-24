@@ -78,9 +78,6 @@ subroutine SetServices(comp, rc)
   allocate(internalState%wrap, stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_UserCompSetInternalState(comp, label_InternalState, &
-    internalState, localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompDerive(comp, model_routine_SS, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -108,6 +105,11 @@ subroutine SetServices(comp, rc)
   !> Do we need a specialization of Finalize, by adding a label?
   !call NUOPC_CompSpecialize(comp, specLabel=model_label_Finalize, &
   !  specRoutine=Finalize, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_UserCompSetInternalState(comp, label_InternalState, &
+  !call ESMF_GridcompSetInternalState(comp, & 
+    internalState, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine SetServices
@@ -386,10 +388,10 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
 
   call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
-  call addSchismMesh(comp, rc=localrc)
+  !call addSchismMesh(comp, localrc)
+  call addSchismMesh(comp)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
-  stop
 
   !>@todo this next call returns an error. We got to fix this to be able to
   ! access the internally stored information on foreignNodes

@@ -58,18 +58,7 @@ contains
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"
-subroutine addSchismMesh(comp, rc)
-  implicit none
-
-  type(ESMF_GridComp), intent(inout)  :: comp
-  integer, intent(out) :: rc
-
-  rc = ESMF_RC_ARG_BAD
-end subroutine addSchismMesh
-
-#undef  ESMF_METHOD
-#define ESMF_METHOD "addSchismMesh"
-subroutine addSchismMeshbak(comp, rc)
+subroutine addSchismMesh(comp)
   
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
@@ -79,7 +68,6 @@ subroutine addSchismMeshbak(comp, rc)
   implicit none
 
   type(ESMF_GridComp)  :: comp
-  integer, intent(out) :: rc
 
   type(ESMF_Mesh)          :: mesh2d
   type(ESMF_DistGrid)      :: elementDistgrid, distgrid
@@ -89,10 +77,9 @@ subroutine addSchismMeshbak(comp, rc)
   real(ESMF_KIND_R8), dimension(:), allocatable :: elementcoords2d
   integer, dimension(:), allocatable            :: nodeowners, elementtypes
   integer, dimension(:), allocatable            :: nodemask, elementmask
-  integer, dimension(:), allocatable            :: tmpIdx, tmpIdx2, localNodes, nodeHaloIdx
-  integer, dimension(:), allocatable            :: schismTolocalNodes,testids
+  integer, dimension(:), allocatable            :: tmpIdx, tmpIdx2 ! , localNodes
+  !integer, dimension(:), allocatable            :: schismTolocalNodes,testids
   integer, dimension(1:4)                       :: elLocalNode
-  integer               :: numNodeHaloIdx
   integer               :: i,n,nvcount
   integer               :: ii,ip,ie, localrc, rc_
   integer               :: mynp,myne,rank2
@@ -117,15 +104,15 @@ subroutine addSchismMeshbak(comp, rc)
   type(type_InternalState) :: internalState
   type(type_InternalStateStruct), pointer :: isDataPtr => null()
 
-  rc = ESMF_SUCCESS
-  rc = ESMF_RC_ARG_SIZE
+  !if (present(rc)) rc = ESMF_SUCCESS
+  !if (present(rc)) 
+  !rc = ESMF_RC_ARG_SIZE
 
   call ESMF_GridCompGet(comp, name=compName, localPet=localPet, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  stop
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   isDataPtr => internalState%wrap
 
@@ -159,36 +146,36 @@ subroutine addSchismMeshbak(comp, rc)
   ! define mesh
   !Points to global node #
   allocate(nodeids(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !Global coordinates
   allocate(nodecoords2d(2*np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !A node is owned by same rank across PETs; interface nodes are owned by min rank
   allocate(nodeowners(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   allocate(nodemask(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !Points to global elem #
   allocate(elementids(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   allocate(elementtypes(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   allocate(elementmask(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   allocate(elementcoords2d(2*ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
   ! Outputs local node # 
   allocate(nv(sum(i34(1:ne))), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! set ESMF coordSys type
   if (ics==2) then
@@ -254,7 +241,7 @@ subroutine addSchismMeshbak(comp, rc)
       'mismatching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
       ' and foreign=', isDataPtr%numForeignNodes,' nodes'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
   if (isDataPtr%numOwnedNodes>0) & 
@@ -284,7 +271,7 @@ subroutine addSchismMeshbak(comp, rc)
 
   !>@todo We should not need this call
   call ESMF_GridCompSetInternalState(comp, internalState, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_) 
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_) 
 
   stop
 
@@ -343,9 +330,9 @@ subroutine addSchismMeshbak(comp, rc)
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  allocate(testids(myne))
-  call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  !allocate(testids(myne))
+  !call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
     'resident nodes and ', myne, ' resident elements in SCHISM'
@@ -359,10 +346,10 @@ subroutine addSchismMeshbak(comp, rc)
   write(message,*) 'elementIds:',elementIds
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
-  write(message,*) 'distgridElementIds:',testids
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  !write(message,*) 'distgridElementIds:',testids
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
-  deallocate(testids)
+  !deallocate(testids)
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
@@ -473,7 +460,7 @@ subroutine addSchismMeshbak(comp, rc)
   write(message, '(A)') trim(compName)//' created 2D mesh"'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-end subroutine addSchismMeshbak
+end subroutine addSchismMesh
 
 subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
     importState,add_ws,rc)
