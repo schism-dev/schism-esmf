@@ -385,11 +385,10 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   rc = ESMF_SUCCESS
 
-  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
+!  call ESMF_LogWrite("before addSchismMesh",ESMF_LOGMSG_WARNING)
   call addSchismMesh(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
-  stop
+!  call ESMF_LogWrite("after addSchismMesh",ESMF_LOGMSG_WARNING)
 
   !>@todo this next call returns an error. We got to fix this to be able to
   ! access the internally stored information on foreignNodes
