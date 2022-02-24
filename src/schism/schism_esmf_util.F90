@@ -49,11 +49,13 @@ module schism_esmf_util
     type(type_InternalStateStruct), pointer :: wrap
   end type
 
-  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
-  public type_InternalState
+!  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
+  public  clockCreateFrmParam, SCHISM_FieldRealize
+  public type_InternalState,type_InternalStateStruct
   private
 
 contains
+
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"
@@ -105,6 +107,9 @@ subroutine addSchismMesh(comp, rc)
 
   type(type_InternalState) :: internalState
   type(type_InternalStateStruct), pointer :: isDataPtr => null()
+
+  write(0,*)'__LINE__ inside addSchismMesh'
+  call ESMF_Finalize() 
 
   rc = ESMF_SUCCESS
 
