@@ -626,10 +626,13 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
   integer                     :: npe ! number of exclusive nodes <= np
+  integer                     :: ip
 
   type(ESMF_Field) :: field
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
   type(ESMF_StateItem_Flag) :: itemType
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
   rc = ESMF_SUCCESS
 
@@ -638,6 +641,11 @@ subroutine ModelAdvance(comp, rc)
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
 
   call NUOPC_ModelGet(comp, modelClock=clock, importState=importState, &
     exportState=exportState, rc=localrc)
@@ -686,10 +694,24 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    do ip = 1,isDataPtr%numOwnedNodes
+      windx2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+      !FVCOM_SXX2(mdataIn%owned_to_present_nodes(i1),1) = dataPtr_sxx2(i1)
+    end do
+    do ip = 1,isDataPtr%numForeignNodes
+      windx2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
+!      FVCOM_SXX2(mdataIn%owned_to_present_halo_nodes(i1),1) =
+!      dataPtr_sxx2(i1+mdataIn%NumOwnedNd_NoHalo)
+    end do
+
     ! The following assumes that halo exchange on nodes is done inside SCHISM
     ! and we do not have to worry about this here
-    npe = ubound(farrayPtr1,1)
-    windx2(1:npe)=farrayPtr1(1:npe)
+    !npe = ubound(farrayPtr1,1)
+    
+    !write(message,*) ' windx2',npe,np 
+    !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+    !windx2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
@@ -702,8 +724,15 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
  
-    npe = ubound(farrayPtr1,1)
-    windy2(1:npe)=farrayPtr1(1:npe)
+    do ip = 1,isDataPtr%numOwnedNodes
+      windy2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    end do
+    do ip = 1,isDataPtr%numForeignNodes
+      windy2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
+    end do
+
+!    npe = ubound(farrayPtr1,1)
+!    windy2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
@@ -775,10 +804,19 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
     call ESMF_StateGet(state, trim(itemNameList(i)), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-    call ESMF_AttributeGet(field, name='Connected', isPresent=isPresent, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    isPresent=.true.
+!    call ESMF_AttributeGet(field, name='Connected', isPresent=isPresent, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-    if (isPresent) isPresent = .not.NUOPC_IsConnected(field, rc=localrc)
+    write(message,'(A)') '--- checking connection state of '//trim(itemNameList(i))
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    !if (isPresent) isPresent = NUOPC_IsConnected(state,trim(itemNameList(i)), rc=localrc)
+    if (isPresent) isPresent = NUOPC_IsConnected(field, rc=localrc)
+    if(localrc/=ESMF_SUCCESS) then
+      isPresent=.false.
+      localrc=ESMF_SUCCESS
+    endif
+    
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     if (.not.isPresent) then
