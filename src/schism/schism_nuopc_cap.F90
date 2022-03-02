@@ -362,7 +362,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 !  use schism_esmf_util, only : addSchismMesh
   !> @todo move all use statements of schism into schism_bmi
   use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
-  use schism_esmf_util, only: SCHISM_FieldCreate
+  use schism_esmf_util, only: SCHISM_StateFieldCreateRealize
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -431,12 +431,21 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_FieldCreate(comp, "inst_zonal_wind_height10m", field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   call ESMF_MeshGet(mesh2d, nodalDistgrid=nodalDistgrid, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_zonal_wind_height10m", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_merid_wind_height10m", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="air_pressure_at_sea_level", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
   ! call ESMF_GridCompGetInternalState(comp, internalState, localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -473,24 +482,17 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 !    farrayPtr=farrayPtr1, meshloc=ESMF_MESHLOC_NODE, rc=localrc)
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (NUOPC_IsConnected(importState, "inst_zonal_wind_height10m", rc=localrc) & 
-    .and. nws /= 3) then
-    call ESMF_LogWrite("Connected zonal wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
-  endif
-
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    name="inst_merid_wind_height10m", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+  !   name="inst_merid_wind_height10m", rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
-  field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, array=array, &
-     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! field = ESMF_FieldCreate(name="inst_merid_wind_height10m", mesh=mesh2d, array=array, &
+  !    meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !farrayPtr1(1:np) = windy2(1:np)
 
 !  farrayPtr1 => windy2(1:np)
@@ -498,43 +500,43 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 !    farrayPtr=farrayPtr1, rc=localrc)
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 !
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call NUOPC_Realize(importState, field=field, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (NUOPC_IsConnected(importState, "inst_merid_wind_height10m", rc=localrc) & 
-    .and. nws /= 3) then
-    call ESMF_LogWrite("Connected meridional wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
-  endif
+  ! if (NUOPC_IsConnected(importState, "inst_merid_wind_height10m", rc=localrc) & 
+  !   .and. nws /= 3) then
+  !   call ESMF_LogWrite("Connected meridional wind will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+  ! endif
 
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    name="air_pressure_at_sea_level", rc=localrc)
-  !farrayPtr1 => pr2(1:np)
+!   array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+!     name="air_pressure_at_sea_level", rc=localrc)
+!   !farrayPtr1 => pr2(1:np)
 
-  !write(0,*) 'farrayptr1 ',ubound(farrayPtr1,1), ubound(pr2,1)
-  !array = ESMF_ArrayCreate(nodalDistgrid, farrayPtr=farrayPtr1, &
-  !  name="air_pressure_at_sea_level", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!   !write(0,*) 'farrayptr1 ',ubound(farrayPtr1,1), ubound(pr2,1)
+!   !array = ESMF_ArrayCreate(nodalDistgrid, farrayPtr=farrayPtr1, &
+!   !  name="air_pressure_at_sea_level", rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
-  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, array=array, &
-     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!   field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, array=array, &
+!      meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !farrayPtr1(1:np) = pr2(1:np)
+!   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!   !farrayPtr1(1:np) = pr2(1:np)
 
-!  farrayPtr1 => pr2(1:np)
-!  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
-!    farrayPtr=farrayPtr1, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+! !  farrayPtr1 => pr2(1:np)
+! !  field = ESMF_FieldCreate(name="air_pressure_at_sea_level", mesh=mesh2d, &
+! !    farrayPtr=farrayPtr1, rc=localrc)
+! !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!   call NUOPC_Realize(importState, field=field, rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (NUOPC_IsConnected(importState, "air_pressure_at_sea_level", rc=localrc) & 
-    .and. nws /= 3) then
-    call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
-  endif
+!   if (NUOPC_IsConnected(importState, "air_pressure_at_sea_level", rc=localrc) & 
+!     .and. nws /= 3) then
+!     call ESMF_LogWrite("Connected air presure will not be used if nws /=3", ESMF_LOGMSG_WARNING)
+!   endif
 
 #if 0
 !@TODO: add other air vars: airt2, shum2, hradd, fluxprc

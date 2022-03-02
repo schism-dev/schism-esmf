@@ -54,16 +54,22 @@ module schism_esmf_util
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   public  clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
-  public SCHISM_FieldCreate
+  public SCHISM_StateFieldCreateRealize
   private
 
 contains
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_FieldCreate"
-subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
+#define ESMF_METHOD "SCHISM_StateFieldCreateRealize"
+subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayPtr, rc)
+
+  use schism_glbl, only: nws 
+  use NUOPC, only: NUOPC_Realize, NUOPC_IsConnected
+
+  implicit none 
 
   type(ESMF_GridComp), intent(inout)               :: comp
+  type(ESMF_State), intent(inout)                  :: state
   character(len=*), intent(in)                     :: name
   type(ESMF_Field), intent(out)                    :: field
   type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
@@ -120,9 +126,18 @@ subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
   write(message,'(A)') trim(compName)//' created field '//trim(name)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  call NUOPC_Realize(state, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (NUOPC_IsConnected(field, rc=localrc) .and. nws /= 3) then
+    write(message, '(A,I1,A)') trim(compName)//' connected field '//trim(name)// &
+      ' will not be used with nws=', nws ,' (needs nws = 3)'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif
+
   if (present(rc)) rc = rc_
 
-end subroutine SCHISM_FieldCreate
+end subroutine SCHISM_StateFieldCreateRealize
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"
