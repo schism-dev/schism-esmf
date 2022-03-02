@@ -73,9 +73,9 @@ subroutine SetServices(comp, rc)
     internalState, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! NUOPC automatically has an entry point for InitializeP0, so do not
-  ! call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-  !  phaseLabelList=(/"IPDv00p0"/), userRoutine=InitializeP0, rc=localrc)
+  ! NUOPC automatically has an entry point for InitializeP0, so do not?
+  call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+    phaseLabelList=(/"IPDv00p0"/), userRoutine=InitializeP0, rc=localrc)
 
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv00p1"/), userRoutine=InitializeAdvertise, rc=localrc)
@@ -129,12 +129,17 @@ subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
 
   rc=ESMF_SUCCESS
 
-  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  call NUOPC_CompGet(comp, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_CompSetClock(comp, externalClock=parentClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message, '(A)') trim(compName)//' initializing (p=0) component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  !> @todo add other IPD versions mappings, i.e. IPDv00p1, IPDv01p1, IPDv02p1,
+  !> IPDv03p1, IPDv04p1, IPDv05p1; all map to 1 ?
   InitializePhaseMap = (/"IPDv00p1=1","IPDv00p2=2", &
     "IPDv00p3=3","IPDv00p4=4"/)
 
@@ -184,8 +189,19 @@ end subroutine InitializeP0
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "InitializeAdvertise"
-!> @description The purpose of this phase is for your model to advertise its import and export fields. This means that your model announces which model variables it is capable of exporting (e.g., an atmosphere might export air pressure at sea level) and which model variables it requires (e.g., an atmosphere might require sea surface temperature as a boundary condition). The reason there is an explicit advertise phase is because NUOPC dynamically matches fields among all the models participating in a coupled simulation during runtime. So, we need to collect the list of possible input and output fields from all the models during their initialization.
-! Note that NUOPC does not allocate memory for fields during the advertise phase or when NUOPC_Advertise is called. Instead, this is simply a way for models to communicate the standard names of fields. During a later phase, only those fields that are connected (e.g., a field exported from one model that is imported by another) need to have memory allocated. Also, since ESMF will accept pointers to pre-allocated memory, it is usually not necessary to change how memory is allocated for your model’s variables.
+!> @description The purpose of this phase is for your model to advertise its import and export 
+!> fields. This means that your model announces which model variables it is capable of exporting
+!> (e.g., an atmosphere might export air pressure at sea level) and which model variables it
+!> requires (e.g., an atmosphere might require sea surface temperature as a boundary condition).
+!> The reason there is an explicit advertise phase is because NUOPC dynamically matches fields
+!> among all the models participating in a coupled simulation during runtime. So, we need to
+!> collect the list of possible input and output fields from all the models during their initialization.
+!> Note that NUOPC does not allocate memory for fields during the advertise phase or when
+!> NUOPC_Advertise is called. Instead, this is simply a way for models to communicate the standard
+!> names of fields. During a later phase, only those fields that are connected (e.g., a field
+!> exported from one model that is imported by another) need to have memory allocated. Also, since
+!> ESMF will accept pointers to pre-allocated memory, it is usually not necessary to change
+!> how memory is allocated for your model’s variables.
 !> Should be mapped to IPDv00p1, IPDv01p1, IPDv02p1, IPDv03p1, IPDv04p1, IPDv05p1;
 !> its implementation is required
 subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
@@ -203,19 +219,18 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   logical                     :: isPresent
 
-  type(ESMF_VM)               :: vm
-  type(type_InternalStateWrapper) :: internalState
+  type(ESMF_VM)                     :: vm
+  type(type_InternalStateWrapper)   :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
 
   rc = ESMF_SUCCESS
   localrc = ESMF_SUCCESS
 
-  !> @todo replace by NUOPC_CompGet()
-!  NUOPC_GridCompGet(comp, name, verbosity, profiling, diagnostic, rc)
-  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  !> more possikeywordds lities for interface: verbosity, profiling, diagnostic
+  call NUOPC_CompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  write(message, '(A)') trim(compName)//' initializing component ...'
+  write(message, '(A)') trim(compName)//' initialize (p=1) component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   allocate(internalState%wrap, stat=localrc)
@@ -292,8 +307,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   ! Deal with setting up the Field dictionary here and advertising the
   ! variables.
   ! @todo this should be customized by a field dictionary-like configuration
-  ! file,  for uncopuled applications, we cannot advertise as we get a NUOPC not
-  ! connected error message
+  ! file
 
   !call NUOPC_FieldDictionaryAddIfNeeded("surface_air_pressure", "N m-2", localrc)
   call NUOPC_FieldDictionaryAddIfNeeded("air_pressure_at_sea_level", "N m-2", localrc)
@@ -422,55 +436,28 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="air_pressure_at_sea_level", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-#if 0
-!@TODO: add other air vars: airt2, shum2, hradd, fluxprc
-  farrayPtr1 => srad(1:np)
-  field = ESMF_FieldCreate(name="downwelling_short_photosynthetic_radiation_at_water_surface", mesh=mesh2d, &
-    typekind=ESMF_TYPEKIND_R8, rc=localrc)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="downwelling_short_photosynthetic_radiation_at_water_surface", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
+  !> @todo add more atmospheric fields (like humidity)
+
+  !> Wave parameters, for now we only have those from the WW3DATA cap in 
+  !> NOAA's CoastalApp.  
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="eastward_wave_radiation_stress", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (NUOPC_IsConnected(importState, "downwelling_short_photosynthetic_radiation_at_water_surface", rc=localrc) & 
-    .and. nws /= 3) then
-    call ESMF_LogWrite("Connected downwelling par will not be used if nws /=3", ESMF_LOGMSG_WARNING)
-  endif
-#endif
-
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    name="eastward_wave_radiation_stress", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  field = ESMF_FieldCreate(name="eastward_wave_radiation_stress", mesh=mesh2d, array=array, &
-     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="eastward_northward_wave_radiation_stress", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    name="eastward_northward_wave_radiation_stress", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  field = ESMF_FieldCreate(name="eastward_northward_wave_radiation_stress", mesh=mesh2d, array=array, &
-     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="northward_wave_radiation_stress", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
-    name="northward_wave_radiation_stress", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  field = ESMF_FieldCreate(name="northward_wave_radiation_stress", mesh=mesh2d, array=array, &
-     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_Realize(importState, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
+  !> The list of export states is declared in InitializeAdvertise
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -523,8 +510,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   !> As IPDv01p3 (NUOPC Provided) fails when fields are not connected, we here
   !> remove all unconnected fields from the import and export stabilityTimeStep
   call SCHISM_RemoveUnconnectedFields(importState, rc=localrc)
-  call SCHISM_RemoveUnconnectedFields(exportState, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call SCHISM_RemoveUnconnectedFields(exportState, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
   !@TODO: should we destroy field & array vars?
 end subroutine
 
@@ -750,16 +740,19 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
 
+#undef ESMF_METHOD
+#define ESMF_METHOD "SCHISM_RemoveUnconnectedFields"
 subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
   implicit none
 
-  type(ESMF_State), intent(inout) :: state
+  type(ESMF_State), intent(inout)      :: state
   integer(kind=ESMF_KIND_I4), optional :: rc
 
   integer(kind=ESMF_KIND_I4)              :: rc_, localrc, itemCount, i
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  character(len=ESMF_MAXSTR)              :: message
   type(ESMF_Field)                        :: field
   logical                                 :: isPresent
 
@@ -793,6 +786,9 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
       call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+      write(message,'(A)') '--- removed unconnected field '//trim(itemNameList(i))
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
     endif
 
   enddo

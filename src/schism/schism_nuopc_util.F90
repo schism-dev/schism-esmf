@@ -1,7 +1,7 @@
 ! This code is part of the SCHISM-ESMF interface, it defines utility
 ! functions used by the NUOPC cap
 !
-! @copyright 2021 Helmholtz-Zentrum Hereon
+! @copyright 2021-2022 Helmholtz-Zentrum Hereon
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 !
 ! @license Apache License, Version 2.0 (the "License");

@@ -59,6 +59,7 @@ module schism_esmf_util
 
 contains
 
+!> @todo separate into ESMF and NUOPC parts that reside in different source files
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateFieldCreateRealize"
 subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayPtr, rc)
@@ -84,6 +85,7 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayP
   character(len=ESMF_MAXSTR)         :: compName, message
   type(type_InternalStateWrapper)    :: internalState
   type(type_InternalState), pointer  :: isDataPtr => null()
+  type(ESMF_StateItem_Flag)          :: itemType
   
   rc_ = ESMF_SUCCESS
   localrc = ESMF_SUCCESS
@@ -125,6 +127,15 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayP
 
   write(message,'(A)') trim(compName)//' created field '//trim(name)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call ESMF_StateGet(state, trim(name), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    write(message,'(A)') trim(compName)//' skipped non-advertised field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    return
+  endif
 
   call NUOPC_Realize(state, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
