@@ -1159,11 +1159,11 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
-    'resident nodes and ', myne, ' resident elements in SCHISM'
+    ' resident nodes and ', myne, ' resident elements in SCHISM'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh with "', mynp, &
-    'owned nodes and ', myne, ' owned elements'
+    ' owned nodes and ', myne, ' owned elements'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   !> @todo the following might overflow the message buffer easily ...

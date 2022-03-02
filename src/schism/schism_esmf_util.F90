@@ -758,18 +758,22 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
   type(ESMF_TypeKind_Flag), intent(in), optional :: typekind
   integer(ESMF_KIND_I4), intent(out), optional :: rc
 
-  integer(ESMF_KIND_I4)      :: rc_, localrc
-  character(len=ESMF_MAXSTR) :: message
-  type(ESMF_Field)           :: field
+  integer(ESMF_KIND_I4)       :: rc_, localrc
+  character(len=ESMF_MAXSTR)  :: message
+  type(ESMF_Field)            :: field
+  type(ESMF_FieldStatus_Flag) :: fieldStatus
+  type(ESMF_StateItem_Flag)   :: itemType
 
   rc_ = ESMF_SUCCESS
 
   if (present(grid).and.present(mesh)) then
     write(message, '(A)') '-- does not accept both mesh and grid'
-    rc_ = ESMF_RC_ARG_BAD
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    rc_ = ESMF_RC_ARG_WRONG
   elseif (.not.present(mesh).and..not.present(grid)) then
     write(message, '(A)') '-- needs either mesh or grid as argument'
-    rc_ = ESMF_RC_ARG_BAD
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    rc_ = ESMF_RC_ARG_WRONG
   endif
 
   if (rc_ /= ESMF_SUCCESS) then
@@ -782,25 +786,42 @@ subroutine SCHISM_FieldRealize(state, itemName, kwe, grid, mesh, typekind, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  !> @todo check for existence in state and stateItemType field
+  call ESMF_StateGet(state, itemName=trim(itemName), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    localrc = ESMF_RC_ARG_WRONG
+    write(message, '(A)') '-- only accepts fields, obtained wrong type in item '// &
+      trim(itemName)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    if (present(rc)) then
+      rc = localrc
+      return
+    endif
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+   
   call ESMF_StateGet(state, field=field, itemName=trim(itemName), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !> @todo check for empty status
+  call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  if (present(grid)) then
+  if (fieldStatus == ESMF_FIELDSTATUS_EMPTY .and. present(grid)) then
     call ESMF_FieldEmptySet(field, grid=grid, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  else
+  elseif (fieldStatus == ESMF_FIELDSTATUS_EMPTY .and. present(mesh)) then
     call ESMF_FieldEmptySet(field, mesh=mesh, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  if (present(typekind)) then
+  call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (fieldStatus == ESMF_FIELDSTATUS_GRIDSET .and. present(typekind)) then
     call ESMF_FieldEmptyComplete(field, typekind=typekind, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  else
+  elseif (fieldStatus == ESMF_FIELDSTATUS_GRIDSET) then 
     call ESMF_FieldEmptyComplete(field, typekind=ESMF_TYPEKIND_R8, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
