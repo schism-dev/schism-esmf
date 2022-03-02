@@ -46,21 +46,6 @@ module schism_nuopc_cap
   private
   public SetServices
 
-! The internal state saves data across ESMF phases and is
-! persistent throught the lifetime of an instance.  Here, we
-! only provide a boilerplate implementation of an empty internal state
-
-  !type type_InternalStateStruct
-  !  integer(ESMF_KIND_I4): numOwnedNodes, numForeignNodes
-  !end type
-
-  !type type_InternalState
-  !  type(type_InternalStateStruct), pointer :: wrap
-  !end type
-
-  character(len=ESMF_MAXSTR), parameter :: &
-    label_InternalState = 'InternalState'
-
 contains
 
 #undef ESMF_METHOD
@@ -70,10 +55,16 @@ subroutine SetServices(comp, rc)
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  integer(ESMF_KIND_I4) :: localrc
-  type(type_InternalState)   :: internalState
+  integer(ESMF_KIND_I4)             :: localrc
+
+  character(len=ESMF_MAXSTR), parameter :: label_InternalState = 'InternalState'
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
   rc = ESMF_SUCCESS
+
+  call NUOPC_CompDerive(comp, model_routine_SS, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   allocate(internalState%wrap, stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -82,12 +73,9 @@ subroutine SetServices(comp, rc)
     internalState, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_CompDerive(comp, model_routine_SS, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+  ! NUOPC automatically has an entry point for InitializeP0, so do not
+  ! call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
   !  phaseLabelList=(/"IPDv00p0"/), userRoutine=InitializeP0, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
     phaseLabelList=(/"IPDv00p1"/), userRoutine=InitializeAdvertise, rc=localrc)
@@ -215,9 +203,12 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   logical                     :: isPresent
 
-  type(ESMF_Vm)               :: vm
+  type(ESMF_VM)               :: vm
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
   rc = ESMF_SUCCESS
+  localrc = ESMF_SUCCESS
 
   !> @todo replace by NUOPC_CompGet()
 !  NUOPC_GridCompGet(comp, name, verbosity, profiling, diagnostic, rc)
@@ -227,16 +218,38 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' initializing component ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  allocate(internalState%wrap, stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
+  isDataPtr%numOwnedNodes = 0
+  isDataPtr%numForeignNodes = 0
+  
   if (.not.ESMF_StateIsCreated(importState)) then
     importState=ESMF_StateCreate(name=trim(compName)//'Import', stateintent= &
       ESMF_STATEINTENT_IMPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message,'(A)') trim(compName)//' created state "'//trim(compName)// &
+      'Import" for import'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   endif
 
   if (.not.ESMF_StateIsCreated(exportState)) then
     importState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
       ESMF_STATEINTENT_EXPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    write(message,'(A)') trim(compName)//' created state "'//trim(compName)// &
+      'Import" for export'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
   ! Get VM for this component
@@ -865,7 +878,7 @@ end subroutine SCHISM_RemoveUnconnectedFields
 subroutine addSchismMesh(comp, rc)
 ! Define ESMF domain partition
   !> @todo apply only filter to 'use schism_glbl'
-  use schism_esmf_util, only: type_InternalStateStruct, type_InternalState
+  use schism_esmf_util, only: type_InternalStateWrapper, type_InternalState
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
@@ -909,8 +922,8 @@ subroutine addSchismMesh(comp, rc)
   integer(ESMF_KIND_I4), allocatable, target :: ownedNodeIdx(:)
   integer(ESMF_KIND_I4), allocatable, target :: foreignNodeIdx(:)
 
-  type(type_InternalState) :: internalState
-  type(type_InternalStateStruct), pointer :: isDataPtr => null()
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
 !  write(0,*)'__LINE__ inside addSchismMesh'
 !  call ESMF_Finalize() 
@@ -919,11 +932,6 @@ subroutine addSchismMesh(comp, rc)
 
   call ESMF_GridCompGet(comp, name=compName, localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  isDataPtr => internalState%wrap
 
   !> @todo all non-ESMF stuff should be outsourced to schism_bmi.F90
   ! prepare mesh
@@ -964,6 +972,7 @@ subroutine addSchismMesh(comp, rc)
   !A node is owned by same rank across PETs; interface nodes are owned by min rank
   allocate(nodeowners(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  nodeowners(:) = -1
 
   allocate(nodemask(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1034,6 +1043,14 @@ subroutine addSchismMesh(comp, rc)
     nodemask(ip)         = idry(ip)
   end do !ip
 
+  ! As the list of owned and non-owned nodes is not preserved in the ESMF_Mesh
+  ! structure, we need to save this information to an internal state, for later 
+  ! use in Array/Field creation.
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
+
   isDataPtr%numOwnedNodes = 0
   isDataPtr%numForeignNodes = 0
   do ip=1,np
@@ -1053,12 +1070,18 @@ subroutine addSchismMesh(comp, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
+  write(message,'(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+    'matching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  
   allocate(isDataPtr%ownedNodeIds(isDataPtr%numOwnedNodes), stat=localrc)
   allocate(isDataPtr%foreignNodeIds(isDataPtr%numForeignNodes), stat=localrc)
 
   ownedCount = 0
   foreignCount = 0
-  do i=1,np
+  do ip=1,np
+    write(0,*) np, ip, ownedCount, foreignCount!, nodeowners(ip)
     if (nodeowners(ip) == localPet) then
       ownedCount=ownedCount + 1
       isDataPtr%ownedNodeIds(ownedCount) = ip
@@ -1144,11 +1167,11 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   !> @todo the following might overflow the message buffer easily ...
-  write(message,*) 'elementIds:',elementIds
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  !write(message,*) 'elementIds:',elementIds
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
-  write(message,*) 'distgridElementIds:',testids
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  !write(message,*) 'distgridElementIds:',testids
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   deallocate(testids)
 

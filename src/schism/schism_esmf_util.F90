@@ -38,20 +38,22 @@ module schism_esmf_util
 ! persistent throught the lifetime of an instance.  Here, we
 ! only provide a boilerplate implementation of an empty internal state
 
-  type type_InternalStateStruct
+  type type_InternalState
+    sequence ! why is this needed here? taken from documentation
     ! Store the number of and indices in the 1:np resident nodes
-    integer(ESMF_KIND_I4) :: numOwnedNodes, numForeignNodes
+    integer(ESMF_KIND_I4) :: numOwnedNodes=0, numForeignNodes=0
     integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
     integer(ESMF_KIND_I4), pointer :: foreignNodeIds(:) => null()
   end type
 
-  type type_InternalState
-    type(type_InternalStateStruct), pointer :: wrap
+  type type_InternalStateWrapper
+    sequence ! why is this needed here? taken from documentation
+    type(type_InternalState), pointer :: wrap => null()
   end type
 
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   public  clockCreateFrmParam, SCHISM_FieldRealize
-  public type_InternalState,type_InternalStateStruct
+  public type_InternalState, type_InternalStateWrapper
   private
 
 contains
@@ -105,8 +107,8 @@ subroutine addSchismMesh(comp, rc)
   integer(ESMF_KIND_I4), allocatable, target :: ownedNodeIdx(:)
   integer(ESMF_KIND_I4), allocatable, target :: foreignNodeIdx(:)
 
-  type(type_InternalState) :: internalState
-  type(type_InternalStateStruct), pointer :: isDataPtr => null()
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
   write(0,*)'__LINE__ inside addSchismMesh'
   call ESMF_Finalize() 
@@ -332,7 +334,7 @@ subroutine addSchismMesh(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
-    'resident nodes and ', myne, ' resident elements in SCHISM'
+    ' resident nodes and ', myne, ' resident elements in SCHISM'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh with "', mynp, &
