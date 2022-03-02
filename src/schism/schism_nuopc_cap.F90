@@ -846,6 +846,7 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   type(ESMF_Field)                        :: field
+  logical                                 :: isPresent
 
   if (present(rc)) rc = ESMF_SUCCESS
 
@@ -863,7 +864,16 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
     if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    if (.not.NUOPC_IsConnected(state, trim(itemNameList(i)), rc=localrc)) then
+    call ESMF_StateGet(state, trim(itemNameList(i)), field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    call ESMF_AttributeGet(field, name='Connected', isPresent=isPresent, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    if (isPresent) isPresent = .not.NUOPC_IsConnected(field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    if (.not.isPresent) then
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
       call ESMF_StateRemove(state, itemNameList(i:i), rc=localrc)
