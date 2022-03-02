@@ -54,6 +54,7 @@ module schism_esmf_util
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   public  clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
+  public SCHISM_FieldCreate
   private
 
 contains
@@ -63,7 +64,7 @@ contains
 subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
 
   type(ESMF_GridComp), intent(inout)               :: comp
-  character(len=ESMF_MAXSTR), intent(in)           :: name
+  character(len=*), intent(in)                     :: name
   type(ESMF_Field), intent(out)                    :: field
   type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
   real(ESMF_KIND_R8), intent(in), optional         :: farrayPtr(:)
@@ -74,14 +75,17 @@ subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
   integer(ESMF_KIND_I4)              :: localrc, rc_
   type(ESMF_Array)                   :: array 
   real(ESMF_KIND_R8), pointer        :: farrayPtr1(:)
-  character(ESMF_MAXSTR)             :: compName
+  character(len=ESMF_MAXSTR)         :: compName, message
   type(type_InternalStateWrapper)    :: internalState
   type(type_InternalState), pointer  :: isDataPtr => null()
   
   rc_ = ESMF_SUCCESS
   localrc = ESMF_SUCCESS
 
-  call ESMF_GridCompGet(comp, mesh=mesh, rc=localrc)
+  call ESMF_GridCompGet(comp, mesh=mesh, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_GridCompGetInternalState(comp, internalState, localrc)
@@ -112,6 +116,9 @@ subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
 
     farrayPtr1(:) = farrayPtr(:)
   endif
+
+  write(message,'(A)') trim(compName)//' created field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   if (present(rc)) rc = rc_
 
