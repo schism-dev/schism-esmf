@@ -54,10 +54,72 @@ module schism_esmf_util
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   public  clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
-  public SCHISM_StateFieldCreateRealize
+  public SCHISM_StateFieldCreateRealize, SCHISM_StateGetFieldPtr, SCHISM_FieldPtrUpdate
   private
 
 contains
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateGetFieldPtr"
+subroutine SCHISM_StateGetFieldPtr(state, name, farrayPtr, kwe, field,  rc)
+
+  type(ESMF_State), intent(in)                        :: state
+  character(len=*), intent(in)                        :: name
+  real(ESMF_KIND_R8), pointer, intent(out)            :: farrayPtr(:)
+  type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
+  type(ESMF_Field), intent(out), optional             :: field
+  integer(ESMF_KIND_I4), intent(out), optional        :: rc
+
+  integer(ESMF_KIND_I4)          :: rc_, localrc
+  type(ESMF_Field)               :: field_
+  character(len=ESMF_MAXSTR)     :: message
+  type(ESMF_StateItem_Flag)      :: itemType
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  farrayPtr => null()
+
+  call ESMF_StateGet(state, itemname=trim(name), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) return
+  
+  call ESMF_StateGet(state, itemname=trim(name), field=field_, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_FieldGet(field_, farrayptr=farrayPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (present(field)) field=field_
+
+end subroutine SCHISM_StateGetFieldPtr
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_FieldPtrUpdate"
+subroutine SCHISM_FieldPtrUpdate(farrayPtr, schismPtr, isPtr, kwe, rc)
+
+  real(ESMF_KIND_R8), pointer, intent(in)       :: farrayPtr(:)
+  real(ESMF_KIND_R8), pointer, intent(inout)    :: schismPtr(:)
+  type(type_InternalState), pointer, intent(in) :: isPtr
+  
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  character(len=ESMF_MAXSTR)     :: message
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  do ip = 1, isPtr%numOwnedNodes
+    schismPtr(isPtr%ownedNodeIds(ip)) = farrayPtr(ip)
+  end do
+  do ip = 1,isPtr%numForeignNodes
+    schismPtr(isPtr%foreignNodeIds(ip)) = farrayPtr(ip+isPtr%numOwnedNodes)
+  end do
+
+end subroutine SCHISM_FieldPtrUpdate
 
 !> @todo separate into ESMF and NUOPC parts that reside in different source files
 #undef  ESMF_METHOD
