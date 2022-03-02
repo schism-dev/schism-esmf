@@ -41,9 +41,11 @@ module schism_esmf_util
   type type_InternalState
     sequence ! why is this needed here? taken from documentation
     ! Store the number of and indices in the 1:np resident nodes
-    integer(ESMF_KIND_I4) :: numOwnedNodes=0, numForeignNodes=0
+    integer(ESMF_KIND_I4)          :: numForeignNodes=0
+    integer(ESMF_KIND_I4)          :: numOwnedNodes=0
     integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
     integer(ESMF_KIND_I4), pointer :: foreignNodeIds(:) => null()
+    type(ESMF_RouteHandle)         :: haloHandle
   end type
 
   type type_InternalStateWrapper
@@ -52,7 +54,7 @@ module schism_esmf_util
   end type
 
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
-  public  clockCreateFrmParam, SCHISM_FieldRealize
+  public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize, SCHISM_StateGetFieldPtr, SCHISM_FieldPtrUpdate
   private
@@ -97,26 +99,39 @@ end subroutine SCHISM_StateGetFieldPtr
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldPtrUpdate"
-subroutine SCHISM_FieldPtrUpdate(farrayPtr, schismPtr, isPtr, kwe, rc)
+subroutine SCHISM_FieldPtrUpdate(field, schismPtr, isPtr, kwe, rc)
 
-  real(ESMF_KIND_R8), pointer, intent(in)       :: farrayPtr(:)
+  type(ESMF_Field), intent(inout)               :: field
   real(ESMF_KIND_R8), pointer, intent(inout)    :: schismPtr(:)
   type(type_InternalState), pointer, intent(in) :: isPtr
   
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
+  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:)
   integer(ESMF_KIND_I4)          :: rc_, localrc, ip
   character(len=ESMF_MAXSTR)     :: message
+  logical                        :: isPresent
 
   localrc = ESMF_SUCCESS 
   if (present(rc)) rc = ESMF_SUCCESS
 
+  isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (isPresent) then 
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif    
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  
   do ip = 1, isPtr%numOwnedNodes
-    schismPtr(isPtr%ownedNodeIds(ip)) = farrayPtr(ip)
+    schismPtr(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
   end do
   do ip = 1,isPtr%numForeignNodes
-    schismPtr(isPtr%foreignNodeIds(ip)) = farrayPtr(ip+isPtr%numOwnedNodes)
+    schismPtr(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
   end do
 
 end subroutine SCHISM_FieldPtrUpdate
@@ -124,7 +139,7 @@ end subroutine SCHISM_FieldPtrUpdate
 !> @todo separate into ESMF and NUOPC parts that reside in different source files
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateFieldCreateRealize"
-subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayPtr, rc)
+subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
 
   use schism_glbl, only: nws 
   use NUOPC, only: NUOPC_Realize, NUOPC_IsConnected
@@ -136,18 +151,17 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayP
   character(len=*), intent(in)                     :: name
   type(ESMF_Field), intent(out)                    :: field
   type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
-  real(ESMF_KIND_R8), intent(in), optional         :: farrayPtr(:)
   integer(ESMF_KIND_I4), intent(out), optional     :: rc
 
   type(ESMF_Mesh)                    :: mesh
   type(ESMF_DistGrid)                :: distgrid
   integer(ESMF_KIND_I4)              :: localrc, rc_
   type(ESMF_Array)                   :: array 
-  real(ESMF_KIND_R8), pointer        :: farrayPtr1(:)
   character(len=ESMF_MAXSTR)         :: compName, message
   type(type_InternalStateWrapper)    :: internalState
   type(type_InternalState), pointer  :: isDataPtr => null()
   type(ESMF_StateItem_Flag)          :: itemType
+  logical                            :: isPresent
   
   rc_ = ESMF_SUCCESS
   localrc = ESMF_SUCCESS
@@ -178,14 +192,13 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayP
     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !> @todo there needs to be bounds checking on the assignment of 
-  !> fieldPtr values
-  if (present(farrayPtr)) then 
-    call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  isPresent = ESMF_RouteHandleIsCreated(isDataPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-    farrayPtr1(:) = farrayPtr(:)
-  endif
+  if (.not. isPresent) then 
+    call ESMF_FieldHaloStore(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif    
 
   write(message,'(A)') trim(compName)//' created field '//trim(name)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -202,9 +215,12 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, farrayP
   call NUOPC_Realize(state, field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   if (NUOPC_IsConnected(field, rc=localrc) .and. nws /= 3) then
     write(message, '(A,I1,A)') trim(compName)//' connected field '//trim(name)// &
-      ' will not be used with nws=', nws ,' (needs nws = 3)'
+      '  not used with nws=', nws ,' (needs nws = 3)'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
@@ -451,18 +467,6 @@ subroutine addSchismMesh(comp, rc)
     localrc=ESMF_RC_ARG_SIZE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
   endif
-
-#if 0
-  write(0,*) 'Local Nodes, np=',np
-  do i=1,npa
-   write(0,*) 'localid, globalid, nodeowner',i,nodeids(i),nodeowners(i)
-  end do
-  nvcount=1
-  do i=1,ne
-    write(0,*) 'ne, conn',i,nv(nvcount:nvcount+i34(i)-1)
-    nvcount = nvcount+i34(i)
-  end do
-#endif
 
   ! create element distgrid (distribute)
   elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)

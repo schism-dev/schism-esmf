@@ -96,6 +96,7 @@ subroutine SetServices(comp, rc)
   !> Do we need a specialization of Finalize, by adding a label?
   !call NUOPC_CompSpecialize(comp, specLabel=model_label_Finalize, &
   !  specRoutine=Finalize, rc=localrc)
+  ! Yes, we should release the haloHandle
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine SetServices
@@ -1040,7 +1041,6 @@ subroutine addSchismMesh(comp, rc)
   ownedCount = 0
   foreignCount = 0
   do ip=1,np
-    write(0,*) np, ip, ownedCount, foreignCount!, nodeowners(ip)
     if (nodeowners(ip) == localPet) then
       ownedCount=ownedCount + 1
       isDataPtr%ownedNodeIds(ownedCount) = ip
@@ -1055,8 +1055,8 @@ subroutine addSchismMesh(comp, rc)
     ' and foreign=', isDataPtr%numForeignNodes,' nodes'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(*,*) 'Owned nodes on PET ',localPet,isDataPtr%ownedNodeIds
-  write(*,*) 'Foreign nodes on PET ',localPet,isDataPtr%foreignNodeIds
+  write(*,*) 'On PET ',localPet,' the ', isDataPtr%numForeignNodes, &
+    ' foreign nodes are ',isDataPtr%foreignNodeIds
 
   nvcount=0
   do i=1,ne
