@@ -58,6 +58,64 @@ module schism_esmf_util
 
 contains
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_FieldCreate"
+subroutine SCHISM_FieldCreate(comp, name, field, kwe, farrayPtr, rc)
+
+  type(ESMF_GridComp), intent(inout)               :: comp
+  character(len=ESMF_MAXSTR), intent(in)           :: name
+  type(ESMF_Field), intent(out)                    :: field
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  real(ESMF_KIND_R8), intent(in), optional         :: farrayPtr(:)
+  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+
+  type(ESMF_Mesh)                    :: mesh
+  type(ESMF_DistGrid)                :: distgrid
+  integer(ESMF_KIND_I4)              :: localrc, rc_
+  type(ESMF_Array)                   :: array 
+  real(ESMF_KIND_R8), pointer        :: farrayPtr1(:)
+  character(ESMF_MAXSTR)             :: compName
+  type(type_InternalStateWrapper)    :: internalState
+  type(type_InternalState), pointer  :: isDataPtr => null()
+  
+  rc_ = ESMF_SUCCESS
+  localrc = ESMF_SUCCESS
+
+  call ESMF_GridCompGet(comp, mesh=mesh, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isDataPtr => internalState%wrap
+ 
+  if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds)) then 
+    array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
+    haloSeqIndexList=isDataPtr%foreignNodeIds, &
+    name=trim(name), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  else
+    array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
+    name=trim(name), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  field = ESMF_FieldCreate(name=trim(name), mesh=mesh, array=array, &
+    meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !> @todo there needs to be bounds checking on the assignment of 
+  !> fieldPtr values
+  if (present(farrayPtr)) then 
+    call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    farrayPtr1(:) = farrayPtr(:)
+  endif
+
+  if (present(rc)) rc = rc_
+
+end subroutine SCHISM_FieldCreate
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"

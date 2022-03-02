@@ -380,6 +380,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   integer(ESMF_KIND_I4)                   :: itemCount
 
+  type(type_InternalStateWrapper)    :: internalState
+  type(type_InternalState), pointer  :: isDataPtr => null()
   type(ESMF_DistGrid)                :: nodalDistgrid
   type(ESMF_Array)                   :: array
 
@@ -424,16 +426,28 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   ! deallocate(itemTypeList)
   ! deallocate(itemNameList)
 
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
+ 
   call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_MeshGet(mesh2d, nodalDistgrid=nodalDistgrid, rc=rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+  if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds)) then 
+    array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    haloSeqIndexList=isDataPtr%foreignNodeIds, &
     name="inst_zonal_wind_height10m", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    array = ESMF_ArrayCreate(nodalDistgrid, typekind=ESMF_TYPEKIND_R8, &
+    name="inst_zonal_wind_height10m", rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
   field = ESMF_FieldCreate(name="inst_zonal_wind_height10m", mesh=mesh2d, array=array, &
      meshloc=ESMF_MESHLOC_NODE, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
