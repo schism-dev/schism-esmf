@@ -160,7 +160,7 @@ schism_esmf_lib: $(SCHISM_OBJS)  $(SCHISM_ESMF_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
 schism_nuopc_lib: $(SCHISM_OBJS) $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
-	$(AR) crs libschism_cap.a  $(SCHISM_NUOPC_OBJS) .objs/*/*.o
+	$(AR) crs libschism_cap.a  $(SCHISM_NUOPC_OBJS) $(SCHISM_OBJS) .objs/*/*.o
 
 expand_schismlibs:
 	$(shell mkdir -p .objs/d; cd .objs/d; \
