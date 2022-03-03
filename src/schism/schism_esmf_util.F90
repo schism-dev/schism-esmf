@@ -66,7 +66,7 @@ contains
 subroutine SCHISM_StateGetField(state, itemName, kwe, farrayPtr, field,  rc)
 
   type(ESMF_State), intent(in)                        :: state
-  character(len=*), intent(in)                        :: itemName
+  character(len=ESMF_MAXSTR), intent(in)              :: itemName
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
   type(ESMF_Field), intent(out), optional             :: field
   real(ESMF_KIND_R8), pointer, intent(out), optional  :: farrayPtr(:)

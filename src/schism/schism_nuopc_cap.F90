@@ -2,9 +2,11 @@
 ! the schism component for a NUOPC coupled system
 !
 ! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
+! @copyright (C) 2022 Virginia Institute of Marine Science
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen carsten.lemmen@hereon.de
+! @author Joseph Y. Zhang jzhang@vims.edu
 !
 ! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -635,6 +637,7 @@ subroutine ModelAdvance(comp, rc)
   type(ESMF_StateItem_Flag) :: itemType
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
+  character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
 
   rc = ESMF_SUCCESS
 
@@ -729,11 +732,18 @@ subroutine ModelAdvance(comp, rc)
 !    windy2(1:npe)=farrayPtr1(1:npe)
   endif 
 
-  call SCHISM_StateGetField(importState, 'air_pressure_at_sea_level', field=field, rc=localrc)
-  if (localrc == ESMF_SUCCESS) call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !  pr2(1:npe)=farrayPtr1(1:npe)
+  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   
+    call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  pr2(1:npe)=farrayPtr1(1:npe)
+  endif 
+
   call schism_step(it)
   it = it + 1
 
@@ -1025,9 +1035,6 @@ subroutine addSchismMesh(comp, rc)
     ' and foreign=', isDataPtr%numForeignNodes,' nodes'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(*,*) 'On PET ',localPet,' the ', isDataPtr%numForeignNodes, &
-    ' foreign nodes are ',isDataPtr%foreignNodeIds
-
   nvcount=0
   do i=1,ne
     elementids(i)=ielg(i)
@@ -1053,18 +1060,6 @@ subroutine addSchismMesh(comp, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
   endif
 
-#if 0
-  write(0,*) 'Local Nodes, np=',np
-  do i=1,npa
-   write(0,*) 'localid, globalid, nodeowner',i,nodeids(i),nodeowners(i)
-  end do
-  nvcount=1
-  do i=1,ne
-    write(0,*) 'ne, conn',i,nv(nvcount:nvcount+i34(i)-1)
-    nvcount = nvcount+i34(i)
-  end do
-#endif
-
   ! create element distgrid (distribute)
   elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1083,26 +1078,20 @@ subroutine addSchismMesh(comp, rc)
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(testids(myne))
-  call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!> @todo We need a generic handling of intformat
+  !write(message, *) trim(compName)//' created mesh from ', np, &
+  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh from ', np, &
+    ' resident nodes and ', myne, ' resident elements'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
-    ' resident nodes and ', myne, ' resident elements in SCHISM'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh with "', mynp, &
+  !write(message, *) trim(compName)//' created mesh with "', mynp, &
+  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh with "', mynp, &
     ' owned nodes and ', myne, ' owned elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> @todo the following might overflow the message buffer easily ...
   !write(message,*) 'elementIds:',elementIds
   !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  !write(message,*) 'distgridElementIds:',testids
-  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  deallocate(testids)
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1132,7 +1121,6 @@ subroutine addSchismMesh(comp, rc)
 
   call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
 
   call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
