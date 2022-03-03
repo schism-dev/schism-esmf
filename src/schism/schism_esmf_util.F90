@@ -56,20 +56,20 @@ module schism_esmf_util
 !  public addSchismMesh, clockCreateFrmParam, SCHISM_FieldRealize
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
-  public SCHISM_StateFieldCreateRealize, SCHISM_StateGetFieldPtr, SCHISM_FieldPtrUpdate
+  public SCHISM_StateFieldCreateRealize, SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   private
 
 contains
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateGetFieldPtr"
-subroutine SCHISM_StateGetFieldPtr(state, name, farrayPtr, kwe, field,  rc)
+#define ESMF_METHOD "SCHISM_StateGetField"
+subroutine SCHISM_StateGetField(state, itemName, kwe, farrayPtr, field,  rc)
 
   type(ESMF_State), intent(in)                        :: state
-  character(len=*), intent(in)                        :: name
-  real(ESMF_KIND_R8), pointer, intent(out)            :: farrayPtr(:)
+  character(len=*), intent(in)                        :: itemName
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
   type(ESMF_Field), intent(out), optional             :: field
+  real(ESMF_KIND_R8), pointer, intent(out), optional  :: farrayPtr(:)
   integer(ESMF_KIND_I4), intent(out), optional        :: rc
 
   integer(ESMF_KIND_I4)          :: rc_, localrc
@@ -79,33 +79,40 @@ subroutine SCHISM_StateGetFieldPtr(state, name, farrayPtr, kwe, field,  rc)
 
   localrc = ESMF_SUCCESS 
   if (present(rc)) rc = ESMF_SUCCESS
+  if (.not.(present(field).or.(present(farrayPtr)))) return
 
-  farrayPtr => null()
-
-  call ESMF_StateGet(state, itemname=trim(name), itemType=itemType, rc=localrc)
+  call ESMF_StateGet(state, itemname=trim(itemName), itemType=itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  if (itemType /= ESMF_STATEITEM_FIELD) return
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    write(message,'(A)') '--- field '//trim(itemName)//' could not be found in state'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    localrc = ESMF_RC_NOT_FOUND
+    if (present(rc)) rc = localrc
+    return
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
   
-  call ESMF_StateGet(state, itemname=trim(name), field=field_, rc=localrc)
+  call ESMF_StateGet(state, itemname=trim(itemName), field=field_, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (present(field)) field=field_
+  if (.not.present(farrayPtr)) return
 
   call ESMF_FieldGet(field_, farrayptr=farrayPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (present(field)) field=field_
-
-end subroutine SCHISM_StateGetFieldPtr
+end subroutine SCHISM_StateGetField
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldPtrUpdate"
-subroutine SCHISM_FieldPtrUpdate(field, schismPtr, isPtr, kwe, rc)
+subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
 
-  type(ESMF_Field), intent(inout)               :: field
-  real(ESMF_KIND_R8), pointer, intent(inout)    :: schismPtr(:)
-  type(type_InternalState), pointer, intent(in) :: isPtr
-  
+  type(ESMF_Field), intent(inout)                   :: field
+  real(ESMF_KIND_R8),  intent(inout), target        :: farray(:)
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:)
@@ -115,6 +122,18 @@ subroutine SCHISM_FieldPtrUpdate(field, schismPtr, isPtr, kwe, rc)
 
   localrc = ESMF_SUCCESS 
   if (present(rc)) rc = ESMF_SUCCESS
+
+  isPresent = ESMF_FieldIsCreated(field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (.not.isPresent) then 
+    write(message, '(A)') 'Tried to access a field that is not created.'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_ARG_BAD
+    if (present(rc)) rc = localrc
+    return
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
 
   isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
@@ -128,10 +147,10 @@ subroutine SCHISM_FieldPtrUpdate(field, schismPtr, isPtr, kwe, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   
   do ip = 1, isPtr%numOwnedNodes
-    schismPtr(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
   end do
   do ip = 1,isPtr%numForeignNodes
-    schismPtr(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
+    farray(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
   end do
 
 end subroutine SCHISM_FieldPtrUpdate

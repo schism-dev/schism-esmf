@@ -614,6 +614,7 @@ end subroutine
 subroutine ModelAdvance(comp, rc)
 
   use schism_glbl, only: wtiminc,windx2,windy2,pr2,np
+  use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -705,14 +706,6 @@ subroutine ModelAdvance(comp, rc)
 !      dataPtr_sxx2(i1+mdataIn%NumOwnedNd_NoHalo)
     end do
 
-    ! The following assumes that halo exchange on nodes is done inside SCHISM
-    ! and we do not have to worry about this here
-    !npe = ubound(farrayPtr1,1)
-    
-    !write(message,*) ' windx2',npe,np 
-    !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-    !windx2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
@@ -736,34 +729,11 @@ subroutine ModelAdvance(comp, rc)
 !    windy2(1:npe)=farrayPtr1(1:npe)
   endif 
 
-  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  if (itemType == ESMF_STATEITEM_FIELD) then 
-    call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    
-    npe = ubound(farrayPtr1,1)
-    pr2(1:npe)=farrayPtr1(1:npe)
-  endif 
-
-!  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-!  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  windy2(1:np)=farrayPtr1(1:np)
-
-!  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  pr2(1:np)=farrayPtr1(1:np)
-
+  call SCHISM_StateGetField(importState, 'air_pressure_at_sea_level', field=field, rc=localrc)
+  if (localrc == ESMF_SUCCESS) call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  pr2(1:npe)=farrayPtr1(1:npe)
+  
   call schism_step(it)
   it = it + 1
 
