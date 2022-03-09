@@ -252,6 +252,7 @@ end subroutine SCHISM_StateFieldCreateRealize
 subroutine addSchismMesh(comp, rc)
 ! Define ESMF domain partition
   !> @todo apply only filter to 'use schism_glbl'
+  !use schism_esmf_util, only: type_InternalStateWrapper, type_InternalState
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
@@ -260,7 +261,7 @@ subroutine addSchismMesh(comp, rc)
   implicit none
 
   type(ESMF_GridComp)  :: comp
-  integer, intent(out) :: rc
+  integer(ESMF_KIND_I4), intent(out) :: rc
 
   type(ESMF_Mesh)          :: mesh2d
   type(ESMF_DistGrid)      :: elementDistgrid, distgrid
@@ -298,18 +299,13 @@ subroutine addSchismMesh(comp, rc)
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
 
-  write(0,*)'__LINE__ inside addSchismMesh'
-  call ESMF_Finalize() 
+!  write(0,*)'__LINE__ inside addSchismMesh'
+!  call ESMF_Finalize() 
 
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompGet(comp, name=compName, localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_GridCompGetInternalState(comp, internalState, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  isDataPtr => internalState%wrap
 
   !> @todo all non-ESMF stuff should be outsourced to schism_bmi.F90
   ! prepare mesh
@@ -350,6 +346,7 @@ subroutine addSchismMesh(comp, rc)
   !A node is owned by same rank across PETs; interface nodes are owned by min rank
   allocate(nodeowners(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  nodeowners(:) = -1
 
   allocate(nodemask(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -420,6 +417,14 @@ subroutine addSchismMesh(comp, rc)
     nodemask(ip)         = idry(ip)
   end do !ip
 
+  ! As the list of owned and non-owned nodes is not preserved in the ESMF_Mesh
+  ! structure, we need to save this information to an internal state, for later 
+  ! use in Array/Field creation.
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
+
   isDataPtr%numOwnedNodes = 0
   isDataPtr%numForeignNodes = 0
   do ip=1,np
@@ -439,12 +444,17 @@ subroutine addSchismMesh(comp, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
+  write(message,'(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+    'matching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  
   allocate(isDataPtr%ownedNodeIds(isDataPtr%numOwnedNodes), stat=localrc)
   allocate(isDataPtr%foreignNodeIds(isDataPtr%numForeignNodes), stat=localrc)
 
   ownedCount = 0
   foreignCount = 0
-  do i=1,np
+  do ip=1,np
     if (nodeowners(ip) == localPet) then
       ownedCount=ownedCount + 1
       isDataPtr%ownedNodeIds(ownedCount) = ip
@@ -458,9 +468,6 @@ subroutine addSchismMesh(comp, rc)
     'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
     ' and foreign=', isDataPtr%numForeignNodes,' nodes'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  write(*,*) 'Owned nodes on PET ',localPet,isDataPtr%ownedNodeIds
-  write(*,*) 'Foreign nodes on PET ',localPet,isDataPtr%foreignNodeIds
 
   nvcount=0
   do i=1,ne
@@ -505,26 +512,20 @@ subroutine addSchismMesh(comp, rc)
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(testids(myne))
-  call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!> @todo We need a generic handling of intformat
+  !write(message, *) trim(compName)//' created mesh from ', np, &
+  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh from ', np, &
+    ' resident nodes and ', myne, ' resident elements'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh from "', np, &
-    ' resident nodes and ', myne, ' resident elements in SCHISM'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  write(message, '(A,I3.3,A,I3.3,A)') trim(compName)//' created mesh with "', mynp, &
-    'owned nodes and ', myne, ' owned elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  !write(message, *) trim(compName)//' created mesh with "', mynp, &
+  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh with "', mynp, &
+    ' owned nodes and ', myne, ' owned elements'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> @todo the following might overflow the message buffer easily ...
-  write(message,*) 'elementIds:',elementIds
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  write(message,*) 'distgridElementIds:',testids
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  deallocate(testids)
+  !write(message,*) 'elementIds:',elementIds
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -554,7 +555,6 @@ subroutine addSchismMesh(comp, rc)
 
   call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
 
   call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -632,7 +632,7 @@ subroutine addSchismMesh(comp, rc)
   if (allocated(elementCoords2d)) deallocate(elementCoords2d, stat=localrc)
   deallocate(nv, stat=localrc)
 
-  write(message, '(A)') trim(compName)//' created 2D mesh"'
+  write(message, '(A)') trim(compName)//' created 2D mesh'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
 end subroutine addSchismMesh
