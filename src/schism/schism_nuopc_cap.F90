@@ -629,7 +629,6 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)       :: localrc
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
-  integer                     :: npe ! number of exclusive nodes <= np
   integer                     :: ip
 
   type(ESMF_Field) :: field
@@ -696,18 +695,21 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+ 
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     do ip = 1,isDataPtr%numOwnedNodes
       windx2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-      !FVCOM_SXX2(mdataIn%owned_to_present_nodes(i1),1) = dataPtr_sxx2(i1)
     end do
     do ip = 1,isDataPtr%numForeignNodes
       windx2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
-!      FVCOM_SXX2(mdataIn%owned_to_present_halo_nodes(i1),1) =
-!      dataPtr_sxx2(i1+mdataIn%NumOwnedNd_NoHalo)
     end do
+
+    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   endif 
 
@@ -718,6 +720,9 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+ 
     call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
  
@@ -728,8 +733,8 @@ subroutine ModelAdvance(comp, rc)
       windy2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
     end do
 
-!    npe = ubound(farrayPtr1,1)
-!    windy2(1:npe)=farrayPtr1(1:npe)
+    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif 
 
   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
@@ -741,7 +746,6 @@ subroutine ModelAdvance(comp, rc)
   
     call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !  pr2(1:npe)=farrayPtr1(1:npe)
   endif 
 
   call schism_step(it)
@@ -821,7 +825,8 @@ subroutine addSchismMesh(comp, rc)
   use schism_esmf_util, only: type_InternalStateWrapper, type_InternalState
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
-  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
+  use schism_glbl, only: ylat, xlon, np, ne, ics
+  !use schism_glbl, only: ylat, xlon, np => npa, ne => nea,  ics
   use schism_glbl, only:  nvrt
 
   implicit none
@@ -883,51 +888,25 @@ subroutine addSchismMesh(comp, rc)
   ! d) allocate element arrays such that local elements (ne) are in array and
   !    augmented elements are defined in the computational domain outside the
   !    exclusive domain
-!  numNodeHaloIdx=0
-!  npa=npa
 
-!  allocate(localNodes(npa), stat=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  do i=1,npa
-!    localNodes(i)=i
-!  end do
-
-  ! get inverse matching
-!  allocate(schismToLocalNodes(npa))
-!  schismToLocalNodes(:) = -1 ! initialize to -1
-!  do i=1,npa
-!    schismToLocalNodes(localNodes(i))=i
-!  end do
-
-  ! define mesh
-  !Points to global node #
-  allocate(nodeids(np), stat=localrc)
+  !> A node is owned by same rank across PETs; interface nodes are owned by min rank
+  !> @todo something is still off with npa = np
+  allocate(  &
+    nodeids(np), &
+    nodecoords2d(2*np), &
+    nodeowners(np), &
+    nodemask(np), & 
+    stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !Global coordinates
-  allocate(nodecoords2d(2*np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !A node is owned by same rank across PETs; interface nodes are owned by min rank
-  allocate(nodeowners(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   nodeowners(:) = -1
 
-  allocate(nodemask(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !Points to global elem #
-  allocate(elementids(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementtypes(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementmask(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementcoords2d(2*ne), stat=localrc)
+  allocate( &
+    elementids(ne), &
+    elementtypes(ne), & 
+    elementmask(ne), &
+    elementcoords2d(2*ne), &
+    stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
@@ -959,7 +938,7 @@ subroutine addSchismMesh(comp, rc)
 
     !nodeowners must be unique cross all PETs
     rank2=ipgl(iplg(ip))%rank
-    nodeowners(ip) =rank2 !init 
+    nodeowners(ip) = rank2 !init 
     if(associated(ipgl(iplg(ip))%next)) then !interface or ghost node
       if(ipgl(iplg(ip))%next%rank<rank2) then
         nodeowners(ip) =ipgl(iplg(ip))%next%rank
@@ -994,7 +973,7 @@ subroutine addSchismMesh(comp, rc)
   isDataPtr%numOwnedNodes = 0
   isDataPtr%numForeignNodes = 0
   do ip=1,np
-    if (nodeowners(ip) == localPet) then 
+      if (nodeowners(ip) == localPet) then 
       isDataPtr%numOwnedNodes = isDataPtr%numOwnedNodes + 1
     else 
       isDataPtr%numForeignNodes = isDataPtr%numForeignNodes + 1

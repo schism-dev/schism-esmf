@@ -117,7 +117,7 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
 
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:)
   integer(ESMF_KIND_I4)          :: rc_, localrc, ip
-  character(len=ESMF_MAXSTR)     :: message
+  character(len=ESMF_MAXSTR)     :: message, name
   logical                        :: isPresent
 
   localrc = ESMF_SUCCESS 
@@ -135,12 +135,20 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
+  call ESMF_FieldGet(field, name=name, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
   isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (isPresent) then 
+    !> @todo do we do this after or before assigning the variable
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A)') '--- obtained halo route for field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   endif    
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
@@ -153,6 +161,16 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
     farray(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
   end do
 
+  if (isPresent) then 
+    !> @todo do we do this after or before assigning the variable
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A)') '--- obtained halo route for field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  endif    
+
 end subroutine SCHISM_FieldPtrUpdate
 
 !> @todo separate into ESMF and NUOPC parts that reside in different source files
@@ -160,7 +178,7 @@ end subroutine SCHISM_FieldPtrUpdate
 #define ESMF_METHOD "SCHISM_StateFieldCreateRealize"
 subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
 
-  use schism_glbl, only: nws 
+  use schism_glbl, only: nws,np
   use NUOPC, only: NUOPC_Realize, NUOPC_IsConnected
 
   implicit none 
@@ -196,16 +214,23 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
 
   isDataPtr => internalState%wrap
  
+  write(message,'(A)') trim(compName)//' created array '//trim(name)//' on'
   if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds)) then 
     array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
     haloSeqIndexList=isDataPtr%foreignNodeIds, &
     name=trim(name), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A,I5,A,I5,A)') trim(message)//' ',isDataPtr%numOwnedNodes,'/', np, &
+    ' owned / resident nodes'
   else
     array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
     name=trim(name), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A,I5,A)') trim(message)//' all resident nodes'
   endif
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   field = ESMF_FieldCreate(name=trim(name), mesh=mesh, array=array, &
     meshloc=ESMF_MESHLOC_NODE, rc=localrc)
@@ -217,6 +242,8 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
   if (.not. isPresent) then 
     call ESMF_FieldHaloStore(field, routehandle=isDataPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A)') trim(compName)//' created halo route'
   endif    
 
   write(message,'(A)') trim(compName)//' created field '//trim(name)
@@ -231,15 +258,21 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
     return
   endif
 
-  call NUOPC_Realize(state, field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  write(message,'(A)') trim(compName)//' added halo route to field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call NUOPC_Realize(state, field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message,'(A)') trim(compName)//' realized field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   if (NUOPC_IsConnected(field, rc=localrc) .and. nws /= 3) then
     write(message, '(A,I1,A)') trim(compName)//' connected field '//trim(name)// &
-      '  not used with nws=', nws ,' (needs nws = 3)'
+      '  not used with nws = ', nws ,' (needs nws = 3)'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
