@@ -617,6 +617,7 @@ subroutine ModelAdvance(comp, rc)
 
   use schism_glbl, only: wtiminc,windx2,windy2,pr2,np
   use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
+  use schism_esmf_util, only: SCHISM_StateImportWaveTensor
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc

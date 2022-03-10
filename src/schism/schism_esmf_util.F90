@@ -57,6 +57,7 @@ module schism_esmf_util
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize, SCHISM_StateGetField, SCHISM_FieldPtrUpdate
+  public SCHISM_StateImportWaveTensor
   private
 
 contains
@@ -1138,6 +1139,90 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
 end subroutine schism_esmf_topbottom_tracer
 
 
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateImportWaveTensor"
+subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
 
+  use schism_glbl, only: np
+  implicit none
+
+  type(ESMF_State), intent(in)                  :: state
+  type(type_InternalState), pointer, intent(in) :: isPtr
+  integer(ESMF_KIND_I4), intent(out), optional  :: rc
+
+  logical                    :: isPresent
+  integer(ESMF_KIND_I4)      :: localrc, rc_, i
+  character(len=ESMF_MAXSTR) :: message
+  type(ESMF_Field)           :: field
+  type(ESMF_StateItem_Flag)  :: itemType
+
+  real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
+  real(ESMF_KIND_R8), pointer :: eastward_wave_radiation_stress(:) => null()
+  real(ESMF_KIND_R8), pointer :: eastward_northward_wave_radiation_stress(:) => null()
+  real(ESMF_KIND_R8), pointer :: northward_wave_radiation_stress(:) => null()
+
+  if (present(rc)) rc=ESMF_SUCCESS
+
+  allocate(farrayPtr1(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    allocate(eastward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    eastward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+  
+  endif 
+
+  call ESMF_StateGet(state, itemname='eastward_northward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='eastward_northward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    allocate(eastward_northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    eastward_northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+  endif 
+
+  call ESMF_StateGet(state, itemname='northward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='northward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    allocate(northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+  endif 
+
+  call compute_wave_force_lon(eastward_wave_radiation_stress, & 
+    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
+
+  deallocate(eastward_wave_radiation_stress)
+  deallocate(eastward_northward_wave_radiation_stress)
+  deallocate(northward_wave_radiation_stress)
+  deallocate(farrayPtr1)
+  
+end subroutine SCHISM_StateImportWaveTensor
 
 end module schism_esmf_util
