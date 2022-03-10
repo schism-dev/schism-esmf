@@ -688,29 +688,64 @@ subroutine ModelAdvance(comp, rc)
   call SCHISM_StateImportWaveTensor(importState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+!  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  if (itemType == ESMF_STATEITEM_FIELD) then 
+!    call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+! 
+!    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!    do ip = 1,isDataPtr%numOwnedNodes
+!      windx2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+!    end do
+!    do ip = 1,isDataPtr%numForeignNodes
+!      windx2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
+!    end do
+!
+!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  endif 
+!
+!  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  if (itemType == ESMF_STATEITEM_FIELD) then 
+!    call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+! 
+!    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
+!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+! 
+!    do ip = 1,isDataPtr%numOwnedNodes
+!      windy2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+!    end do
+!    do ip = 1,isDataPtr%numForeignNodes
+!      windy2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
+!    end do
+!
+!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  endif 
+
   call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (itemType == ESMF_STATEITEM_FIELD) then 
     call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+  
+    call SCHISM_FieldPtrUpdate(field, windx2, isPtr=isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
- 
-    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    do ip = 1,isDataPtr%numOwnedNodes
-      windx2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-    end do
-    do ip = 1,isDataPtr%numForeignNodes
-      windx2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
-    end do
-
-    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   endif 
 
   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
@@ -719,22 +754,9 @@ subroutine ModelAdvance(comp, rc)
   if (itemType == ESMF_STATEITEM_FIELD) then 
     call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+  
+    call SCHISM_FieldPtrUpdate(field, windy2, isPtr=isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
- 
-    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
- 
-    do ip = 1,isDataPtr%numOwnedNodes
-      windy2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-    end do
-    do ip = 1,isDataPtr%numForeignNodes
-      windy2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
-    end do
-
-    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif 
 
   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
@@ -751,7 +773,7 @@ subroutine ModelAdvance(comp, rc)
   call schism_step(it)
   it = it + 1
 
-    call ESMF_TraceRegionExit("schism:ModelAdvance")
+  call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
 
 #undef ESMF_METHOD
@@ -1026,10 +1048,10 @@ subroutine addSchismMesh(comp, rc)
     endif
   enddo
 
-  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
-    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
-    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+!    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+!    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   nvcount=0
   do i=1, nea
@@ -1143,6 +1165,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !TODO: check resident
   farrayPtrI41 = nodeIds(1:np)
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
