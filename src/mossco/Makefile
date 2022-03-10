@@ -1,6 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
@@ -42,6 +42,9 @@ endif
 
 default: all
 
+time_aggregation_component.o: time_aggregation_component.F90 mossco_strings.o \
+	mossco_component.o mossco_field.o mossco_state.o mossco_attribute.o \
+	mossco_config.o mossco_time.o
 netcdf_component.o: netcdf_component.F90 mossco_netcdf.o git-sha.h \
 	mossco_component.o mossco_config.o
 mossco_netcdf.o: mossco_netcdf.F90 git-sha.h mossco_strings.o mossco_field.o \
@@ -56,7 +59,7 @@ mossco_attribute.o: mossco_attribute.F90
 mossco_geom.o: mossco_geom.F90 mossco_mesh.o mossco_locstream.o
 mossco_state.o: mossco_state.F90
 
-netcdf_component.F90:
+time_aggregation_component.F90 netcdf_component.F90:
 	ln -sf $(MOSSCO_DIR)/src/components/$@  $@
 
 mossco_netcdf.F90 mossco_strings.F90 mossco_field.F90 mossco-state.F90 \
@@ -74,7 +77,7 @@ git-sha.h:
 
 all: esmf libmossco
 
-libmossco: netcdf_component.o
+libmossco: netcdf_component.o time_aggregation_component.o
 	$(AR) crvs libmossco.a *.o
 
 distclean: clean
