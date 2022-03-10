@@ -60,7 +60,7 @@ endif
 schism_nuopc_cap.o:  schism_nuopc_util.o schism_esmf_util.o schism_bmi.o
 schism_esmf_cap.o:   schism_esmf_util.o schism_bmi.o
 schism_esmf_util.o:  schism_bmi.o
-schism_nuopc_util.o: schism_bmi.o
+schism_nuopc_util.o: schism_esmf_util.o schism_bmi.o
 
 .PHONY:  clean default all
 

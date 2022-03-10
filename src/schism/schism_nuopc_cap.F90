@@ -685,7 +685,7 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Obtain radiation tensor from wave component and calculate the wave stress
-  call SCHISM_StateImportWaveTensor(importState, rc=localrc)
+  call SCHISM_StateImportWaveTensor(importState, isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 !  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)

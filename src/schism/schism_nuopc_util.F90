@@ -93,15 +93,16 @@ subroutine NUOPC_FieldAdvertise(state, name, unit, rc)
 end subroutine NUOPC_FieldAdvertise
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateImportWaveTensor""
-subroutine SCHISM_StateImportWaveTensor(state, rc)
+#define ESMF_METHOD "SCHISM_StateImportWaveTensor"
+subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
 
-  use schism_glbl, only: np,npa
-
+  use schism_esmf_util, only: SCHISM_FieldPtrUpdate, type_InternalState
+  use schism_glbl, only: np
   implicit none
 
-  type(ESMF_State), intent(in)                 :: state
-  integer(ESMF_KIND_I4), intent(out), optional :: rc
+  type(ESMF_State), intent(in)                  :: state
+  type(type_InternalState), pointer, intent(in) :: isPtr
+  integer(ESMF_KIND_I4), intent(out), optional  :: rc
 
   logical                    :: isPresent
   integer(ESMF_KIND_I4)      :: localrc, rc_, i
@@ -116,64 +117,65 @@ subroutine SCHISM_StateImportWaveTensor(state, rc)
 
   if (present(rc)) rc=ESMF_SUCCESS
 
-  call ESMF_StateGet(state, "eastward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
+  allocate(farrayPtr1(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  allocate(eastward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "eastward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  call ESMF_FieldGet(field, farrayPtr=eastward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  do i=1,nsa
-!    eastward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    allocate(eastward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    eastward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
   
-  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
+  endif 
 
-!  allocate(eastward_northward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  call ESMF_StateGet(state, itemname='eastward_northward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, farrayPtr=eastward_northward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='eastward_northward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  do i=1,nsa
-!    eastward_northward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateGet(state, "northward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
+    allocate(eastward_northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  allocate(northward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "northward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    eastward_northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+  endif 
 
-  call ESMF_FieldGet(field, farrayPtr=northward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  call ESMF_StateGet(state, itemname='northward_wave_radiation_stress', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  do i=1,nsa
-!    northward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
-!  nullify(farrayPtr1)
+  if (itemType == ESMF_STATEITEM_FIELD) then 
+    call ESMF_StateGet(state, itemname='northward_wave_radiation_stress', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  call compute_waveforce_from_stress(eastward_wave_radiation_stress, & 
-!    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
+    call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    allocate(northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+  endif 
+
   call compute_wave_force_lon(eastward_wave_radiation_stress, & 
     eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
 
-   nullify(eastward_wave_radiation_stress)
-   nullify(eastward_northward_wave_radiation_stress)
-   nullify(northward_wave_radiation_stress)
-!  deallocate(eastward_wave_radiation_stress)
-!  deallocate(eastward_northward_wave_radiation_stress)
-!  deallocate(northward_wave_radiation_stress)
+  deallocate(eastward_wave_radiation_stress)
+  deallocate(eastward_northward_wave_radiation_stress)
+  deallocate(northward_wave_radiation_stress)
+  deallocate(farrayPtr1)
   
 end subroutine SCHISM_StateImportWaveTensor
 
