@@ -1057,20 +1057,34 @@ subroutine addSchismMesh(comp, rc)
   endif
 
   ! create element distgrid (distribute)
-  elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
+  ! elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> This is a three-part mesh generation, with later addition of node 
+  !> and element information 
+  mesh2d = ESMF_MeshCreate(parametricDim=2, spatialdim=2, coordSys=coordsys, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,nodeIds=nodeids, &
-             nodeCoords=nodecoords2d,nodeOwners=nodeowners, &
-             coordSys=coordsys, &
-             nodeMask=nodemask,elementMask=elementmask, &
-             elementIds=elementids, elementTypes=elementtypes, &
-             elementCoords=elementcoords2d, &
-             elementDistgrid=elementDistgrid, &
-             elementConn=nv, rc=localrc)
+  !> We can pass a nodalDistgrid (optional) 
+  call ESMF_MeshAddNodes(mesh2d, nodeIds=nodeids, nodeCoords=nodecoords2d, &
+    nodeOwners=nodeowners, nodeMask=nodemask, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, elementDistgrid=distgrid, &
+  !> optional arguments are elementArea and elementDistgrid
+  call ESMF_MeshAddElements(mesh2d, elementIds=elementids, elementTypes=elementtypes, &
+    elementConn=nv, elementMask=elementmask, elementCoords=elementcoords2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,
+  !            coordSys=coordsys, &
+  !            elementMask=elementmask, &
+  !            elementIds=elementids, elementTypes=elementtypes, &
+  !            elementCoords=elementcoords2d, &
+  !            elementDistgrid=elementDistgrid, &
+  !            elementConn=nv, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
