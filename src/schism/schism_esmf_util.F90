@@ -157,9 +157,11 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   do ip = 1, isPtr%numOwnedNodes
     farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
   end do
-  do ip = 1,isPtr%numForeignNodes
-    farray(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
-  end do
+
+  !> The following seems to overwrite valid data, so we cannot do this
+  !do ip = 1,isPtr%numForeignNodes
+  !  farray(isPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isPtr%numOwnedNodes)
+  !end do
 
   if (isPresent) then 
     !> @todo do we do this after or before assigning the variable
