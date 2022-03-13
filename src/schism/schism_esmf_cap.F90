@@ -1,7 +1,7 @@
 ! This code is part of the SCHISM-ESMF interface
 !
 ! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
-! @copyright (C) 2018--2021 Helmholtz-Zentrum Geesthacht
+! @copyright (C) 2018-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Richard Hofmeister
@@ -46,7 +46,6 @@ module schism_esmf_cap
  &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
  &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
 
-
 contains
 
 #undef  ESMF_METHOD
@@ -56,10 +55,20 @@ subroutine SetServices(comp, rc)
   type(ESMF_GridComp)                :: comp
   integer(ESMF_KIND_I4), intent(out) :: rc
 
-  integer(ESMF_KIND_I4)              :: localrc
-! integer                            :: pdaf_stat
+  integer(ESMF_KIND_I4)                 :: localrc
+  character(len=ESMF_MAXSTR), parameter :: label_InternalState = 'InternalState'
+  type(type_InternalStateWrapper)       :: internalState
+  type(type_InternalState), pointer     :: isDataPtr => null()
+! integer                                :: pdaf_stat
 
   rc = ESMF_SUCCESS
+
+  allocate(internalState%wrap, stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_UserCompSetInternalState(comp, label_InternalState, &
+    internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
     phase=0, userRoutine=InitializeP0, rc=localrc)
@@ -180,6 +189,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   character(len=ESMF_MAXSTR)  :: currentDirectory
   type(ESMF_Config)           :: config
 
+  type(type_InternalStateWrapper)   :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
+
   rc = ESMF_SUCCESS
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
@@ -252,6 +264,19 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
+  allocate(internalState%wrap, stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompSetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  isDataPtr => internalState%wrap
+  isDataPtr%numOwnedNodes = 0
+  isDataPtr%numForeignNodes = 0
+  
   ! Get VM for this component
   call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -369,198 +394,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_ClockSet(schismClock, timeStep=schism_dt, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! prepare mesh
-  ! a) take local elements and get number of nodes for definition
-  ! b) get number of augmented nodes, which are not connected to local elements
-  ! c) allocate node arrays such that nodeids gives all nods belonging to local
-  !    elements, all other nodes as part of the augmented domain are outside the
-  !    exclusive region
-  ! d) allocate element arrays such that local elements (ne) are in array and
-  !    augmented elements are defined in the computational domain outside the
-  !    exclusive domain
-  numNodeHaloIdx=0
-  numLocalNodes=np
-
-  !allocate(tmpIdx(npa-np), stat=localrc)
+  call addSchismMesh(comp, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-!  allocate(tmpIdx2(npa), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !write(0,*) __LINE__, localPet, np, npa, ne, nea
-
-  ! do i=1,np
-  !   tmpIdx2(i)=i
-  ! end do
-  ! do i=np+1,npa-np
-  !   ! check existence in local elements
-  !   do ie=1,ne
-  !     if (any(elnode(1:i34(ie),ie)==i)) then
-  !       numLocalNodes = numLocalNodes+1
-  !       tmpIdx2(numLocalNodes)=i
-  !       write(0,*) __LINE__,i,ie
-  !       write(0,*) 'We should never have arrived here'
-  !       stop
-  !     else
-  !       write(0,*) __LINE__,i,ie, i-np, ubound(tmpIdx)
-  !       numNodeHaloIdx = numNodeHaloIdx+1
-  !       tmpIdx(numNodeHaloIdx)=i-np
-  !     end if
-  !   end do
-  ! end do
-
-  !allocate(nodeHaloIdx(numNodeHaloIdx))
-  !nodeHaloIdx(:)=tmpIdx(1:numNodeHaloIdx)
-  !deallocate(tmpIdx)
-  allocate(localNodes(numLocalNodes))
-  do i=1, numLocalNodes
-    localNodes(i) = i
-  end do
-
-!  localNodes(:)=tmpIdx2(1:numLocalNodes)
-  !deallocate(tmpIdx2)
-
-  ! get inverse matching
-  allocate(schismToLocalNodes(npa))
-  schismToLocalNodes(:) = -1 ! initialize to -1
-  do i=1,numLocalNodes
-    schismToLocalNodes(localNodes(i))=i
-  end do
-
-  ! define mesh
-  allocate(nodeids(numLocalNodes), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(nodecoords2d(2*numLocalNodes), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(nodecoords3d(3*numLocalNodes), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(nodeowners(numLocalNodes), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(nodemask(numLocalNodes), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementids(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementtypes(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementmask(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementcoords2d(2*ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !allocate(elementcoords3d(3*nea), stat=localrc)
-  allocate(nv(4*ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! set ESMF coordSys type
-  if (ics==2) then
-    coordsys=ESMF_COORDSYS_SPH_DEG
-  else
-    write(message, '(A)') trim(compName)//' uses a cartesian coordinate system'// &
-       'which may not be suitable for coupling'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-    coordsys=ESMF_COORDSYS_CART
-  endif
-
-  do ip=1, numLocalNodes
-    i = localNodes(ip)
-    ! iplg(i) is global node index of local node i in the augmented domain
-    nodeids(ip)=iplg(i)
-    if (ics==2) then
-      ! if geographical coordinates present
-      nodecoords2d(2*ip-1) = rad2deg*xlon(i)
-      nodecoords2d(2*ip)   = rad2deg*ylat(i)
-    else
-      ! use cartesian coordinates
-      nodecoords2d(2*ip-1) = xnd(i)
-      nodecoords2d(2*ip)   = ynd(i)
-    end if
-    if (i<=np) then
-      ! if iplg(i) is resident, ipgl(iplg(i))%rank=myrank
-      nodeowners(ip) = ipgl(iplg(i))%rank
-    else
-      ! get owner of foreign node, the SCHISM manual tells us to not use
-      ! ipgl for foreign nodes ???
-      ! ipgl%next%next%next.... is the linked list, with ranks in ascending order.  Unless ipgb is an interface node (i.e., resident in more than 1 process), the list has only 1 entry
-      nextp => ipgl(iplg(i))
-      ! We here advance to the end of the list, Joseph suggested to just take the next element
-      do while (associated(nextp%next))
-        nextp => nextp%next
-      end do
-      nodeowners(ip) = nextp%rank
-    end if
-    nodemask(ip)         = idry(i)
-  end do
-
-  nvcount=1
-
-  do i=1,ne
-    elementids(i)=ielg(i)
-    elementtypes(i)=i34(i)
-    elementmask(i)=idry_e(i)
-    elLocalNode(:)=-1 ! get local elnode
-    do ii=1,i34(i)
-      elLocalNode(ii)=schismToLocalNodes(elnode(ii,i))
-      nv(nvcount+ii-1) = schismTolocalNodes(elnode(ii,i))
-    end do
-    nvcount = nvcount+i34(i)
-
-    ! Element coord is the sum of nodes divided by number of nodes
-    elementcoords2d(2*i-1)=sum(nodecoords2d(2*elLocalNode(1:i34(i))-1))/i34(i)
-    elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
-  end do
-
-#if 0
-  write(0,*) 'Local Nodes, np=',np
-  do i=1,numLocalNodes
-   write(0,*) 'localid, globalid, nodeowner',i,nodeids(i),nodeowners(i)
-  end do
-  nvcount=1
-  do i=1,ne
-    write(0,*) 'ne, conn',i,nv(nvcount:nvcount+i34(i)-1)
-    nvcount = nvcount+i34(i)
-  end do
-#endif
-
-  ! create element distgrid
-  elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,nodeIds=nodeids, &
-             nodeCoords=nodecoords2d,nodeOwners=nodeowners, &
-             coordSys=coordsys, &
-             nodeMask=nodemask,elementMask=elementmask, &
-             elementIds=elementids, elementTypes=elementtypes, &
-             elementCoords=elementcoords2d, &
-             elementDistgrid=elementDistgrid, &
-             elementConn=nv(1:nvcount-1), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-#if 0
-  ! output mesh information from schism and esmf
-  call ESMF_MeshGet(mesh2d,numOwnedNodes=mynp,numOwnedElements=myne,elementDistgrid=distgrid,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  allocate(testids(myne))
-  call ESMF_DistGridGet(distgrid,localDE=0,seqIndexList=testids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(0,*) 'esmf   owned nodes,elements',mynp,myne
-  write(0,*) 'schism owned nodes,elements',np,ne
-  write(0,*) 'schism   all nodes,elements',npa,nea
-  write(0,*) 'elementIds',elementIds
-  write(0,*) 'distgridElementIds',testids
-  deallocate(testids)
-#endif
-
   !> Create states if they were not created
-
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)
