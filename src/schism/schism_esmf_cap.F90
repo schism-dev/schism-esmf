@@ -30,9 +30,9 @@
 
 module schism_esmf_cap
 
+  use esmf
   use schism_bmi
   use schism_esmf_util
-  use esmf
 
   implicit none
 
@@ -1265,7 +1265,7 @@ subroutine addCIM(comp, rc)
     purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompGet(comp, importState=importState, rc=localrc)
+  call ESMF_GridCompGet(comp, importState=importState, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_AttributeGet(importState, name='simulation_start', value=message, defaultvalue='Untitled', rc=localrc)
@@ -1282,6 +1282,7 @@ subroutine addCIM(comp, rc)
     purpose=purpose, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo error message: Run-Time Check Failure. The variable 'schism_esmf_cap_mp_addcim_$PETCOUNT' is being used in 'schism_esmf_cap.F90(1449,3)' without being defined
   write(message,'(I4)') petCount
   call ESMF_AttributeSet(comp, 'SimulationNumberOfProcessingElements', message, convention=convention, &
     purpose=purpose, rc=localrc)

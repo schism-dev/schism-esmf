@@ -387,12 +387,11 @@ end subroutine SCHISM_StateFieldCreateRealize
 #undef  ESMF_METHOD
 #define ESMF_METHOD "addSchismMesh"
 subroutine addSchismMesh(comp, rc)
-! Define ESMF domain partition
-  !> @todo apply only filter to 'use schism_glbl'
-  !use schism_esmf_util, only: type_InternalStateWrapper, type_InternalState
+  ! Define ESMF domain partition
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
-  use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
+  !use schism_glbl, only: ylat, xlon, np, ne, ics
+  use schism_glbl, only: ylat, xlon, np, npa, nea,  ics
   use schism_glbl, only:  nvrt
 
   implicit none
@@ -454,56 +453,28 @@ subroutine addSchismMesh(comp, rc)
   ! d) allocate element arrays such that local elements (ne) are in array and
   !    augmented elements are defined in the computational domain outside the
   !    exclusive domain
-!  numNodeHaloIdx=0
-!  npa=npa
 
-!  allocate(localNodes(npa), stat=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  do i=1,npa
-!    localNodes(i)=i
-!  end do
-
-  ! get inverse matching
-!  allocate(schismToLocalNodes(npa))
-!  schismToLocalNodes(:) = -1 ! initialize to -1
-!  do i=1,npa
-!    schismToLocalNodes(localNodes(i))=i
-!  end do
-
-  ! define mesh
-  !Points to global node #
-  allocate(nodeids(np), stat=localrc)
+  !> A node is owned by same rank across PETs; interface nodes are owned by min rank
+  !> @todo something is still off with npa = np
+  allocate(  &
+    nodeids(npa), &
+    nodecoords2d(2*npa), &
+    nodeowners(npa), &
+    nodemask(npa), & 
+    stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !Global coordinates
-  allocate(nodecoords2d(2*np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !A node is owned by same rank across PETs; interface nodes are owned by min rank
-  allocate(nodeowners(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  nodeowners(:) = -1
-
-  allocate(nodemask(np), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !Points to global elem #
-  allocate(elementids(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementtypes(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementmask(ne), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  allocate(elementcoords2d(2*ne), stat=localrc)
+  allocate( &
+    elementids(nea), &
+    elementtypes(nea), & 
+    elementmask(nea), &
+    elementcoords2d(2*nea), &
+    stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! nv (elemConn): 1D array for connectivity (packed from 2D array elnode).
   ! Outputs local node # 
-  allocate(nv(sum(i34(1:ne))), stat=localrc)
+  allocate(nv(sum(i34(1:nea))), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! set ESMF coordSys type
@@ -516,7 +487,7 @@ subroutine addSchismMesh(comp, rc)
     coordsys=ESMF_COORDSYS_CART
   endif
 
-  do ip=1, np
+  do ip=1, npa
     nodeids(ip)=iplg(ip) !global node #
     if (ics==2) then
       ! if geographical coordinates present
@@ -529,30 +500,49 @@ subroutine addSchismMesh(comp, rc)
     end if
 
     !nodeowners must be unique cross all PETs
-    rank2=ipgl(iplg(ip))%rank
-    nodeowners(ip) =rank2 !init 
-    if(associated(ipgl(iplg(ip))%next)) then !interface or ghost node
-      if(ipgl(iplg(ip))%next%rank<rank2) then
-        nodeowners(ip) =ipgl(iplg(ip))%next%rank
-      endif
-    endif
+    ! In Shinecook we have 3070 nodes, on two PET that should be 1558 and 1512 owned
+    ! We actually get that correct with np, BUT with npa we get 1600 owned on PET0
+ 
+    ! Resident nodes (ip <= np) can be owned or foreign, i.e. owned by the PET that has 
+    ! the lowest rank in the linked list ipgl(iplg(ip))%next
+    if (ip <= np) then 
 
-!    if (ip<=np) then
-!      ! if iplg() is resident, ipgl(iplg(i))%rank=myrank
-!      nodeowners(ip) = ipgl(iplg(ip))%rank
-!    else !not executed at the moment
-!      ! get owner of foreign node, the SCHISM manual tells us to not use
-!      ! ipgl for foreign nodes ???
-!      ! ipgl%next%next%next.... is the linked list, with ranks in ascending order.  Unless ipgb is an interface node (i.e., resident in more than 1 process), the list has only 1 entry
-!      nextp => ipgl(iplg(ip))
-!      ! We here advance to the end of the list, Joseph suggested to just take the next element
-!      do while (associated(nextp%next))
-!        nextp => nextp%next
-!      end do
-!      nodeowners(ip) = nextp%rank
-!    end if
-    nodemask(ip)         = idry(ip)
-  end do !ip
+      rank2=ipgl(iplg(ip))%rank
+ 
+      ! If it is a resident node, we only need the first next, since the list is ascending
+      nodeowners(ip) = rank2 !init 
+      if(associated(ipgl(iplg(ip))%next)) then !interface or ghost node
+        if(ipgl(iplg(ip))%next%rank<rank2) then
+          nodeowners(ip) = ipgl(iplg(ip))%next%rank
+        endif
+      endif
+
+    else ! ip > np ! ghost node, i.e. definitely not owned
+
+      rank2 = huge(1) ! or at least number of processes + 1
+      nextp => ipgl(iplg(ip))
+      do while (associated(nextp%next))
+        nextp => nextp%next
+        if (nextp%rank < rank2) rank2 = nextp%rank 
+      end do
+    
+      if (rank2 > huge(1) - 1 ) then ! greater than number of PET
+        write(message,'(A,I5)') trim(compName)//' could not find owner of node ', ip
+        localrc = ESMF_RC_ARG_SIZE
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      endif
+    
+      if (rank2 == localPet) then
+        write(message,'(A,I5)') trim(compName)//' found myself wrongly as owner of node', ip
+        localrc = ESMF_RC_ARG_SIZE
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      endif
+    
+      nodeowners(ip) = rank2
+    endif 
+
+    nodemask(ip) = idry(ip)
+  end do ! ip...npa
 
   ! As the list of owned and non-owned nodes is not preserved in the ESMF_Mesh
   ! structure, we need to save this information to an internal state, for later 
@@ -564,15 +554,15 @@ subroutine addSchismMesh(comp, rc)
 
   isDataPtr%numOwnedNodes = 0
   isDataPtr%numForeignNodes = 0
-  do ip=1,np
-    if (nodeowners(ip) == localPet) then 
+  do ip=1, npa
+      if (nodeowners(ip) == localPet) then 
       isDataPtr%numOwnedNodes = isDataPtr%numOwnedNodes + 1
     else 
       isDataPtr%numForeignNodes = isDataPtr%numForeignNodes + 1
     endif
   enddo
 
-  if (isDataPtr%numForeignNodes + isDataPtr%numOwnedNodes /= np) then 
+  if (isDataPtr%numForeignNodes + isDataPtr%numOwnedNodes /= npa) then 
     localrc = ESMF_RC_ARG_SIZE
     write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
       'mismatching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
@@ -591,7 +581,7 @@ subroutine addSchismMesh(comp, rc)
 
   ownedCount = 0
   foreignCount = 0
-  do ip=1,np
+  do ip=1,npa
     if (nodeowners(ip) == localPet) then
       ownedCount=ownedCount + 1
       isDataPtr%ownedNodeIds(ownedCount) = ip
@@ -601,13 +591,13 @@ subroutine addSchismMesh(comp, rc)
     endif
   enddo
 
-  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
-    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
-    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
+!    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+!    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   nvcount=0
-  do i=1,ne
+  do i=1, nea
     elementids(i)=ielg(i)
     if(i34(i)==3) then
       elementtypes(i)=ESMF_MESHELEMTYPE_TRI
@@ -632,20 +622,34 @@ subroutine addSchismMesh(comp, rc)
   endif
 
   ! create element distgrid (distribute)
-  elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
+  ! elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> This is a three-part mesh generation, with later addition of node 
+  !> and element information 
+  mesh2d = ESMF_MeshCreate(parametricDim=2, spatialdim=2, coordSys=coordsys, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,nodeIds=nodeids, &
-             nodeCoords=nodecoords2d,nodeOwners=nodeowners, &
-             coordSys=coordsys, &
-             nodeMask=nodemask,elementMask=elementmask, &
-             elementIds=elementids, elementTypes=elementtypes, &
-             elementCoords=elementcoords2d, &
-             elementDistgrid=elementDistgrid, &
-             elementConn=nv, rc=localrc)
+  !> We can pass a nodalDistgrid (optional) 
+  call ESMF_MeshAddNodes(mesh2d, nodeIds=nodeids, nodeCoords=nodecoords2d, &
+    nodeOwners=nodeowners, nodeMask=nodemask, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, elementDistgrid=distgrid, &
+  !> optional arguments are elementArea and elementDistgrid
+  call ESMF_MeshAddElements(mesh2d, elementIds=elementids, elementTypes=elementtypes, &
+    elementConn=nv, elementMask=elementmask, elementCoords=elementcoords2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,
+  !            coordSys=coordsys, &
+  !            elementMask=elementmask, &
+  !            elementIds=elementids, elementTypes=elementtypes, &
+  !            elementCoords=elementcoords2d, &
+  !            elementDistgrid=elementDistgrid, &
+  !            elementConn=nv, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -704,6 +708,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !TODO: check resident
   farrayPtrI41 = nodeIds(1:np)
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
@@ -723,7 +728,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  farrayPtrI41 = elementIds(1:ne)
+  farrayPtrI41 = elementIds(1:nea)
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -743,7 +748,7 @@ subroutine addSchismMesh(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI42, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do i=1,ne
+  do i=1,nea
     do n=1,i34(i)
       farrayPtrI42(i,n) = iplg(elnode(n,i))
     end do
