@@ -126,7 +126,8 @@ end subroutine SetServices
 subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   !> @todo apply only filter to 'use schism_glbl', in the mid-term
-  !> much of this code should go to schism_esmf_util and schism_bmi
+  !> much of this code should go to schism_esmf_util and 
+  
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
@@ -137,6 +138,8 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_msgp, only: parallel_init
   use schism_io, only: fill_nc_header!ncid
 ! use mod_assimilation, only: outf !PDAF module
+
+  use schism_esmf_util, only: SCHISM_MeshCreate
 
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
@@ -394,87 +397,55 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_ClockSet(schismClock, timeStep=schism_dt, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call addSchismMesh(comp, localrc)
+  !> @tod This call produces 
+  !> schism_esmf_cap.o: In function `schism_esmf_cap_mp_initializep1_':
+  !> /sciclone/home20/clemmen/devel/mossco/code/examples/esmf/schism/schism_esmf_cap.F90:405:
+  !> undefined reference to `schism_esmf_util_mp_schism_meshcreate_'
+
+  call SCHISM_MeshCreate(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> Create states if they were not created
 
   !> Create fields for export to describe mesh (this information is not yet
   !> accessible with ESMF_MeshGet calls)
   !> @todo remove this part of the code once there is a suitable ESMF implementation
+  !> Partly implemented in netcdf output component, global to local mappings 
+  !> should go to internal state
 
-  !> Create a dummy field to satisfy ugrid conventions
-  field = ESMF_FieldEmptyCreate(name='mesh_topology', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_AttributeSet(field, 'cf_role', 'mesh_topology', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_AttributeSet(field, 'topology_dimension', 2, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_AttributeSet(field, 'node_coordinates', &
-   'mesh_node_lon mesh_node_lat', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_AttributeSet(field, 'face_node_connectivity', 'mesh_element_node_connectivity', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! fieldName = 'mesh_global_node_id'
+  ! field = ESMF_FieldCreate(mesh2d, name=fieldName,  &
+  !   meshloc=ESMF_MESHLOC_NODE, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  fieldName = 'mesh_global_node_id'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName,  &
-    meshloc=ESMF_MESHLOC_NODE, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! farrayPtrI41 = nodeIds(1:np)
 
-  farrayPtrI41 = nodeIds(1:np)
+  ! call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! write(message, '(A,A)') trim(compName)//' created export field "', &
+  !   trim(fieldName)//'" on nodes'
+  ! call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  ! fieldName = 'mesh_global_element_id'
+  ! field = ESMF_FieldCreate(mesh2d, name=fieldName,  &
+  !   meshloc=ESMF_MESHLOC_ELEMENT, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
 
-  fieldName = 'mesh_global_element_id'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName,  &
-    meshloc=ESMF_MESHLOC_ELEMENT, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
+  ! call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! farrayPtrI41 = elementIds(1:ne)
 
-  farrayPtrI41 = elementIds(1:ne)
+  ! call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! write(message, '(A,A)') trim(compName)//' created export field "', &
+  !   trim(fieldName)//'" on elements'
+  ! call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  nullify(farrayPtrI41)
-
-  fieldName = 'mesh_element_node_connectivity'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-    meshloc=ESMF_MESHLOC_ELEMENT, ungriddedLBound=(/1/), ungriddedUBound=(/4/), &
-    typeKind=ESMF_TYPEKIND_I4, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_FieldGet(field, farrayPtr=farrayPtrI42, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  do i=1,ne
-    do n=1,i34(i)
-      farrayPtrI42(i,n) = iplg(elnode(n,i))
-    end do
-  end do
-
-  call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  nullify(farrayPtrI42)
+  ! nullify(farrayPtrI41)
 
   ! define fields for import and export
   schism_ptr2d => windx2(1:np)
