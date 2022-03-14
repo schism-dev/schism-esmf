@@ -38,14 +38,21 @@ module schism_esmf_util
 ! persistent throught the lifetime of an instance.  Here, we
 ! only provide a boilerplate implementation of an empty internal state
 
+  type type_PtrMap
+    sequence 
+    real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
+    real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
+    character(len=ESMF_MAXSTR)   :: name
+  end type
+
   type type_InternalState
-    sequence ! why is this needed here? taken from documentation
-    ! Store the number of and indices in the 1:np resident nodes
+    sequence
     integer(ESMF_KIND_I4)          :: numForeignNodes=0
     integer(ESMF_KIND_I4)          :: numOwnedNodes=0
     integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
     integer(ESMF_KIND_I4), pointer :: foreignNodeIds(:) => null()
     type(ESMF_RouteHandle)         :: haloHandle
+    type(type_PtrMap), allocatable ::  ptrMap(:)
   end type
 
   type type_InternalStateWrapper
@@ -116,7 +123,7 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
-  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:)
+  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
   integer(ESMF_KIND_I4)          :: rc_, localrc, ip
   character(len=ESMF_MAXSTR)     :: message, name
   logical                        :: isPresent
@@ -175,6 +182,100 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   endif    
 
 end subroutine SCHISM_FieldPtrUpdate
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_GetPtr"
+subroutine SCHISM_GetPtr(name, isPtr, farrayPtr, kwe, rc)
+
+  character(len=ESMF_MAXSTR), intent(in)            :: name
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  real(ESMF_KIND_R8), pointer, intent(out)          :: farrayPtr(:)
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  integer(ESMF_KIND_I4)          :: rc_, localrc, i
+  character(len=ESMF_MAXSTR)     :: message
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+  farrayPtr => null()
+
+  if (.not.associated(isPtr)) return
+  if (.not.allocated(isPtr%ptrMap)) return
+
+  do i=1, ubound(isPtr%ptrMap,1)
+    if (trim(isPtr%ptrMap(i)%name) /= trim(name)) cycle
+    farrayPtr => isPtr%ptrMap(i)%farrayPtr1
+  enddo
+
+end subroutine SCHISM_GetPtr
+
+!> @todo separate into ESMF and NUOPC parts that reside in different source files
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_FieldUpdate"
+subroutine SCHISM_FieldUpdate(field, isPtr, kwe, rc)
+
+  type(ESMF_Field), intent(inout)                   :: field
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
+  real(ESMF_KIND_R8), pointer    :: schismPtr1(:) => null()
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  character(len=ESMF_MAXSTR)     :: message, name
+  logical                        :: isPresent
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  isPresent = ESMF_FieldIsCreated(field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (.not.isPresent) then 
+    write(message, '(A)') 'Tried to access a field that is not created.'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_ARG_BAD
+    if (present(rc)) rc = localrc
+    return
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  call ESMF_FieldGet(field, name=name, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (isPresent) then 
+    !> @todo do we do this after or before assigning the variable
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif    
+
+  call SCHISM_GetPtr(name, isPtr, farrayPtr=schismPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  
+  if (associated(farrayPtr1) .and. associated(schismPtr1)) then 
+    do ip = 1, isPtr%numOwnedNodes
+      schismPtr1(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    end do
+  endif 
+
+  if (isPresent) then 
+    !> @todo do we do this after or before assigning the variable
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A)') '--- obtained halo route for field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  endif    
+
+end subroutine SCHISM_FieldUpdate
 
 !> @todo separate into ESMF and NUOPC parts that reside in different source files
 #undef  ESMF_METHOD
