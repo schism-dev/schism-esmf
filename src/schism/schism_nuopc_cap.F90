@@ -333,6 +333,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("northward_wave_radiation_stress", "N m-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("depth-averaged_x-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("depth-averaged_y-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! for coupling to ATMESH
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
@@ -366,9 +370,14 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo
 
-  ! @todo the following fails since the canonical unit for SST is K
-  !call NUOPC_FieldAdvertise(exportState, "sea_surface_temperature", "degree C", localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldAdvertise(exportState, "sea_surface_temperature", "K", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldAdvertise(exportState, "depth-averaged_x-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldAdvertise(exportState, "depth-averaged_y-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
 
@@ -697,95 +706,80 @@ subroutine ModelAdvance(comp, rc)
   call SCHISM_StateImportWaveTensor(importState, isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  if (itemType == ESMF_STATEITEM_FIELD) then 
-!    call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-! 
-!    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!    do ip = 1,isDataPtr%numOwnedNodes
-!      windx2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-!    end do
-!    do ip = 1,isDataPtr%numForeignNodes
-!      windx2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
-!    end do
-!
-!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  endif 
-!
-!  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  if (itemType == ESMF_STATEITEM_FIELD) then 
-!    call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-! 
-!    call ESMF_FieldGet(field, farrayptr=farrayPtr1, rc=localrc)
-!    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-! 
-!    do ip = 1,isDataPtr%numOwnedNodes
-!      windy2(isDataPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-!    end do
-!    do ip = 1,isDataPtr%numForeignNodes
-!      windy2(isDataPtr%foreignNodeIds(ip)) = farrayPtr1(ip+isDataPtr%numOwnedNodes)
-!    end do
-!
-!    call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
-!   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  endif 
+  ! call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
+  ! if (itemType == ESMF_STATEITEM_FIELD) then 
+  !   call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !   call SCHISM_FieldPtrUpdate(field, windx2, isPtr=isDataPtr, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! endif 
+
+  ! call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! if (itemType == ESMF_STATEITEM_FIELD) then 
+  !   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !   call SCHISM_FieldPtrUpdate(field, windy2, isPtr=isDataPtr, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! endif 
+
+  ! call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! if (itemType == ESMF_STATEITEM_FIELD) then 
+  !   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  !   call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !   call SCHISM_FieldGet(field, isDataPtr, rc=localrc)
+  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! endif 
+
+  !> New generic implementation that loops through state and compares the 
+  !> field names with those in internalState's ptrMap, then assigns 
+  !> the value of the field to the correct SCHISM pointer
+  
+  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (itemType == ESMF_STATEITEM_FIELD) then 
-    call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-    call SCHISM_FieldPtrUpdate(field, windx2, isPtr=isDataPtr, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif 
-
-  call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
+  if (itemCount > 0) allocate(itemTypeList(itemCount), &
+                              itemNameList(itemCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (itemType == ESMF_STATEITEM_FIELD) then 
-    call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-    call SCHISM_FieldPtrUpdate(field, windy2, isPtr=isDataPtr, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif 
+  do i=1, itemCount 
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle 
 
-  call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (itemType == ESMF_STATEITEM_FIELD) then 
-    call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
+    call SCHISM_FieldGet(field, isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-    call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif 
+  enddo
+
+  if (allocated(itemTypeList)) deallocate(itemTypeList)
+  if (allocated(itemNameList)) deallocate(itemNameList)
 
   call schism_step(it)
   it = it + 1
 
+  !> New generic implementation that loops through state and compares the 
+  !> field names with those in internalState's ptrMap, then assigns 
+  !> the value of the correct SCHISM pointer to the field.
+  !> @todo expand this to also include tr_nd and tr_el (if wanted)
+
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(itemTypeList(itemCount), itemNameList(itemCount), stat=localrc)
+  if (itemCount>0) allocate(itemTypeList(itemCount), &
+                            itemNameList(itemCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i=1, itemCount 
@@ -795,13 +789,13 @@ subroutine ModelAdvance(comp, rc)
     call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    if (fieldStatus /= ESMF_FIELDSTATUS_COMPLETE)  cycle 
-
     call SCHISM_FieldPut(field, isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo
+
+  if (allocated(itemTypeList)) deallocate(itemTypeList)
+  if (allocated(itemNameList)) deallocate(itemNameList)
+
 
   call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine

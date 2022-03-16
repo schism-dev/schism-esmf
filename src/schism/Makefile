@@ -57,18 +57,18 @@ else
 	$(ESMF_F90COMPILER) -c $(ESMF_F90COMPILEOPTS) $(ESMF_F90COMPILEPATHS) $(ESMF_F90COMPILEFREECPP) $(ESMF_F90COMPILECPPFLAGS) $(F90FLAGS) $<
 endif
 
-.PHONY:  clean default all esmf nuopc
+.PHONY:  clean default all esmf nuopc common
 
 default: all
 all: nuopc esmf
 esmf: schism_esmf_cap.o
 nuopc: schism_nuopc_cap.o
+common: schism_bmi.o schism_esmf_util.o
 
-schism_nuopc_cap.o:  schism_nuopc_util.o schism_esmf_util.o schism_bmi.o
-schism_esmf_cap.o:   schism_esmf_util.o schism_bmi.o
 schism_esmf_util.o:  schism_bmi.o
-schism_nuopc_util.o: schism_bmi.o
-
+schism_esmf_cap.o:   common
+schism_nuopc_util.o: common
+schism_nuopc_cap.o:  schism_nuopc_util.o common
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout

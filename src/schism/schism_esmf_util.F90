@@ -42,6 +42,7 @@ module schism_esmf_util
     sequence 
     real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
+    real(ESMF_KIND_R8), pointer  :: farrayPtr2(:) => null()
     character(len=ESMF_MAXSTR)   :: name
   end type
 
@@ -116,7 +117,7 @@ end subroutine SCHISM_StateGetField
 #define ESMF_METHOD "SCHISM_InitializePtrMap"
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
-  use schism_glbl, only : dav
+  use schism_glbl, only : dav, pr2, tr_nd, eta2, windx2, windy2
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
@@ -135,30 +136,47 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(2))
+  allocate(isPtr%wrap%ptrMap(6))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
 
-  isPtr%wrap%ptrMap(1)%name = 'depth-averaged_y-velocity'
-  isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(2,:)
-  
+  isPtr%wrap%ptrMap(2)%name = 'depth-averaged_y-velocity'
+  isPtr%wrap%ptrMap(2)%farrayPtr1 => dav(2,:)
+
+  isPtr%wrap%ptrMap(3)%name = 'air_pressure_at_sea_level'
+  isPtr%wrap%ptrMap(3)%farrayPtr1 => pr2
+
+  isPtr%wrap%ptrMap(4)%name = 'elevation_at_sea_level'
+  isPtr%wrap%ptrMap(4)%farrayPtr1 => eta2
+
+  isPtr%wrap%ptrMap(5)%name = 'inst_merid_wind_height10m'
+  isPtr%wrap%ptrMap(5)%farrayPtr1 => windy2
+
+  isPtr%wrap%ptrMap(6)%name = 'inst_zonal_wind_height10m'
+  isPtr%wrap%ptrMap(6)%farrayPtr1 => windx2
+
 end subroutine SCHISM_InitializePtrMap
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldGet"
 subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
 
+  use schism_glbl, only : np, nvrt
+
   type(ESMF_Field), intent(inout)                   :: field
   type(type_InternalState), pointer, intent(in)     :: isPtr
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe  
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
-  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, i
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, i, rank
   character(len=ESMF_MAXSTR)     :: message, name
   logical                        :: isPresent
   real(ESMF_KIND_R8), pointer    :: schismPtr1(:) => null()
+  real(ESMF_KIND_R8), pointer    :: schismPtr2(:) => null()
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
+  real(ESMF_KIND_R8), pointer    :: farrayPtr2(:,:) => null()
+  type(ESMF_TypeKind_Flag)       :: typeKind
 
   localrc = ESMF_SUCCESS 
   if (present(rc)) rc = ESMF_SUCCESS
@@ -167,7 +185,7 @@ subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (.not.isPresent) then 
-    write(message, '(A)') 'Tried to access a field that is not created.'
+    write(message, '(A)') '--- tried to access a field that is not created.'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     localrc = ESMF_RC_ARG_BAD
     if (present(rc)) rc = localrc
@@ -175,22 +193,33 @@ subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  call ESMF_FieldGet(field, name=name, rc=localrc)
+  call ESMF_FieldGet(field, name=name, typeKind=typeKind, rank=rank, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  schismPtr1 => null()
   do i=1, ubound(isPtr%ptrMap,1)
+
+    !write(message, '(A)') 'SCHISM_FieldGet '//trim(name)//' ?= '//trim(isPtr%ptrMap(i)%name)
+    !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  
     if (trim(isPtr%ptrMap(i)%name) /= trim(name)) cycle 
 
-    schismPtr1 => isPtr%ptrMap(i)%farrayPtr1
-
-    write(message,'(A)') '--- found ptrMap for '//trim(name)
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    if (rank == 1) then 
+      schismPtr1 => isPtr%ptrMap(i)%farrayPtr1
+    elseif (rank == 2) then 
+      !schismPtr2 => isPtr%ptrMap(i)%farrayPtr2
+    endif
 
     exit
   enddo 
 
-  if (.not.associated(schismPtr1)) return 
+  if (.not.associated(schismPtr1)) then 
+    write(message,'(A)') '--- could not find ptrMap for '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    return 
+  endif
+
+  write(message,'(A)') '--- found ptrMap for '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
@@ -208,9 +237,15 @@ subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   
-  do ip = 1, isPtr%numOwnedNodes
-    schismPtr1(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-  end do
+  if (associated(schismPtr1)) then 
+    do ip = 1, isPtr%numOwnedNodes
+      schismPtr1(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    end do
+  else
+    do ip = 1, isPtr%numOwnedNodes
+      !schismPtr2(isPtr%ownedNodeIds(ip),1:nvrt) = farrayPtr2(ip,1:nvrt)
+    end do
+  endif
 
 end subroutine SCHISM_FieldGet
 
@@ -223,7 +258,7 @@ subroutine SCHISM_FieldPut(field, isPtr, kwe, rc)
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe  
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
-  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, i
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, i, rank
   character(len=ESMF_MAXSTR)     :: message, name
   logical                        :: isPresent
   real(ESMF_KIND_R8), pointer    :: schismPtr1(:) => null()
@@ -244,22 +279,34 @@ subroutine SCHISM_FieldPut(field, isPtr, kwe, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  call ESMF_FieldGet(field, name=name, rc=localrc)
+  call ESMF_FieldGet(field, name=name, rank=rank, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   schismPtr1 => null()
   do i=1, ubound(isPtr%ptrMap,1)
+
+    write(message, '(A)') 'SCHISM_FieldPut '//trim(name)//' ?= '//trim(isPtr%ptrMap(i)%name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  
     if (trim(isPtr%ptrMap(i)%name) /= trim(name)) cycle 
 
-    schismPtr1 => isPtr%ptrMap(i)%farrayPtr1
-
-    write(message,'(A)') '--- found ptrMap for '//trim(name)
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    if (rank == 1) then 
+      schismPtr1 => isPtr%ptrMap(i)%farrayPtr1
+    elseif (rank == 2) then 
+      !schismPtr2 => isPtr%ptrMap(i)%farrayPtr2
+    endif
 
     exit
   enddo 
 
-  if (.not.associated(schismPtr1)) return 
+  write(message,'(A)') '--- found ptrMap for '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  if (.not.associated(schismPtr1)) then 
+    write(message,'(A)') '--- could not find ptrMap for '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    return 
+  endif
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
