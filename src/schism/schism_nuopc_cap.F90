@@ -641,7 +641,11 @@ subroutine ModelAdvance(comp, rc)
   type(ESMF_StateItem_Flag) :: itemType
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
+
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
+  type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
+  integer(ESMF_KIND_I4)                   :: itemCount, i
+  type(ESMF_FieldStatus_Flag)             :: fieldStatus 
 
   rc = ESMF_SUCCESS
 
@@ -777,6 +781,27 @@ subroutine ModelAdvance(comp, rc)
 
   call schism_step(it)
   it = it + 1
+
+  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc) 
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(itemTypeList(itemCount), itemNameList(itemCount), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do i=1, itemCount 
+
+    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle 
+
+    call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    if (fieldStatus /= ESMF_FIELDSTATUS_COMPLETE)  cycle 
+
+    call SCHISM_FieldPut(field, isDataPtr, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  enddo
 
   call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
