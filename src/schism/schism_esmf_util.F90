@@ -52,7 +52,7 @@ module schism_esmf_util
     integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
     integer(ESMF_KIND_I4), pointer :: foreignNodeIds(:) => null()
     type(ESMF_RouteHandle)         :: haloHandle
-    type(type_PtrMap), allocatable ::  ptrMap(:)
+    type(type_PtrMap), allocatable :: ptrMap(:)
   end type
 
   type type_InternalStateWrapper
@@ -63,7 +63,7 @@ module schism_esmf_util
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize, SCHISM_StateGetField, SCHISM_FieldPtrUpdate
-  public SCHISM_StateImportWaveTensor, SCHISM_MeshCreate
+  public SCHISM_StateImportWaveTensor, SCHISM_MeshCreate, SCHISM_InitializePtrMap
   private 
 
 contains
@@ -110,6 +110,39 @@ subroutine SCHISM_StateGetField(state, itemName, kwe, farrayPtr, field,  rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine SCHISM_StateGetField
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_InitializePtrMap"
+subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
+
+  use schism_glbl, only : dav
+
+  type(ESMF_GridComp), intent(inout)                  :: comp
+  type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional        :: rc
+
+  integer(ESMF_KIND_I4)           :: rc_, localrc, i
+  character(len=ESMF_MAXSTR)      :: message, name
+  type(type_InternalStateWrapper) :: isPtr
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  call ESMF_GridCompGet(comp, name=name, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(isPtr%wrap%ptrMap(2))
+
+  isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
+  isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
+
+  isPtr%wrap%ptrMap(1)%name = 'depth-averaged_y-velocity'
+  isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(2,:)
+  
+end subroutine SCHISM_InitializePtrMap
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldPtrUpdate"

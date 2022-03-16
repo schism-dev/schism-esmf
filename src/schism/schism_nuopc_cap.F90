@@ -208,6 +208,8 @@ end subroutine InitializeP0
 !> its implementation is required
 subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
+  use schism_esmf_util, only: SCHISM_InitializePtrMap
+
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -247,7 +249,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   isDataPtr => internalState%wrap
   isDataPtr%numOwnedNodes = 0
   isDataPtr%numForeignNodes = 0
-  
+
+  call SCHISM_InitializePtrMap(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   if (.not.ESMF_StateIsCreated(importState)) then
     importState=ESMF_StateCreate(name=trim(compName)//'Import', stateintent= &
       ESMF_STATEINTENT_IMPORT, rc=localrc)
