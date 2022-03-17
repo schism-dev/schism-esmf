@@ -321,7 +321,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("surface_temperature", "degree C", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("sea_surface_temperature", "K", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("temperature", "K", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("salinity", "PSU", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_merid_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -371,6 +375,12 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   enddo
 
   call NUOPC_FieldAdvertise(exportState, "sea_surface_temperature", "K", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldAdvertise(exportState, "temperature", "K", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldAdvertise(exportState, "salinity", "PSU", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldAdvertise(exportState, "depth-averaged_x-velocity", "m s-1", localrc)
@@ -628,9 +638,9 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl, only: wtiminc,windx2,windy2,pr2,np
-  use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
-  use schism_esmf_util, only: SCHISM_StateImportWaveTensor
+  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav
+  !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
+  use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -658,8 +668,8 @@ subroutine ModelAdvance(comp, rc)
 
   rc = ESMF_SUCCESS
 
-  call ESMF_TraceRegionEnter("schism:ModelAdvance", rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !call ESMF_TraceRegionEnter("schism:ModelAdvance", rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -669,11 +679,9 @@ subroutine ModelAdvance(comp, rc)
 
   isDataPtr => internalState%wrap
 
-  if(.not.associated(isDataPtr)) then
-    localrc = ESMF_RC_ARG_BAD
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  endif
-
+  if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+ 
   call NUOPC_ModelGet(comp, modelClock=clock, importState=importState, &
     exportState=exportState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -681,43 +689,43 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_ClockGet(clock, advanceCount=advanceCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
-
-    ! Because of the way that the internal Clock was set in SetClock(),
-    ! its timeStep is likely smaller than the parent timeStep. As a consequence
-    ! the time interval covered by a single parent timeStep will result in
-    ! multiple calls to the ModelAdvance() routine. Every time the currTime
-    ! will come in by one internal timeStep advanced. This goes until the
-    ! stopTime of the internal Clock has been reached.
+  ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
+  ! Because of the way that the internal Clock was set in SetClock(),
+  ! its timeStep is likely smaller than the parent timeStep. As a consequence
+  ! the time interval covered by a single parent timeStep will result in
+  ! multiple calls to the ModelAdvance() routine. Every time the currTime
+  ! will come in by one internal timeStep advanced. This goes until the
+  ! stopTime of the internal Clock has been reached.
 
   call ESMF_ClockPrint(clock, options="currTime", &
-      preString="------>Advancing schism from: ", unit=message, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
+      preString="--- advancing schism from ", unit=message, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockGet(clock, currTime=currTime, timeStep=timeStep, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_TimePrint(currTime + timeStep, &
-      preString="---------------------> to: ", unit=message, rc=localrc)
+      preString=trim(message)//" to ", unit=message, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!new39
-    write(message,'(l,A)') associated(isDataPtr),' start WW3 new39'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-
   !> Obtain radiation tensor from wave component and calculate the wave stress
   call SCHISM_StateImportWaveTensor(importState, isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!new39
-    write(message,'(l,A)') associated(isDataPtr),' after WW3 new39'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  call SCHISM_StateUpdate(importState, 'inst_zonal_wind_height10m', windx2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateUpdate(importState, 'inst_merid_wind_height10m', windy2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateUpdate(importState, 'air_pressure_at_sea_level', pr2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -730,105 +738,29 @@ subroutine ModelAdvance(comp, rc)
   !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   ! endif 
 
-  ! call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', itemType=itemType, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! if (itemType == ESMF_STATEITEM_FIELD) then 
-  !   call ESMF_StateGet(importState, itemname='inst_merid_wind_height10m', field=field, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  !   call SCHISM_FieldPtrUpdate(field, windy2, isPtr=isDataPtr, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! endif 
-
-  ! call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', itemType=itemType, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! if (itemType == ESMF_STATEITEM_FIELD) then 
-  !   call ESMF_StateGet(importState, itemname='air_pressure_at_sea_level', field=field, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  !   call SCHISM_FieldPtrUpdate(field, pr2, isPtr=isDataPtr, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !   call SCHISM_FieldGet(field, isDataPtr, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! endif 
-
-  !> New generic implementation that loops through state and compares the 
-  !> field names with those in internalState's ptrMap, then assigns 
-  !> the value of the field to the correct SCHISM pointer
-  
-  call ESMF_StateGet(importState, itemCount=itemCount, rc=localrc) 
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  if (itemCount > 0) allocate(itemTypeList(itemCount), &
-                              itemNameList(itemCount), stat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-!new39
-  write(message,*) itemCount,' enter new39'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-  do i=1, itemCount 
-
-!new39
-    write(message,'(A)') trim(itemNameList(i))//' enter new39'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-
-    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle 
-
-    call ESMF_StateGet(importState, itemName=itemNameList(i), field=field, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-!new39
-    write(message,'(A)') trim(itemNameList(i))//' new39'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
-
-    call SCHISM_FieldGet(field, isDataPtr, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  enddo
-
-  if (allocated(itemTypeList)) deallocate(itemTypeList)
-  if (allocated(itemNameList)) deallocate(itemNameList)
-
   call schism_step(it)
   it = it + 1
 
-  !> New generic implementation that loops through state and compares the 
-  !> field names with those in internalState's ptrMap, then assigns 
-  !> the value of the correct SCHISM pointer to the field.
-  !> @todo expand this to also include tr_nd and tr_el (if wanted)
-
-  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc) 
+  call SCHISM_StateUpdate(exportState, 'elevation', eta2, &
+    isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  if (itemCount>0) allocate(itemTypeList(itemCount), &
-                            itemNameList(itemCount), stat=localrc)
+  !call SCHISM_StateUpdate(exportState, 'depth-averaged_x-velocity', dav(1,:), &
+  !  isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do i=1, itemCount 
+  !call SCHISM_StateUpdate(exportState, 'depth-averaged_y-velocity', dav(2,:), &
+  !  isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle 
+  !call SCHISM_StateUpdate(exportState, 'temperature', tr_nd(1,:,:), &
+  !  isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
+  !  isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!new39
-    write(message,'(A)') trim(itemNameList(i))//' export new39'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-
-    call SCHISM_FieldPut(field, isDataPtr, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  enddo
-
-  if (allocated(itemTypeList)) deallocate(itemTypeList)
-  if (allocated(itemNameList)) deallocate(itemNameList)
-
-
-  call ESMF_TraceRegionExit("schism:ModelAdvance")
 end subroutine
 
 #undef ESMF_METHOD
