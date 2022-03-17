@@ -65,7 +65,7 @@ module schism_esmf_util
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize, SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   public SCHISM_StateImportWaveTensor, SCHISM_MeshCreate, SCHISM_InitializePtrMap
-  public SCHISM_FieldGet, SCHISM_FieldPut
+  public SCHISM_FieldGet, SCHISM_FieldPut, SCHISM_StateUpdate
   private 
 
 contains
@@ -117,13 +117,13 @@ end subroutine SCHISM_StateGetField
 #define ESMF_METHOD "SCHISM_InitializePtrMap"
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
-  use schism_glbl, only : dav, pr2, tr_nd, eta2, windx2, windy2
+  use schism_glbl, only : dav, pr2, tr_nd, eta2, windx2, windy2, npa
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
   integer(ESMF_KIND_I4), intent(out), optional        :: rc
 
-  integer(ESMF_KIND_I4)           :: rc_, localrc, i
+  integer(ESMF_KIND_I4)           :: rc_, localrc, i, ip 
   character(len=ESMF_MAXSTR)      :: message, name
   type(type_InternalStateWrapper) :: isPtr
 
@@ -139,12 +139,12 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   allocate(isPtr%wrap%ptrMap(6))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
-  isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
+  !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
 
-!new39
-!  do i=1,npa
-!    isPtr%wrap$prtMap(1)%farrayPtr1(i)=>dav(1,i)
-!  enddo
+  !> the following is not valid
+  !do ip=1, npa
+  !  isPtr%wrap%ptrMap(1)%farrayPtr1(ip)=>dav(1,ip)
+  !enddo
 
   isPtr%wrap%ptrMap(2)%name = 'depth-averaged_y-velocity'
   isPtr%wrap%ptrMap(2)%farrayPtr1 => dav(2,:)
@@ -203,8 +203,8 @@ subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
 
   do i=1, ubound(isPtr%ptrMap,1)
 
-    !write(message, '(A)') 'SCHISM_FieldGet '//trim(name)//' ?= '//trim(isPtr%ptrMap(i)%name)
-    !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    write(message, '(A)') 'SCHISM_FieldGet '//trim(name)//' ?= '//trim(isPtr%ptrMap(i)%name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
   
     if (trim(isPtr%ptrMap(i)%name) /= trim(name)) cycle 
 
@@ -252,7 +252,79 @@ subroutine SCHISM_FieldGet(field, isPtr, kwe, rc)
     end do
   endif
 
+  write(message,'(A,5(X,F7.2))') 'FieldGet '//trim(name), schismPtr1(1:5)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
 end subroutine SCHISM_FieldGet
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_TracerPut"
+subroutine SCHISM_TracerPut(field, isPtr,  kwe, rc)
+
+  use schism_glbl, only : np, nvrt, tr_nd
+
+  type(ESMF_Field), intent(inout)                   :: field
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe  
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, i, rank
+  character(len=ESMF_MAXSTR)     :: message, name
+  logical                        :: isPresent
+  real(ESMF_KIND_R8), pointer    :: farrayPtr2(:,:) => null()
+  type(ESMF_TypeKind_Flag)       :: typeKind
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  isPresent = ESMF_FieldIsCreated(field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (.not.isPresent) then 
+    write(message, '(A)') '--- tried to access a field that is not created.'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_ARG_BAD
+    if (present(rc)) rc = localrc
+    return
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  call ESMF_FieldGet(field, name=name, typeKind=typeKind, rank=rank, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (trim(name) == 'temperature') then 
+    i=1
+  elseif (trim(name) == 'salinity') then
+    i=2
+  else 
+#ifdef USE_FABM
+    !> @todo add code for FABM tracers
+#endif
+  endif
+
+  ! if (i<1 .or. i>ntracer) then 
+  !   write(message, '(A)') 'SCHISM_TracerPut '
+  !   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  !   return
+  ! endif 
+  
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr2, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  
+  do ip=1, isPtr%numOwnedNodes
+    farrayPtr2(ip,1:nvrt) = tr_nd(i,isPtr%ownedNodeIds(ip),1:nvrt)  
+  end do
+
+  isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (isPresent) then 
+    !> @todo do we do this after or before assigning the variable
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif    
+
+end subroutine SCHISM_TracerPut
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_FieldPut"
@@ -404,6 +476,170 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   endif    
 
 end subroutine SCHISM_FieldPtrUpdate
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateUpdate"
+subroutine SCHISM_StateUpdate(state, name, farray, kwe, isPtr, rc)
+
+  type(ESMF_State), intent(inout)                   :: state
+  character(len=*), intent(in)                      :: name
+  real(ESMF_KIND_R8),  intent(inout), target        :: farray(:)
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  type(ESMF_Field)               :: field
+  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  character(len=ESMF_MAXSTR)     :: message
+  logical                        :: isPresent
+  type(ESMF_StateIntent_Flag)    :: intent
+  type(ESMF_StateItem_Flag)      :: itemType
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  call ESMF_StateGet(state, itemname=trim(name), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    write(message,'(A)') '--- SCHISM_StateUpdate skipped non-field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    return
+  endif 
+
+  call ESMF_StateGet(state, itemname=trim(name), field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_StateGet(state, stateintent=intent, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (intent == ESMF_STATEINTENT_IMPORT) then 
+
+    if (isPresent) then 
+      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif    
+
+    do ip = 1, isPtr%numOwnedNodes
+      farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    end do
+
+    write(message,'(A)') '--- SCHISM_StateUpdate imported '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  elseif (intent == ESMF_STATEINTENT_EXPORT) then 
+
+    do ip = 1, isPtr%numOwnedNodes
+       farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
+    end do
+
+    if (isPresent) then 
+      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif 
+
+    write(message,'(A)') '--- SCHISM_StateUpdate exported '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  else 
+    write(message,'(A)') '--- SCHISM_StateUpdate skipped unspecified intent'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif    
+
+end subroutine SCHISM_StateUpdate
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateUpdate2"
+subroutine SCHISM_StateUpdate(state, name, farray, kwe, isPtr, rc)
+
+  type(ESMF_State), intent(inout)                   :: state
+  character(len=*), intent(in)                      :: name
+  real(ESMF_KIND_R8),  intent(inout), target        :: farray(:,:)
+  type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
+  type(type_InternalState), pointer, intent(in)     :: isPtr
+  
+  integer(ESMF_KIND_I4), intent(out), optional      :: rc
+
+  type(ESMF_Field)               :: field
+  real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  character(len=ESMF_MAXSTR)     :: message
+  logical                        :: isPresent
+  type(ESMF_StateIntent_Flag)    :: intent
+  type(ESMF_StateItem_Flag)      :: itemType
+
+  localrc = ESMF_SUCCESS 
+  if (present(rc)) rc = ESMF_SUCCESS
+
+  if (ubound(farray,1) - lbound(farray,1) > 0) then 
+    write(message,'(A)') '--- SCHISM_StateUpdate2 skipped non-degenerate '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    return
+  endif 
+
+  call ESMF_StateGet(state, itemname=trim(name), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    write(message,'(A)') '--- SCHISM_StateUpdate skipped non-field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    return
+  endif 
+
+  call ESMF_StateGet(state, itemname=trim(name), field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  
+  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_StateGet(state, stateintent=intent, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (intent == ESMF_STATEINTENT_IMPORT) then 
+
+    if (isPresent) then 
+      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif    
+
+    do ip = 1, isPtr%numOwnedNodes
+      farray(1,isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    end do
+
+    write(message,'(A)') '--- SCHISM_StateUpdate imported '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  elseif (intent == ESMF_STATEINTENT_EXPORT) then 
+
+    do ip = 1, isPtr%numOwnedNodes
+       farrayPtr1(ip) = farray(1,isPtr%ownedNodeIds(ip))
+    end do
+
+    if (isPresent) then 
+      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+    endif 
+
+    write(message,'(A)') '--- SCHISM_StateUpdate exported '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  else 
+    write(message,'(A)') '--- SCHISM_StateUpdate skipped unspecified intent'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  endif    
+
+end subroutine SCHISM_StateUpdate2
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_GetPtr"
