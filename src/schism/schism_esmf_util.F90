@@ -141,6 +141,11 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
 
+!new39
+!  do i=1,npa
+!    isPtr%wrap$prtMap(1)%farrayPtr1(i)=>dav(1,i)
+!  enddo
+
   isPtr%wrap%ptrMap(2)%name = 'depth-averaged_y-velocity'
   isPtr%wrap%ptrMap(2)%farrayPtr1 => dav(2,:)
 
