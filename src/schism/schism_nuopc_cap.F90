@@ -745,20 +745,20 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call SCHISM_StateUpdate(exportState, 'depth-averaged_x-velocity', dav(1,:), &
-  !  isPtr=isDataPtr, rc=localrc)
+  call SCHISM_StateUpdate(exportState, 'depth-averaged_x-velocity', dav(1,:), &
+    isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call SCHISM_StateUpdate(exportState, 'depth-averaged_y-velocity', dav(2,:), &
-  !  isPtr=isDataPtr, rc=localrc)
+  call SCHISM_StateUpdate(exportState, 'depth-averaged_y-velocity', dav(2,:), &
+    isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call SCHISM_StateUpdate(exportState, 'temperature', tr_nd(1,:,:), &
-  !  isPtr=isDataPtr, rc=localrc)
+  call SCHISM_StateUpdate(exportState, 'temperature', tr_nd(1,:,:), &
+    isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
-  !  isPtr=isDataPtr, rc=localrc)
+  call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
+    isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
