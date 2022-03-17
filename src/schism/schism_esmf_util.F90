@@ -1487,12 +1487,19 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
   real(ESMF_KIND_R8), pointer :: northward_wave_radiation_stress(:) => null()
 
   if (present(rc)) rc=ESMF_SUCCESS
+  localrc = ESMF_SUCCESS
 
   allocate(farrayPtr1(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', itemType=itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then
+    write(message,'(A)') '--- skipped computing of wave stress'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    return
+  endif
 
   if (itemType == ESMF_STATEITEM_FIELD) then 
     call ESMF_StateGet(state, itemname='eastward_wave_radiation_stress', field=field, rc=localrc)

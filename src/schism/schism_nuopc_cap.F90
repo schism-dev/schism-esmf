@@ -669,6 +669,11 @@ subroutine ModelAdvance(comp, rc)
 
   isDataPtr => internalState%wrap
 
+  if(.not.associated(isDataPtr)) then
+    localrc = ESMF_RC_ARG_BAD
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
   call NUOPC_ModelGet(comp, modelClock=clock, importState=importState, &
     exportState=exportState, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -702,9 +707,17 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_LogWrite(message, ESMF_LOGMSG_INFO, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+!new39
+    write(message,'(l,A)') associated(isDataPtr),' start WW3 new39'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+
   !> Obtain radiation tensor from wave component and calculate the wave stress
   call SCHISM_StateImportWaveTensor(importState, isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!new39
+    write(message,'(l,A)') associated(isDataPtr),' after WW3 new39'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
 
   ! call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -747,18 +760,32 @@ subroutine ModelAdvance(comp, rc)
   !> field names with those in internalState's ptrMap, then assigns 
   !> the value of the field to the correct SCHISM pointer
   
-  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc) 
+  call ESMF_StateGet(importState, itemCount=itemCount, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (itemCount > 0) allocate(itemTypeList(itemCount), &
                               itemNameList(itemCount), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+!new39
+  write(message,*) itemCount,' enter new39'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+
   do i=1, itemCount 
+
+!new39
+    write(message,'(A)') trim(itemNameList(i))//' enter new39'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+
+
     if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle 
 
-    call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
+    call ESMF_StateGet(importState, itemName=itemNameList(i), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!new39
+    write(message,'(A)') trim(itemNameList(i))//' new39'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
 
     call SCHISM_FieldGet(field, isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -788,6 +815,10 @@ subroutine ModelAdvance(comp, rc)
 
     call ESMF_StateGet(exportState, itemName=itemNameList(i), field=field, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+!new39
+    write(message,'(A)') trim(itemNameList(i))//' export new39'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
 
     call SCHISM_FieldPut(field, isDataPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
