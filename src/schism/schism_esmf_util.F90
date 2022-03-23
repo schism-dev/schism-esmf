@@ -452,7 +452,6 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (isPresent) then 
-    !> @todo do we do this after or before assigning the variable
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
@@ -529,12 +528,12 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   call ESMF_StateGet(state, stateintent=intent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  if (intent == ESMF_STATEINTENT_IMPORT) then 
+  if (isPresent) then 
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif    
 
-    if (isPresent) then 
-      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-    endif    
+  if (intent == ESMF_STATEINTENT_IMPORT) then 
 
     do ip = 1, isPtr%numOwnedNodes
       farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
@@ -549,11 +548,6 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
        farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
     end do
 
-    if (isPresent) then 
-      call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-    endif 
-
     write(message,'(A)') '--- SCHISM_StateUpdate1 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
@@ -561,6 +555,11 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
     write(message,'(A)') '--- SCHISM_StateUpdate1 skipped unspecified intent'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif    
+
+  if (isPresent) then 
+    call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif 
 
 end subroutine SCHISM_StateUpdate1
 
