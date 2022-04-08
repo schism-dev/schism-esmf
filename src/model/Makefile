@@ -1,6 +1,7 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2020-2022 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
+# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
 # @license Apache License, Version 2.0 (the "License");
@@ -15,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include ../include/Rules.mk
+
 .SUFFIXES: .F90
 
 %.o : %.F90
@@ -24,8 +27,8 @@
 
 default: all
 all: nuopc esmf
-esmf: atmosphere_cmi_esmf.o
-nuopc: atmosphere_cmi_nuopc.o
+esmf: dep-esmf atmosphere_cmi_esmf.o
+nuopc: dep-esmf atmosphere_cmi_nuopc.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout

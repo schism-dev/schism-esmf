@@ -16,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include ../include/Rules.mk
+
 ifneq ($(origin MOSSCO_DIR), environment)
 $(error MOSSCO_DIR has to be set in environment.)
 endif
@@ -24,10 +26,12 @@ ifeq ($(wildcard $(MOSSCO_DIR)/src/components/netcdf_component.F90),)
 $(error MOSSCO_DIR=$(MOSSCO_DIR) does not seem to be correct)
 endif
 
+ifdef ESMFMKFILE
 ifeq ($(FORTRAN_COMPILER),XLF)
 CPPFLAGS += -WF,-DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -WF,-DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
 else
 CPPFLAGS += -DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
+endif
 endif
 
 .SUFFIXES: .F90
