@@ -1,6 +1,6 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2018-2021 Helmholtz-Zentrum Geesthacht
 # #
 # @author Carsten Lemmen <carsten.lemmen@hereon.de>
@@ -19,55 +19,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# include your ESMF Makefile (esmf.mk), and obtain compiler settings
-# from this file
-ifndef ESMFMKFILE
-$(error ESMFMKFILE has to be set in environment)
-endif
-$(info Found ESMF makefile include snippet $(SCHISM_BUILD_DIR))
-include $(ESMFMKFILE)
-
-F90=$(ESMF_F90COMPILER)
-LIBS=$(ESMF_F90ESMFLINKLIBS)
-CPPFLAGS=$(ESMF_F90COMPILEOPTS)
-F90FLAGS=$(ESMF_F90COMPILEPATHS)
-LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
+include src/include/Rules.mk
 
 DESTDIR?=./lib
 
-# add SCHISM libraries
-#
-
-
-ifeq ("x$(SCHISM_BUILD_DIR)","x")
-$(error SCHISM_BUILD_DIR has to be set in environment.)
-endif
-
-$(info Found SCHISM build directory $(SCHISM_BUILD_DIR))
-
-# add PDAF libraries
-ifeq ("x$(PDAF_BUILD_DIR)","x")
-#undefine USE_PDAF
-else
-$(info Found PDAF build directory $(PDAF_BUILD_DIR))
-endif
-
 ifdef PDAF_BUILD_DIR
-ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
-$(warning PDAF has to be compiled before ESMF-SCHISM, continuing without PDAF)
-else
 CPPFLAGS+= -DUSE_PDAF
 USE_PDAF=ON
 endif
-endif
-
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
-endif
-
-# Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
-# compiler flag is already set
-ESMF_OPENMP := $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
@@ -130,7 +89,7 @@ install-nuopc:  schism_nuopc_lib
 	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
-test: pdaf
+test: pdaf 
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
@@ -152,17 +111,17 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_as
 #	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 ifdef USE_PDAF
-schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
+schism_pdaf: dep-pdaf $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 endif
 
-schism_esmf_lib: $(SCHISM_OBJS)  $(SCHISM_ESMF_OBJS) $(EXPAND_TARGETS)
+schism_esmf_lib: dep-esmf dep-schism $(SCHISM_OBJS)  $(SCHISM_ESMF_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
-schism_nuopc_lib: $(SCHISM_OBJS) $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
+schism_nuopc_lib: dep-esmf dep-schism $(SCHISM_OBJS) $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_cap.a  $(SCHISM_NUOPC_OBJS) $(SCHISM_OBJS) .objs/*/*.o
 
-expand_schismlibs:
+expand_schismlibs: dep-schism
 	$(shell mkdir -p .objs/d; cd .objs/d; \
 	$(AR) x $(SCHISM_BUILD_DIR)/lib/libcore.a ; \
 		$(AR) x $(SCHISM_BUILD_DIR)/lib/libhydro.a ; \
@@ -174,14 +133,12 @@ expand_schismlibs:
 # avoid duplicate symbols when coupling to other systems that also contain fabm
 # A possible solution is provided by www.mossco.de/code in their
 # scripts/rename_fabm_symbols.py
-expand_fabmlibs:
+expand_fabmlibs: dep-fabm
 	$(shell mkdir -p .objs/sf; cd .objs/sf; for L in $(SCHISM_BUILD_DIR)/lib/lib*fabm_schism.a ; do $(AR) x $$L; done)
 	$(shell mkdir -p .objs/f; cd .objs/f; $(AR) x $(SCHISM_BUILD_DIR)/lib/libfabm.a )
 
 $(PDAF_OBJS):
-#ifdef USE_PDAF
 	make -C src/PDAF_bindings esmf
-#endif
 
 ifdef USE_PDAF
 $(SCHISM_ESMF_OBJS): $(PDAF_OBJS) $(SCHISM_OBJS)
@@ -206,13 +163,6 @@ endif
 
 #$(MODEL_OBJS):
 #	make -C src/model esmf
-
-%.o: %.F90
-	echo "==============="
-	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
-
-%.mod: %.F90
-	$(F90) $(CPPFLAGS) $(F90FLAGS) -c $<
 
 clean:
 	$(MAKE) -C src clean

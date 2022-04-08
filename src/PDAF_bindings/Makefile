@@ -1,6 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2020-2022 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
 # @license Apache License, Version 2.0 (the "License");
@@ -14,19 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
-
-ifneq ($(origin SCHISM_BUILD_DIR), environment)
-$(error SCHISM_BUILD_DIR has to be set in environment.)
-endif
-
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
-endif
 
 ifeq ($(wildcard ../compiler.mk),)
 $(warning cannot find compiler Makefile snippet "../compiler.mk")
@@ -80,7 +67,7 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
 
 default: all
 all: nuopc esmf
-esmf: parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o \
+esmf: dep-esmf dep-pdaf parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o \
       init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o output_netcdf_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
       collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o assimilate_pdaf.o \
       init_dim_obs_f_pdaf.o init_dim_obs_l_pdaf.o obs_op_f_pdaf.o init_obs_f_pdaf.o init_obs_l_pdaf.o prodrinva_l_pdaf.o init_obsvar_l_pdaf.o \

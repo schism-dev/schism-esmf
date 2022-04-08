@@ -1,6 +1,6 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
-# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2020-2022 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
 # @license Apache License, Version 2.0 (the "License");
@@ -14,14 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-ifndef SCHISM_DIR
-$(error SCHISM_DIR has to be set in environment)
-endif
-
-ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
-$(error Please point SCHISM_DIR to the source directory of SCHISM.)
-endif
 
 ifndef MOSSCO_DIR
 $(error MOSSCO_DIR has to be set in environment to generate the
@@ -56,9 +48,21 @@ setups: copy-from-mossco sample_param
 sample_param: param.nml vgrid.in
 
 param.nml:
+ifndef SCHISM_DIR
+	$(error SCHISM_DIR has to be set in environment)
+endif
+ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
+	$(error Please point SCHISM_DIR to the source directory of SCHISM.)
+endif
 	ln -sf $(SCHISM_DIR)/sample_inputs/param.nml $@
 
 vgrid.in:
+ifndef SCHISM_DIR
+	$(error SCHISM_DIR has to be set in environment)
+endif
+ifeq ($(wildcard $(SCHISM_DIR)/sample_inputs/param.nml),)
+	$(error Please point SCHISM_DIR to the source directory of SCHISM.)
+endif
 	ln -sf $(SCHISM_DIR)/sample_inputs/vgrid.in.SZ $@
 
 global.nml: param.nml

@@ -17,27 +17,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
-
-# add SCHISM libraries
-ifeq ("x$(SCHISM_BUILD_DIR)","x")
-$(error SCHISM_BUILD_DIR has to be set in environment.)
-endif
-
-$(info $(SCHISM_BUILD_DIR))
-
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
-endif
-
-ifdef PDAF_BUILD_DIR
-ifneq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
-USE_PDAF=ON
-endif
-endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
@@ -61,14 +40,14 @@ endif
 
 default: all
 all: nuopc esmf
-esmf: schism_esmf_cap.o
-nuopc: schism_nuopc_cap.o
-common: schism_bmi.o schism_esmf_util.o
+esmf: dep-esmf dep-schism schism_esmf_cap.o
+nuopc: dep-esmf dep-schism schism_nuopc_cap.o
+common: dep-esmf dep-schism schism_bmi.o schism_esmf_util.o
 
-schism_esmf_util.o:  schism_bmi.o
+schism_esmf_util.o:  dep-esmf dep-schism schism_bmi.o
 schism_esmf_cap.o:   common
 schism_nuopc_util.o: common
-schism_nuopc_cap.o:  schism_nuopc_util.o common
+schism_nuopc_cap.o:  dep-esmf dep-schism schism_nuopc_util.o common
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
