@@ -1,6 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
@@ -16,18 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
-
-ifneq ($(origin SCHISM_BUILD_DIR), environment)
-$(error SCHISM_BUILD_DIR has to be set in environment.)
-endif
-
-ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
-$(error SCHISM has to be compiled before ESMF-SCHISM.)
-endif
+include include/Rules.mk
 
 EXTRA_DIST=Readme.md
 
@@ -50,8 +39,10 @@ SCHISM_ESMF_OBJS:=$(addprefix ../schism/,$(SCHISM_ESMF))
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
+ifdef SCHISM_BUILD_DIR
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I./model -I./schism -I./driver -I./mossco
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib
+endif 
 
 .SUFFIXES: .F90
 
@@ -68,8 +59,8 @@ main_nuopc: main_nuopc.o driver/driver_schism_atm.o model/atmosphere_cmi_nuopc.o
 	$(addprefix schism/,schism_nuopc_cap.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o)
 	$(ESMF_F90LINKER) $(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS) $(ESMF_F90LINKRPATHS) -I. -o $@ $^ $(ESMF_F90ESMFLINKLIBS) $(F90FLAGS) $(LDFLAGS) $(LIBS)
 
-main_esmf.o: driver/toplevel_schism_atm.o main_esmf.F90 Makefile
-main_nuopc.o: driver/driver_schism_atm.o driver/driver_schism.o main_nuopc.F90 Makefile
+main_esmf.o: dep-esmf dep-schism driver/toplevel_schism_atm.o main_esmf.F90 Makefile
+main_nuopc.o: dep-esmf dep-schism driver/driver_schism_atm.o driver/driver_schism.o main_nuopc.F90 Makefile
 
 driver/driver_schism.o: driver/driver_schism.F90 driver/Makefile Makefile
 	make -C driver driver_schism.o

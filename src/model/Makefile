@@ -1,5 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
@@ -15,10 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
+include ../include/Rules.mk
 
 .SUFFIXES: .F90
 
@@ -29,8 +27,8 @@ include $(ESMFMKFILE)
 
 default: all
 all: nuopc esmf
-esmf: atmosphere_cmi_esmf.o
-nuopc: atmosphere_cmi_nuopc.o
+esmf: dep-esmf atmosphere_cmi_esmf.o
+nuopc: dep-esmf atmosphere_cmi_nuopc.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout

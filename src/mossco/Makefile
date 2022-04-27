@@ -1,6 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
@@ -16,10 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
+include ../include/Rules.mk
 
 ifneq ($(origin MOSSCO_DIR), environment)
 $(error MOSSCO_DIR has to be set in environment.)
@@ -29,10 +26,12 @@ ifeq ($(wildcard $(MOSSCO_DIR)/src/components/netcdf_component.F90),)
 $(error MOSSCO_DIR=$(MOSSCO_DIR) does not seem to be correct)
 endif
 
+ifdef ESMFMKFILE
 ifeq ($(FORTRAN_COMPILER),XLF)
 CPPFLAGS += -WF,-DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -WF,-DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
 else
 CPPFLAGS += -DESMF_VERSION_MAJOR=$(ESMF_VERSION_MAJOR) -DESMF_VERSION_MINOR=$(ESMF_VERSION_MINOR)
+endif
 endif
 
 .SUFFIXES: .F90
@@ -42,21 +41,24 @@ endif
 
 default: all
 
-netcdf_component.o: netcdf_component.F90 mossco_netcdf.o git-sha.h \
+time_aggregation_component.o: dep-esmf time_aggregation_component.F90 mossco_strings.o \
+	mossco_component.o mossco_field.o mossco_state.o mossco_attribute.o \
+	mossco_config.o mossco_time.o
+netcdf_component.o: dep-esmf netcdf_component.F90 mossco_netcdf.o git-sha.h \
 	mossco_component.o mossco_config.o
-mossco_netcdf.o: mossco_netcdf.F90 git-sha.h mossco_strings.o mossco_field.o \
+mossco_netcdf.o: dep-esmf mossco_netcdf.F90 git-sha.h mossco_strings.o mossco_field.o \
 	mossco_state.o mossco_time.o mossco_gridspec.o mossco_variable_types.o \
 	mossco_grid.o mossco_mesh.o
 
-mossco_strings.o: mossco_strings.F90 mossco_memory.o
-mossco_memory.o: mossco_memory.F90
-mossco_field.o: mossco_field.F90 mossco_attribute.o mossco_grid.o mossco_geom.o \
+mossco_strings.o: dep-esmf mossco_strings.F90 mossco_memory.o
+mossco_memory.o: dep-esmf mossco_memory.F90
+mossco_field.o: dep-esmf mossco_field.F90 mossco_attribute.o mossco_grid.o mossco_geom.o \
 	mossco_loc.o
-mossco_attribute.o: mossco_attribute.F90
-mossco_geom.o: mossco_geom.F90 mossco_mesh.o mossco_locstream.o
-mossco_state.o: mossco_state.F90
+mossco_attribute.o: dep-esmf mossco_attribute.F90
+mossco_geom.o: dep-esmf mossco_geom.F90 mossco_mesh.o mossco_locstream.o
+mossco_state.o: dep-esmf mossco_state.F90
 
-netcdf_component.F90:
+time_aggregation_component.F90 netcdf_component.F90: dep-esmf 
 	ln -sf $(MOSSCO_DIR)/src/components/$@  $@
 
 mossco_netcdf.F90 mossco_strings.F90 mossco_field.F90 mossco-state.F90 \
@@ -69,12 +71,11 @@ mossco_component.F90 mossco_config.F90:
 git-sha.h:
 	ln -sf $(MOSSCO_DIR)/src/include/$@  $@
 
-
 .PHONY:  clean default all libmossco esmf
 
 all: esmf libmossco
 
-libmossco: netcdf_component.o
+libmossco: netcdf_component.o time_aggregation_component.o
 	$(AR) crvs libmossco.a *.o
 
 distclean: clean

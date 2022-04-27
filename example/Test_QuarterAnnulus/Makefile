@@ -1,5 +1,6 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
@@ -57,4 +58,4 @@ clean:
 	@$(RM) outputs/*nc outputs/nonfatal* outputs/fatal* outputs/local_to* outputs/global_to*
 
 global.nml: param.nml
-	python ../../scripts/param2global.py
+	python3 ../../scripts/param2global.py

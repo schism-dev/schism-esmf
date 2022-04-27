@@ -1,6 +1,6 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # 
 # @author Carsten Lemmen carsten.lemmen@hereon.de
@@ -17,10 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(origin ESMFMKFILE), environment)
-$(error ESMFMKFILE has to be set in environment.)
-endif
-include $(ESMFMKFILE)
+include ../include/Rules.mk
 
 EXTRA_DIST=Readme.md
 SUBDIRS=
@@ -67,14 +64,14 @@ $(CMI_ESMF_OBJS):
 $(CMI_MOSSCO_OBJS):
 	make -C ../mossco all
 
-driver_schism.o: $(CMI_NUOPC_SCHISM_OBJ) driver_schism.F90
-driver_schism_atm.o: $(CMI_NUOPC_SCHISM_OBJ) $(CMI_NUOPC_OBJS) driver_schism_atm.F90
-toplevel_schism_atm.o: $(CMI_ESMF_SCHISM_OBJ) $(CMI_ESMF_OBJS) toplevel_schism_atm.F90
-toplevel_schism_netcdf.o: $(CMI_ESMF_SCHISM_OBJ) $(CMI_MOSSCO_OBJS) toplevel_schism_netcdf.F90
+driver_schism.o: dep-esmf dep-schism $(CMI_NUOPC_SCHISM_OBJ) driver_schism.F90
+driver_schism_atm.o: dep-esmf dep-schism $(CMI_NUOPC_SCHISM_OBJ) $(CMI_NUOPC_OBJS) driver_schism_atm.F90
+toplevel_schism_atm.o: dep-esmf dep-schism $(CMI_ESMF_SCHISM_OBJ) $(CMI_ESMF_OBJS) toplevel_schism_atm.F90
+toplevel_schism_netcdf.o: dep-esmf dep-schism $(CMI_ESMF_SCHISM_OBJ) $(CMI_MOSSCO_OBJS) toplevel_schism_netcdf.F90
 
 all: subdirs nuopc esmf
-esmf: toplevel_schism_atm.o toplevel_schism_netcdf.o
-nuopc: driver_schism_atm.o driver_schism.o
+esmf: dep-esmf dep-schism toplevel_schism_atm.o toplevel_schism_netcdf.o
+nuopc: dep-esmf dep-schism driver_schism_atm.o driver_schism.o
 
 clean:
 	$(RM) PET*.ESMF_LogFile traceout *.nc *.stdout
