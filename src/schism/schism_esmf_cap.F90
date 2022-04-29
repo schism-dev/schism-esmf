@@ -591,6 +591,26 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
     trim(name)//'"'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  fieldName = 'elevation_at_water_surface'
+  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+                           typekind=ESMF_TYPEKIND_R8, &
+                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! add maskValues to be used in regridding
+  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !   initialize
+  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  schism_ptr2d(1:np)=eta2(1:np)
+  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A,A)') trim(compName)//' created export field "', &
+    trim(fieldName)//'" on nodes'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+
   fieldName = 'water_x-velocity_at_water_surface'
   field = ESMF_FieldCreate(mesh2d, name=fieldName, &
                            typekind=ESMF_TYPEKIND_R8, &
@@ -992,6 +1012,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     call schism_esmf_update_bottom_tracer(exportState, name, fabm_istart-1+i, importState=importState, dt=dt_coupling)
   end do
 #endif
+
+  call ESMF_StateGet(exportState, 'elevation_at_water_surface', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ptr2d(1:np) = eta2(1:np)
 
   call ESMF_StateGet(exportState, 'water_x-velocity_at_water_surface', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
