@@ -39,7 +39,9 @@ module schism_esmf_util
 ! only provide a boilerplate implementation of an empty internal state
 
   type type_PtrMap
+#ifndef ESMF_NO_SEQUENCE
     sequence 
+#endif
     real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
@@ -47,7 +49,9 @@ module schism_esmf_util
   end type
 
   type type_InternalState
-    sequence
+#ifndef ESMF_NO_SEQUENCE
+    sequence 
+#endif   
     integer(ESMF_KIND_I4)          :: numForeignNodes=0
     integer(ESMF_KIND_I4)          :: numOwnedNodes=0
     integer(ESMF_KIND_I4), pointer :: ownedNodeIds(:) => null()
@@ -57,7 +61,9 @@ module schism_esmf_util
   end type
 
   type type_InternalStateWrapper
+#ifndef ESMF_NO_SEQUENCE
     sequence ! why is this needed here? taken from documentation
+#endif
     type(type_InternalState), pointer :: wrap => null()
   end type
 
