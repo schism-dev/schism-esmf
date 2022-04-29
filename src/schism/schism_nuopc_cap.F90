@@ -643,6 +643,7 @@ end subroutine
 subroutine ModelAdvance(comp, rc)
 
   use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav
+  use schism_glbl,      only: uu2, vv2
   !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
@@ -745,7 +746,7 @@ subroutine ModelAdvance(comp, rc)
   call schism_step(it)
   it = it + 1
 
-  call SCHISM_StateUpdate(exportState, 'elevation', eta2, &
+  call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -757,11 +758,11 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'x-velocity', xx2, &
+  call SCHISM_StateUpdate(exportState, 'x-velocity', uu2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'y-velocity', yy2, &
+  call SCHISM_StateUpdate(exportState, 'y-velocity', vv2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

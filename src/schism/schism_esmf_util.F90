@@ -42,7 +42,7 @@ module schism_esmf_util
     sequence 
     real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
-    real(ESMF_KIND_R8), pointer  :: farrayPtr2(:) => null()
+    real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
     character(len=ESMF_MAXSTR)   :: name
   end type
 
@@ -125,7 +125,8 @@ contains
 #define ESMF_METHOD "SCHISM_InitializePtrMap"
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
-  use schism_glbl, only : dav, pr2, tr_nd, eta2, windx2, windy2, npa
+  use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
+  use schism_glbl, only: uu2, vv2 
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
@@ -168,6 +169,12 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   isPtr%wrap%ptrMap(6)%name = 'inst_zonal_wind_height10m'
   isPtr%wrap%ptrMap(6)%farrayPtr1 => windx2
+
+  isPtr%wrap%ptrMap(6)%name = 'x-velocity'
+  isPtr%wrap%ptrMap(6)%farrayPtr2 => uu2
+
+  isPtr%wrap%ptrMap(6)%name = 'y-velocity'
+  isPtr%wrap%ptrMap(6)%farrayPtr2 => vv2
 
 end subroutine SCHISM_InitializePtrMap
 

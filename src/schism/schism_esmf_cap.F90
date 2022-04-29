@@ -133,7 +133,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
-  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out
+  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out, eta2
 !  use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
   use schism_io, only: fill_nc_header!ncid
@@ -1031,7 +1031,19 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   ptr2d(1:np) = vv2(nvrt,1:np)
 
-!  write(0,*) '  Ended Run from SCHISM'
+  ! call ESMF_StateGet(exportState, 'x-velocity', field=field, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! ptr2d(1:nvrt,1:np) = uu2(nvrt,1:np)
+
+  ! call ESMF_StateGet(exportState, 'y-velocity', field=field, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! ptr2d(1:nvrt,1:np) = vv2
+
+  !  write(0,*) '  Ended Run from SCHISM'
   write(message, '(A)') trim(compName)//' ran.'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
