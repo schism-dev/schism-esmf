@@ -26,7 +26,7 @@ $(error MOSSCO_DIR has to be set in environment.)
 endif
 
 ifeq ($(wildcard $(MOSSCO_DIR)/src/components/netcdf_component.F90),)
-$(error MOSSCO_DIR=$(MOSSCO_DIR) does not seem to be correct)
+$(error MOSSCO_DIR=$MOSSCO_DIR does not seem to be correct)
 endif
 
 ifeq ($(FORTRAN_COMPILER),XLF)

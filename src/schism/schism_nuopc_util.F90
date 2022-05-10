@@ -24,9 +24,7 @@
 #undef ESMF_FILENAME
 #define ESMF_FILENAME "schism_esmf_util.F90"
 
-#ifndef _SCHISM_LOG_AND_FINALIZE_ON_ERROR_
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
-#endif
 
 module schism_nuopc_util
 
@@ -35,7 +33,7 @@ module schism_nuopc_util
 
   implicit none
 
-  public NUOPC_FieldAdvertise, NUOPC_FieldDictionaryAddIfNeeded, SCHISM_StateImportWaveTensor
+  public NUOPC_FieldAdvertise, NUOPC_FieldDictionaryAddIfNeeded
   private
 
 contains
@@ -91,91 +89,6 @@ subroutine NUOPC_FieldAdvertise(state, name, unit, rc)
   if (present(rc)) rc=localrc
 
 end subroutine NUOPC_FieldAdvertise
-
-#undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateImportWaveTensor""
-subroutine SCHISM_StateImportWaveTensor(state, rc)
-
-  use schism_glbl, only: np,npa
-
-  implicit none
-
-  type(ESMF_State), intent(in)                 :: state
-  integer(ESMF_KIND_I4), intent(out), optional :: rc
-
-  logical                    :: isPresent
-  integer(ESMF_KIND_I4)      :: localrc, rc_, i
-  character(len=ESMF_MAXSTR) :: message
-  type(ESMF_Field)           :: field
-  type(ESMF_StateItem_Flag)  :: itemType
-
-  real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
-  real(ESMF_KIND_R8), pointer :: eastward_wave_radiation_stress(:) => null()
-  real(ESMF_KIND_R8), pointer :: eastward_northward_wave_radiation_stress(:) => null()
-  real(ESMF_KIND_R8), pointer :: northward_wave_radiation_stress(:) => null()
-
-  if (present(rc)) rc=ESMF_SUCCESS
-
-  call ESMF_StateGet(state, "eastward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
-
-!  allocate(eastward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "eastward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  !call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  call ESMF_FieldGet(field, farrayPtr=eastward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-!  do i=1,nsa
-!    eastward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
-  
-  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
-
-!  allocate(eastward_northward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "eastward_northward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  call ESMF_FieldGet(field, farrayPtr=eastward_northward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-!  do i=1,nsa
-!    eastward_northward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
-
-  call ESMF_StateGet(state, "northward_wave_radiation_stress", itemType=itemType, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  if (itemType /= ESMF_STATEITEM_FIELD) return
-
-!  allocate(northward_wave_radiation_stress(nsa))
-  call ESMF_StateGet(state, "northward_wave_radiation_stress", field=field, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  call ESMF_FieldGet(field, farrayPtr=northward_wave_radiation_stress, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-!  do i=1,nsa
-!    northward_wave_radiation_stress(i) = farrayPtr1(i)
-!  enddo
-!  nullify(farrayPtr1)
-
-!  call compute_waveforce_from_stress(eastward_wave_radiation_stress, & 
-!    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
-  call compute_wave_force_lon(eastward_wave_radiation_stress, & 
-    eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
-
-   nullify(eastward_wave_radiation_stress)
-   nullify(eastward_northward_wave_radiation_stress)
-   nullify(northward_wave_radiation_stress)
-!  deallocate(eastward_wave_radiation_stress)
-!  deallocate(eastward_northward_wave_radiation_stress)
-!  deallocate(northward_wave_radiation_stress)
-  
-end subroutine SCHISM_StateImportWaveTensor
 
 end module schism_nuopc_util
 

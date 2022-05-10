@@ -29,7 +29,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
     & idry_s,su2,sv2,idry,eta2,tr_nd,uu2,vv2,ww2, &
-    & elnode,i34,rkind,kbe,kbs,isidenode,kbp
+    & elnode,i34,rkind,kbe,kbs,isidenode,kbp, &
+    & tempmin,tempmax,saltmin,saltmax
 ! Check only
   use mod_parallel_pdaf, only: mype_model,task_id,filterpe
   use mod_assimilation, only: offset_field_p
@@ -81,6 +82,12 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        do k=1,nvrt
          itot=itot+1
          tr_nd(j,k,i)=state_p(itot)
+         ! Add limiter to avoid weird analysis
+         if (j==1) then
+            if(tr_nd(j,k,i)<tempmin.or.tr_nd(j,k,i)>tempmax) tr_nd(j,k,i)=max(tempmin,min(tr_nd(j,k,i),tempmax))
+         elseif (j==2) then
+            if(tr_nd(j,k,i)<saltmin.or.tr_nd(j,k,i)>saltmax) tr_nd(j,k,i)=max(saltmin,min(tr_nd(j,k,i),saltmax))
+         end if
        enddo !k
        if (ifill.eq.1) then
 !      Fill -9999 to see difference of analysis

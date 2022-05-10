@@ -213,7 +213,7 @@ SUBROUTINE obs_op_f_pdaf(step, dim_p, dim_obs_f, state_p, m_state_f)
   do i=1,dim_obs_p
      if (m_state_p(i)<-900.) ibad=ibad+1
   end do
-  if (ibad.ne.0) call parallel_abort('PDAF: Some model values at obs pts are at dry region!')
+! if (ibad.ne.0) call parallel_abort('PDAF: Some model values at obs pts are at dry region!')
 
 ! Get full observed state vector
   CALL PDAF_gather_obs_f(m_state_p, m_state_f, istat)

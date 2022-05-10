@@ -32,7 +32,7 @@
 program main
 
   use esmf
-  use schism_esmf_cap, only: schismSetServices => SetServices
+  use schism_cmi_esmf, only: schismSetServices => SetServices
   use schism_esmf_util, only: clockCreateFrmParam
 
   implicit none

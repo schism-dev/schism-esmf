@@ -126,20 +126,18 @@ install-nuopc:  schism_nuopc_lib
 	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
 	#cp $(SCHISM_NUOPC_MODS) $(DESTDIR)
 	cp $(SCHISM_NUOPC_MODS) $(SCHISM_BUILD_DIR)/include/
-	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(DESTDIR)/schism.mk
-	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
+	sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(DESTDIR)/schism.mk
+	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_cmi_nuopc.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf
 pdaf: schism_pdaf
 
 # Internal make targets for final linking
-SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_nuopc_cap.mod)
-SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_nuopc_util.o schism_nuopc_cap.o)
-SCHISM_ESMF_MODS=$(addprefix src/schism/,schism_esmf_cap.mod)
-SCHISM_ESMF_OBJS=$(addprefix src/schism/,schism_esmf_cap.o)
-SCHISM_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod)
-SCHISM_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o)
+SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_bmi.mod schism_nuopc_util.mod schism_esmf_util.mod schism_cmi_nuopc.mod)
+SCHISM_NUOPC_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_nuopc_util.o schism_cmi_nuopc.o)
+SCHISM_MODS=$(addprefix src/schism/,schism_bmi.mod schism_esmf_util.mod schism_cmi_esmf.mod)
+SCHISM_OBJS=$(addprefix src/schism/,schism_bmi.o schism_esmf_util.o schism_cmi_esmf.o)
 PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o \
             init_pdaf.o init_pdaf_info.o finalize_pdaf.o init_ens_pdaf.o next_observation_pdaf.o \
             distribute_state_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
@@ -152,14 +150,17 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_as
 #	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 ifdef USE_PDAF
-schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
+schism_pdaf: $(PDAF_OBJS) $(SCHISM_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 endif
 
-schism_esmf_lib: $(SCHISM_OBJS)  $(SCHISM_ESMF_OBJS) $(EXPAND_TARGETS)
+#schism_esmf_lib: $(SCHISM_OBJS) $(MODEL_OBJS) $(EXPAND_TARGETS)
+#	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) $(MODEL_OBJS) .objs/*/*.o
+
+schism_esmf_lib: $(SCHISM_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_esmf.a  $(SCHISM_OBJS) .objs/*/*.o
 
-schism_nuopc_lib: $(SCHISM_OBJS) $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
+schism_nuopc_lib: $(SCHISM_NUOPC_OBJS) $(EXPAND_TARGETS)
 	$(AR) crs libschism_cap.a  $(SCHISM_NUOPC_OBJS) .objs/*/*.o
 
 expand_schismlibs:
@@ -184,16 +185,9 @@ $(PDAF_OBJS):
 #endif
 
 ifdef USE_PDAF
-$(SCHISM_ESMF_OBJS): $(PDAF_OBJS) $(SCHISM_OBJS)
+$(SCHISM_NUOPC_OBJS): $(PDAF_OBJS)
 else
-$(SCHISM_ESMF_OBJS): $(SCHISM_OBJS)
-endif
-	make -C src/schism esmf
-
-ifdef USE_PDAF
-$(SCHISM_NUOPC_OBJS): $(PDAF_OBJS) $(SCHISM_OBJS)
-else
-$(SCHISM_NUOPC_OBJS): $(SCHISM_OBJS)
+$(SCHISM_NUOPC_OBJS):
 endif
 	make -C src/schism nuopc
 
@@ -202,7 +196,7 @@ $(SCHISM_OBJS): $(PDAF_OBJS)
 else
 $(SCHISM_OBJS):
 endif
-	make -C src/schism common
+	make -C src/schism esmf
 
 #$(MODEL_OBJS):
 #	make -C src/model esmf

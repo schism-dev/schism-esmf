@@ -23,7 +23,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 !
 ! !USES:
 ! SCHISM module
-  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind,nsteps_from_cold,dt,cumsum_eta
+  use schism_glbl, only: nea,ne,ics,dp,elnode,rearth_eq,rearth_pole,xctr,yctr,zctr,eframe,i34,small2,pi,idry_e,rkind,nsteps_from_cold,dt,cumsum_eta,xnd,ynd
   use schism_msgp, only: parallel_abort
 ! PDAF user define
 ! new28 add in mod_assimilation, add in some schism_interpolation required here
@@ -45,6 +45,7 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
   real(rkind), allocatable :: rmsval(:)
   integer nobs,i,l,itmp,ifl,iobs,istat,j,nd,ifiletype
   real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp,xoblast,yoblast
+  real(rkind) xndmax,xndmin,yndmax,yndmin
   logical fexist
 
 ! !CALLING SEQUENCE:
@@ -126,10 +127,38 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
 
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
+  !Find sub domain max/min
+! do i=1,ne
+!    do j=1,i34(i)
+!       if ((i.eq.1).and.(j.eq.1)) then ! initialize
+!          xndmax=xnd(elnode(j,i))
+!          xndmin=xnd(elnode(j,i))
+!          yndmax=ynd(elnode(j,i))
+!          yndmin=ynd(elnode(j,i))
+!       end if
+!       if (xnd(elnode(j,i)).gt.xndmax) xndmax=xnd(elnode(j,i))
+!       if (xnd(elnode(j,i)).lt.xndmin) xndmin=xnd(elnode(j,i))
+!       if (ynd(elnode(j,i)).gt.yndmax) yndmax=ynd(elnode(j,i))
+!       if (ynd(elnode(j,i)).lt.yndmin) yndmin=ynd(elnode(j,i))
+!    end do
+! end do
+! write(*,'(a,4f14.3)') 'Check sub domain!', xndmin, xndmax, yndmin, yndmax
+! !Pre-select to speed up
+! do l=1,nobs
+!     xobsl=xobs(l)
+!     yobsl=yobs(l)
+!     if ((xobsl.gt.xndmin).and.(xobsl.lt.xndmax).and.&
+!        &(yobsl.gt.yndmin).and.(yobsl.lt.yndmax)) then
+!        iep_obs(l)=1
+!        write(*,*) 'iep_obs=1',l,xobsl,yobsl
+!     end if
+! end do
+
   do i=1,ne ! search in resident domain to avoid overlap use of observations
      if(idry_e(i)==1) cycle ! skip dry points
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
+!         if(iep_obs(l)==0) cycle ! skip to speedup searching
 
           if(ics==1) then
              xobsl=xobs(l)
@@ -169,7 +198,9 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                        end if
                     end do
                  end if
-             endif
+!            else  !tmp
+!              iep_obs(l)=0
+             endif !tmp
           else !quad
              call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
              if(itmp/=0) iep_obs(l)=i
@@ -195,6 +226,9 @@ SUBROUTINE init_dim_obs_f_pdaf(step, dim_obs_f)
                      end if
                   end do
                end if
+!            else !itmp
+!              iep_obs(l)=0
+!            end if !itmp
           endif !i34
           !Check nsteps_from_cold for SSH-A, skip if nsteps_from_cold too small
           if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then

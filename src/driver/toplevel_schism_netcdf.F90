@@ -31,7 +31,7 @@
 module toplevel_schism_netcdf
 
   use esmf
-  use schism_esmf_cap, only: schismSetServices => SetServices
+  use schism_cmi_esmf, only: schismSetServices => SetServices
   use netcdf_component,  only: netcdfSetServices => SetServices
 
   implicit none

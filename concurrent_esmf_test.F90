@@ -32,7 +32,7 @@
 program main
 
   use esmf
-  use schism_esmf_cap, only: schismSetServices => SetServices
+  use schism_cmi_esmf, only: schismSetServices => SetServices
   use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
 
   implicit none

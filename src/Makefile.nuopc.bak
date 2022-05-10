@@ -22,7 +22,7 @@ $(error ESMFMKFILE has to be set in environment.)
 endif
 include $(ESMFMKFILE)
 
-include schism/schism_nuopc_cap.mk
+include schism/schism_cmi_nuopc.mk
 DEP_FRONTS:= $(DEP_FRONTS) -DFRONT_SCHISM=$(ESMF_DEP_FRONT)
 DEP_INCS:= $(DEP_INCS) $(addprefix -I, $(ESMF_DEP_INCPATH))
 DEP_CMPL_OBJS:= $(DEP_CMPL_OBJS) $(ESMF_DEP_CMPL_OBJS)

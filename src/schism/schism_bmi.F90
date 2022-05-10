@@ -1,10 +1,10 @@
 ! This code is part of the SCHISM-ESMF interface and defines
 ! a generic BMI (basic model interface) to schism
 !
-! @copyright 2021-2022 Helmholtz-Zentrum Hereon
+! @copyright 2021 Helmholtz-Zentrum Hereon
 ! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
 !
-! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Carsten Lemmen carsten.lemmen@hereon.de
 ! @author Richard Hofmeister
 !
 ! @license Apache License, Version 2.0 (the "License");
@@ -32,13 +32,14 @@
 module schism_bmi
 
   ! We *should not* use ESMF in a BMI, but this is used here for logging only
-  use esmf!, only:: ESMF_LogFoundError, ESMF_END_ABORT, ESMF_Finalize, ESMF_SUCCESS
+  use ESMF!, only:: ESMF_LogFoundError, ESMF_END_ABORT, ESMF_Finalize, ESMF_SUCCESS
 
   interface
     subroutine parallel_init(communicator)
       implicit none
       integer, optional :: communicator
     end subroutine parallel_init
+
 
     subroutine parallel_finalize
       implicit none
@@ -107,5 +108,32 @@ function schismPtr1(varname) result(farrayPtr)
   end select
 
 end function schismPtr1
+
+
+! subroutine  prepareMesh(nodeIds, nodeCoords2D, nodeOwners, nodeMask, &
+!   elementIds, elementCoords2d, elementTypes, elementMask, nv, &
+!   rc)
+!
+!   use schism_glbl, only:: npa, np
+!
+!   implicit none
+!
+!   integer, dimension(:), allocatable          :: nodeids,elementids,nv
+!   double precision, dimension(:), allocatable :: nodecoords2d, nodecoords3d
+!   double precision, dimension(:), allocatable :: elementcoords2d, elementcoords3d
+!   integer, dimension(:), allocatable          :: nodeowners, elementtypes
+!   integer, dimension(:), allocatable          :: nodemask, elementmask
+!   integer, dimension(:), allocatable          :: tmpIdx, tmpIdx2, localNodes, nodeHaloIdx
+!   integer                                     :: numLocalNodes, numNodeHaloIdx=0
+!
+!   ! prepare mesh
+!   ! a) take local elements and get number of nodes for definition
+!   ! b) get number of augmented nodes, which are not connected to local elements
+!   ! c) allocate node arrays such that nodeids gives all nods belonging to local
+!   !    elements, all other nodes as part of the augmented domain are outside the
+!   !    exclusive region
+!   ! d) allocate element arrays such that local elements (ne) are in array and
+!   !    augmented elements are defined in the computational domain outside the
+!   !    exclusive domain
 
 end module schism_bmi

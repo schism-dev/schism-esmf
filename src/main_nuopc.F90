@@ -1,10 +1,10 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines a main() program
 ! for a NUOPC coupled system.
 !
-! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
+! @copyright (C) 2021 Helmholtz-Zentrum Hereon
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
-! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Carsten Lemmen <carsten.lemmen@hzg.de>
 !
 ! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #define ESMF_FILENAME "main_nuopc.F90"
 
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(X) if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
+
 #define _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(X) if (ESMF_LogFoundError(rcToCheck=localRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X) .or. ESMF_LogFoundError(rcToCheck=userRc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, rcToReturn=X)) call ESMF_Finalize(rc=localrc, endflag=ESMF_END_ABORT)
 
 #define ESMF_METHOD "main"
@@ -73,6 +74,7 @@ program main
 
   call ESMF_GridCompSetServices(topComp, driverSetServices, userRc=userRc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERRORS_(rc)
+
 
   call NUOPC_CompAttributeSet(topComp, name="Profiling", value="0", rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
