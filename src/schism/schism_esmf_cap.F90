@@ -404,8 +404,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call SCHISM_MeshCreate(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
   !> Create states if they were not created
 
   !> Create fields for export to describe mesh (this information is not yet
