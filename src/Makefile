@@ -28,6 +28,10 @@ ifeq ($(origin MOSSCO_DIR), environment)
  MOSSCO_LIB+=-L mossco -lmossco
 endif
 
+ifdef USE_PDAF
+  SUBDIRS+=PDAF_bindings
+endif
+
 MODELS=atmosphere_cmi_nuopc.o
 
 SCHISM_NUOPC=schism_nuopc_cap.o schism_esmf_util.o schism_nuopc_util.o schism_bmi.o

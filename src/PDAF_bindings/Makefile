@@ -18,6 +18,8 @@
 
 include ../include/Rules.mk
 
+include ../include/Rules.mk
+
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
