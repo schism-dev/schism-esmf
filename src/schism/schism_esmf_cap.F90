@@ -43,8 +43,8 @@ module schism_esmf_cap
   integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:), istack(:)
   integer, save, allocatable :: ncid_c(:) !CWB2021-1
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
- &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
- &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
+    eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
+    dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
 
 contains
 
@@ -813,8 +813,14 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
   len_out_dir=len_trim(out_dir)
 
-  num_schism_steps=rnday*86400.d0/dt+0.5d0
-  it=advanceCount+1 !SCHISM time step index
+  num_schism_steps=int(rnday*86400.d0/dt+0.5d0)
+
+  if (advanceCount<huge(it)) then 
+    it=int(advanceCount+1,ESMF_KIND_I4) !SCHISM time step index
+  else 
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
 !new28: not sure needed
 !!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
