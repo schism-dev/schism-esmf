@@ -18,7 +18,7 @@
 ifdef ESMFMKFILE
 # prevent multiple inclusion by checking for ESMF_OPENMP
 ifndef ESMF_OPENMP 
-$(info ESMF Makefile to include is $(ESMFMKFILE))
+$(info Found ESMF Makefile fragment $(ESMFMKFILE))
 include $(ESMFMKFILE)
 F90=$(ESMF_F90COMPILER)
 LIBS=$(ESMF_F90ESMFLINKLIBS)
@@ -48,7 +48,7 @@ default: all
 # Upstream requirements to be met
 dep-esmf:
 ifndef ESMFMKFILE
-	$(error ESMF Makefile snippet not defined)
+	$(error ESMF Makefile snippet variable not defined)
 endif 
 ifeq ($(wildcard $(ESMFMKFILE)),)
 	$(error ESMF Makefile snippet not defined)
@@ -66,7 +66,7 @@ dep-pdaf:
 ifndef PDAF_BUILD_DIR
 	$(error PDAF_BUILD_DIR has to be set)
 endif 
-ifeq ($(wildcard $(PDAF_BUILD_DIR)/lib/libpdaf-d.a),)
+ifeq ($(wildcard $(PDAF_BUILD_DIR)/libpdaf-d.a),)
 	$(error PDAF has to be compiled before ESMF-SCHISM.)
 endif
 
