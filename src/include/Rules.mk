@@ -63,10 +63,10 @@ ifeq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libhydro.a),)
 endif
 
 dep-pdaf:
-ifndef PDAF_BUILD_DIR
-	$(error PDAF_BUILD_DIR has to be set)
+ifndef PDAF_LIB_DIR
+	$(error PDAF_LIB_DIR has to be set)
 endif 
-ifeq ($(wildcard $(PDAF_BUILD_DIR)/libpdaf-d.a),)
+ifeq ($(wildcard $(PDAF_LIB_DIR)/libpdaf-d.a),)
 	$(error PDAF has to be compiled before ESMF-SCHISM.)
 endif
 

@@ -26,7 +26,7 @@ endif
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_LIB_DIR)/../src
 
 # Add compiler-specific flags to CFLAGS and F90FLAGS
 
@@ -54,7 +54,7 @@ endif # intel
 endif # gfortran
 endif # g95
 
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_LIB_DIR) -lpdaf-d
 
 .SUFFIXES: .F90
 
