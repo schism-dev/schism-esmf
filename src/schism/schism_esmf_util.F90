@@ -176,11 +176,11 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(6)%name = 'inst_zonal_wind_height10m'
   isPtr%wrap%ptrMap(6)%farrayPtr1 => windx2
 
-  isPtr%wrap%ptrMap(6)%name = 'x-velocity'
-  isPtr%wrap%ptrMap(6)%farrayPtr2 => uu2
+  isPtr%wrap%ptrMap(7)%name = 'x-velocity'
+  isPtr%wrap%ptrMap(7)%farrayPtr2 => uu2
 
-  isPtr%wrap%ptrMap(6)%name = 'y-velocity'
-  isPtr%wrap%ptrMap(6)%farrayPtr2 => vv2
+  isPtr%wrap%ptrMap(8)%name = 'y-velocity'
+  isPtr%wrap%ptrMap(8)%farrayPtr2 => vv2
 
 end subroutine SCHISM_InitializePtrMap
 
