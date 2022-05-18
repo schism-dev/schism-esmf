@@ -980,7 +980,7 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   integer               :: numNodeHaloIdx
   integer               :: i,n,nvcount
   integer               :: ii,ip,ie, localrc, rc_
-  integer               :: mynp,myne,rank2
+  integer               :: npo,neo,nef,npf,rank2
   type(llist_type),pointer :: nextp=>null()
 
   integer(ESMF_KIND_I4), pointer, dimension(:)  :: farrayPtrI41 => null()
@@ -1203,33 +1203,22 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
     nodeOwners=nodeowners, nodeMask=nodemask, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
+!> @todo We need a generic handling of intformat
+  write(message, '(A,I5,A,I5,A,I5,A,I5,A)') trim(compName)//' created mesh from ', &
+   npa, '/', np, ' nodes with ', ownedCount, ' own and ', foreigncount, ' foreign'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   !> optional arguments are elementArea and elementDistgrid
   call ESMF_MeshAddElements(mesh2d, elementIds=elementids, elementTypes=elementtypes, &
     elementConn=nv, elementMask=elementmask, elementCoords=elementcoords2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  ! mesh2d = ESMF_MeshCreate(parametricDim=2,spatialdim=2,
-  !            coordSys=coordsys, &
-  !            elementMask=elementmask, &
-  !            elementIds=elementids, elementTypes=elementtypes, &
-  !            elementCoords=elementcoords2d, &
-  !            elementDistgrid=elementDistgrid, &
-  !            elementConn=nv, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_MeshGet(mesh2d, numOwnedNodes=mynp, numOwnedElements=myne, &
+  call ESMF_MeshGet(mesh2d, numOwnedNodes=npo, numOwnedElements=neo, &
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-!> @todo We need a generic handling of intformat
-  !write(message, *) trim(compName)//' created mesh from ', np, &
-  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh from ', np, &
-    ' resident nodes and ', myne, ' resident elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  !write(message, *) trim(compName)//' created mesh with "', mynp, &
-  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh with "', mynp, &
-    ' owned nodes and ', myne, ' owned elements'
+  
+  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh from ', npo, &
+    ' owned nodes and ', neo, ' owned elements'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> @todo the following might overflow the message buffer easily ...
