@@ -91,7 +91,7 @@ install-nuopc:  schism_nuopc_lib
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf 
-pdaf: schism_pdaf
+pdaf: dep-pdaf schism_pdaf
 
 # Internal make targets for final linking
 SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_nuopc_cap.mod)
