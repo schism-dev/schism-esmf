@@ -25,9 +25,78 @@ LIBS=$(ESMF_F90ESMFLINKLIBS)
 CPPFLAGS=$(ESMF_F90COMPILEOPTS)
 F90FLAGS=$(ESMF_F90COMPILEPATHS)
 LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
-# Find out whether we have OPENMP (ist this needed for PDAF?), then the relevant
-# compiler flag is already set
-ESMF_OPENMP := $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
+
+ESMF_COMM = $(strip $(shell grep "\# ESMF_COMM:" $(ESMFMKFILE) | cut -d':' -f2-))
+ESMF_COMPILER = $(strip $(shell grep "\# ESMF_COMPILER:" $(ESMFMKFILE) | cut -d':' -f2-))
+
+ifeq ("x$(ESMF_COMM)","xmpiuni")
+	USE_MPI ?= false
+else
+	USE_MPI ?= true
+endif
+
+# OpenMPI section
+ifeq ($(ESMF_COMM),openmpi)
+	ESMF_FC ?= $(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null)
+ifeq ($(ESMF_FC),)
+ifeq ($(ESMF_F90COMPILER),mpifort)
+	ESMF_FC:=$(shell mpif90 --showme:command 2> /dev/null)
+endif
+endif
+
+ifeq ($(ESMF_FC),)
+	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+endif
+
+ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null)
+endif
+
+# IntelMPI section
+ifeq ($(ESMF_COMM),intelmpi)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+ifeq ($(ESMF_FC),)
+	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+endif
+endif
+
+# MPIch 2 section
+ifeq ($(ESMF_COMM),mpich2)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+ifeq ($(ESMF_FC),x86_64)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f4)
+endif
+ifeq ($(ESMF_FC),)
+	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+endif
+ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+endif
+
+# MPIch 3 section
+ifeq ($(ESMF_COMM),mpich3)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+ifeq ($(ESMF_FC),x86_64)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f4)
+endif
+ifeq ($(ESMF_FC),)
+	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+endif
+ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+endif
+
+ESMF_OPENMP = $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
+ifeq ("$(ESMF_OPENMP)","OFF")
+	USE_OMP ?= false
+else
+	USE_OMP ?= true
+endif
+
+export USE_OMP
+export USE_MPI
+export ESMF_COMPILER
+export ESMF_COMM
+export ESMF_FC
+export ESMF_CC
+
 endif 
 endif 
 

@@ -1,6 +1,7 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2020-2022 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
+# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
 # @license Apache License, Version 2.0 (the "License");
@@ -16,12 +17,6 @@
 # limitations under the License.
 
 include ../include/Rules.mk
-
-ifeq ($(wildcard ../compiler.mk),)
-$(warning cannot find compiler Makefile snippet "../compiler.mk")
-else
-include ../compiler.mk
-endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
