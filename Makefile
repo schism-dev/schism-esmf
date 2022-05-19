@@ -35,9 +35,10 @@ F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I 
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
 ifdef USE_PDAF
-LDFLAGS+= -L$(PDAF_LIB_DIR) -lpdaf-d -mkl -lpthread -lm -ldl
+LDFLAGS+= -L$(PDAF_LIB_DIR) -lpdaf-d 
 endif
 ifeq ($(ESMF_COMPILER), intel)
+LDFLAGS+=-mkl -lpthread -lm -ldl
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
@@ -45,7 +46,7 @@ ifeq ($(ESMF_COMPILER), gfortran)
 # OpenBLAS or vecLibFort (osx), this should be configured automatically ... we
 # really need to move to CMake
 #LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -lvecLibFort
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -lOpenBLAS
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas #-lscalapack #-lOpenBLAS
 endif
 endif
 
