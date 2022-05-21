@@ -176,7 +176,6 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer               :: mpi_comm
   integer               :: i, n, nvcount
   integer               :: ii,ip,ie, iths=0, ntime=0
-  integer               :: mynp,myne
   integer, dimension(:), allocatable :: testids
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
   type(ESMF_TimeInterval) :: schism_dt
@@ -403,6 +402,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   !> undefined reference to `schism_esmf_util_mp_schism_meshcreate_'
 
   call SCHISM_MeshCreate(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> Create states if they were not created
 

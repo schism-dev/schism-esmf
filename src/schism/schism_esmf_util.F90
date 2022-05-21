@@ -958,7 +958,7 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
   !use schism_glbl, only: ylat, xlon, np, ne, ics
   use schism_glbl, only: ylat, xlon, np, npa, nea,  ics
-  use schism_glbl, only:  nvrt
+  use schism_glbl, only:  nvrt, ne
 
   implicit none
 
@@ -1133,14 +1133,14 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   if (isDataPtr%numForeignNodes + isDataPtr%numOwnedNodes /= npa) then 
     localrc = ESMF_RC_ARG_SIZE
     write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
-      'mismatching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+      'mismatching number of augmented npa=',npa,', owned=',isDataPtr%numOwnedNodes, &
       ' and foreign=', isDataPtr%numForeignNodes,' nodes'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-  write(message,'(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
-    'matching number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
+  write(message,'(A,I6,A,I6,A,I6,A)') trim(compName)//' mesh with '// &
+    'matching number of augmented npa=',npa,', owned=',isDataPtr%numOwnedNodes, &
     ' and foreign=', isDataPtr%numForeignNodes,' nodes'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   
@@ -1159,10 +1159,23 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
     endif
   enddo
 
-!  write(message, '(A,I4.4,A,I4.4,A,I4.4,A)') trim(compName)//' mesh with '// &
-!    'number of resident np=',np,', owned=',isDataPtr%numOwnedNodes, &
-!    ' and foreign=', isDataPtr%numForeignNodes,' nodes'
-!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  if (isDataPtr%numForeignNodes /= foreignCount) then 
+    localrc = ESMF_RC_ARG_SIZE
+    write(message, '(A,I6,A,I6,A)') trim(compName)//' mesh with '// &
+      'mismatching count of foreign nodes ',isDataPtr%numForeignNodes,' /= ', &
+      foreignCount
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
+
+  if (isDataPtr%numOwnedNodes /= ownedCount) then 
+    localrc = ESMF_RC_ARG_SIZE
+    write(message, '(A,I6,A,I6,A)') trim(compName)//' mesh with '// &
+      'mismatching count of owned nodes ',isDataPtr%numOwnedNodes,' /= ', &
+      ownedCount
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
 
   nvcount=0
   do i=1, nea
@@ -1179,12 +1192,11 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
       nv(nvcount) =elnode(ii,i) 
     end do
 
-    ! Element coord is the sum of nodes divided by number of nodes
     elementcoords2d(2*i-1)=sum(nodecoords2d(2*elLocalNode(1:i34(i))-1))/i34(i)
     elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
-  end do !i
+  end do ! i=1, nea
 
-  if(ubound(nv,1)/=nvcount) then
+  if(ubound(nv,1) /= nvcount) then
     localrc=ESMF_RC_ARG_SIZE
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
   endif
@@ -1217,16 +1229,24 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
     rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   
-  write(message, '(A,I5,A,I5,A)') trim(compName)//' created mesh from ', npo, &
-    ' owned nodes and ', neo, ' owned elements'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  if (isDataPtr%numOwnedNodes /= npo) then 
+    localrc = ESMF_RC_ARG_SIZE
+    write(message, '(A,I6,A,I6,A)') trim(compName)//' mesh with '// &
+      'mismatching count of owned nodes ',isDataPtr%numOwnedNodes,' /= ', &
+      npo
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  endif
 
-  !> @todo the following might overflow the message buffer easily ...
-  !write(message,*) 'elementIds:',elementIds
-  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  write(message, '(A,I5,A,I5,A,I5,A)') trim(compName)//' added to mesh from ', nea, &
+    ' augmented and ', ne, ' resident elements ', neo, ' owned elements'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  write(message, '(A)') trim(compName)//' added mesh to component'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> @todo the following steps don't work in the NUOPC cap yet
 
@@ -1331,12 +1351,9 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   if (allocated(elementCoords2d)) deallocate(elementCoords2d, stat=localrc)
   deallocate(nv, stat=localrc)
 
-  write(message, '(A)') trim(compName)//' created 2D mesh'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
 end subroutine SCHISM_MeshCreate
 
-subroutine schism_esmf_add_bottom_tracer(name,mesh2d,tr_id,exportState, &
+subroutine schism_esmf_add_bottom_tracer(name, mesh2d, tr_id, exportState, &
     importState,add_ws,rc)
 
   use schism_glbl, only: tr_el, kbe, wsett, rkind, nea, ne, nvrt
