@@ -1,6 +1,7 @@
 # This code is part of the SCHISM-ESMF interface.
 #
-# @copyright (C) 2020-2022 Helmholtz-Zentrum Geesthacht
+# @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
+# @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 # @author Carsten Lemmen carsten.lemmen@hereon.de
 #
 # @license Apache License, Version 2.0 (the "License");
@@ -15,16 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(wildcard ../compiler.mk),)
-$(warning cannot find compiler Makefile snippet "../compiler.mk")
-else
-include ../compiler.mk
-endif
+include ../include/Rules.mk
+
+include ../include/Rules.mk
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_BUILD_DIR)/src
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_LIB_DIR)/../src
 
 # Add compiler-specific flags to CFLAGS and F90FLAGS
 
@@ -52,7 +51,7 @@ endif # intel
 endif # gfortran
 endif # g95
 
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_BUILD_DIR) -lpdaf-d
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_LIB_DIR) -lpdaf-d
 
 .SUFFIXES: .F90
 

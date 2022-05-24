@@ -43,8 +43,8 @@ module schism_esmf_cap
   integer, save, allocatable :: idry_e_c(:,:),idry_s_c(:,:),idry_c(:,:), istack(:)
   integer, save, allocatable :: ncid_c(:) !CWB2021-1
   real(8), save, allocatable ::we_c(:,:,:),tr_el_c(:,:,:,:), su2_c(:,:,:),sv2_c(:,:,:), &
- &eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
- &dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
+    eta2_c(:,:),tr_nd_c(:,:,:,:),tr_nd0_c(:,:,:,:),q2_c(:,:,:),xl_c(:,:,:),dfv_c(:,:,:), &
+    dfh_c(:,:,:),dfq1_c(:,:,:),dfq2_c(:,:,:), uu2_c(:,:,:),vv2_c(:,:,:)
 
 contains
 
@@ -133,7 +133,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: ylat, xlon, npa, np, nea, ne, ics
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
-  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out
+  use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out, eta2
 !  use schism_msgp, only: schism_mpi_comm=>comm
   use schism_msgp, only: parallel_init
   use schism_io, only: fill_nc_header!ncid
@@ -176,7 +176,6 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer               :: mpi_comm
   integer               :: i, n, nvcount
   integer               :: ii,ip,ie, iths=0, ntime=0
-  integer               :: mynp,myne
   integer, dimension(:), allocatable :: testids
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
   type(ESMF_TimeInterval) :: schism_dt
@@ -404,6 +403,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   call SCHISM_MeshCreate(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> Create states if they were not created
 
   !> Create fields for export to describe mesh (this information is not yet
@@ -590,6 +592,26 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
     trim(name)//'"'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  fieldName = 'elevation_at_water_surface'
+  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+                           typekind=ESMF_TYPEKIND_R8, &
+                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! add maskValues to be used in regridding
+  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !   initialize
+  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  schism_ptr2d(1:np)=eta2(1:np)
+  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message, '(A,A)') trim(compName)//' created export field "', &
+    trim(fieldName)//'" on nodes'
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
 
   fieldName = 'water_x-velocity_at_water_surface'
   field = ESMF_FieldCreate(mesh2d, name=fieldName, &
@@ -793,8 +815,14 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
   len_out_dir=len_trim(out_dir)
 
-  num_schism_steps=rnday*86400.d0/dt+0.5d0
-  it=advanceCount+1 !SCHISM time step index
+  num_schism_steps=int(rnday*86400.d0/dt+0.5d0)
+
+  if (advanceCount<huge(it)) then 
+    it=int(advanceCount+1,ESMF_KIND_I4) !SCHISM time step index
+  else 
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
 
 !new28: not sure needed
 !!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
@@ -993,6 +1021,12 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   end do
 #endif
 
+  call ESMF_StateGet(exportState, 'elevation_at_water_surface', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ptr2d(1:np) = eta2(1:np)
+
   call ESMF_StateGet(exportState, 'water_x-velocity_at_water_surface', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
@@ -1005,7 +1039,19 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   ptr2d(1:np) = vv2(nvrt,1:np)
 
-!  write(0,*) '  Ended Run from SCHISM'
+  ! call ESMF_StateGet(exportState, 'x-velocity', field=field, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! ptr2d(1:nvrt,1:np) = uu2(nvrt,1:np)
+
+  ! call ESMF_StateGet(exportState, 'y-velocity', field=field, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  ! ptr2d(1:nvrt,1:np) = vv2
+
+  !  write(0,*) '  Ended Run from SCHISM'
   write(message, '(A)') trim(compName)//' ran.'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 

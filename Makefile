@@ -23,21 +23,22 @@ include src/include/Rules.mk
 
 DESTDIR?=./lib
 
-ifdef PDAF_BUILD_DIR
+ifdef PDAF_LIB_DIR
 CPPFLAGS+= -DUSE_PDAF
 USE_PDAF=ON
 endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lschism_esmf -lparmetis -lmetis
+LIBS+= -lschism_esmf -lparmetis -lmetis -lesmf
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I src/schism
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
 ifdef USE_PDAF
-LDFLAGS+= -L$(PDAF_BUILD_DIR)/lib -lpdaf-d
+LDFLAGS+= -L$(PDAF_LIB_DIR) -lpdaf-d 
 endif
 ifeq ($(ESMF_COMPILER), intel)
+LDFLAGS+=-mkl -lpthread -lm -ldl
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
@@ -45,7 +46,7 @@ ifeq ($(ESMF_COMPILER), gfortran)
 # OpenBLAS or vecLibFort (osx), this should be configured automatically ... we
 # really need to move to CMake
 #LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -lvecLibFort
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -lOpenBLAS
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas #-lscalapack #-lOpenBLAS
 endif
 endif
 
@@ -57,7 +58,8 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   F90FLAGS += -DUSE_FABM
 endif
 
-.PHONY: all lib test schism_nuopc_lib schism_esmf_lib schism_pdaf install install-esmf install-nuopc
+.SUFFIXES:
+.PHONY: all lib test schism_nuopc_lib schism_esmf_lib install install-esmf install-nuopc pdaf
 default: all
 
 # User-callable make targets
@@ -90,7 +92,7 @@ install-nuopc:  schism_nuopc_lib
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
 test: pdaf 
-pdaf: schism_pdaf
+pdaf: dep-pdaf schism_pdaf
 
 # Internal make targets for final linking
 SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_nuopc_cap.mod)
@@ -111,8 +113,8 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,parser_mpi.o mod_parallel_pdaf.o mod_as
 #	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 ifdef USE_PDAF
-schism_pdaf: dep-pdaf $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
-	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
+schism_pdaf: install-esmf dep-pdaf $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
+	$(F90) $(CPPFLAGS) $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o -o $@ $(LDFLAGS)  -L./lib $(LIBS)
 endif
 
 schism_esmf_lib: dep-esmf dep-schism $(SCHISM_OBJS)  $(SCHISM_ESMF_OBJS) $(EXPAND_TARGETS)

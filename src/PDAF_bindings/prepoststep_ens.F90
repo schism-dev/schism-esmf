@@ -183,7 +183,7 @@ SUBROUTINE prepoststep_ens(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
               '   step    ', 'ssh','temp','salt','u','v','w',&
               '           ', ('-',i=1,81)
      end if
-     WRITE (70,'(i,10x,es11.4,5es14.4,1x,a5,a1)') &
+     WRITE (70,'(i6,10x,es11.4,5es14.4,1x,a5,a1)') &
            step, rmse(1), rmse(2), rmse(3), rmse(4), rmse(5), rmse(6), 'RMSe-', typestr
   END IF
 

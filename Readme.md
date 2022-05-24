@@ -46,10 +46,10 @@ Earth System Modeling Framework (ESMF) and National Unified Operational Predicti
 3. Optionally, you need PDAF:
 
    on WW:
-      setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Whirlwind
+      setenv PDAF_LIB_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Whirlwind
 
    on Cyclops:
-      setenv PDAF_BUILD_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Cyclops
+      setenv PDAF_LIB_DIR /sciclone/home10/yinglong/PDAF-D_V1.14/lib/Cyclops
 
 ## Compilation (in schism-esmf)
 

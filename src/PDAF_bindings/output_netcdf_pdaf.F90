@@ -236,9 +236,9 @@
 !            if (typestr=='a') ncid_PDAF_io=ncid_a
 !                  
 !   Noted:   we didn't use ens-avg for idry,idry_e,idry_s,& znl, they are followed with filter member, usually the 1st
-             call writeout_nc_PDAF(typestr,id_out_var(1),'wetdry_node',1,1,npa,dble(idry))
-             call writeout_nc_PDAF(typestr,id_out_var(2),'wetdry_elem',4,1,nea,dble(idry_e))
-             call writeout_nc_PDAF(typestr,id_out_var(3),'wetdry_side',7,1,nsa,dble(idry_s))
+             call writeout_nc_PDAF(typestr,id_out_var(1),'wetdry_node',1,1,npa,real(idry,kind=8))
+             call writeout_nc_PDAF(typestr,id_out_var(2),'wetdry_elem',4,1,nea,real(idry_e,kind=8))
+             call writeout_nc_PDAF(typestr,id_out_var(3),'wetdry_side',7,1,nsa,real(idry_s,kind=8))
              !zcor MUST be 1st 3D var output for combine scripts to work!
              call writeout_nc_PDAF(typestr,id_out_var(4),'zcor',2,nvrt,npa,znl(:,:))
 
