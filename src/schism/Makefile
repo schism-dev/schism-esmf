@@ -19,12 +19,17 @@
 
 include ../include/Rules.mk
 
+ifdef PDAF_LIB_DIR
+USE_PDAF=ON
+endif
+
+
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
 F90FLAGS+= -I $(SCHISM_BUILD_DIR)/include
 ifdef USE_PDAF
-F90FLAGS +=  -I ../PDAF_bindings
+F90FLAGS +=  -I ../PDAF_bindings #-g -traceback -mcmodel=medium #-shared-intel
 endif
 LDFLAGS+= -L $(SCHISM_BUILD_DIR)/lib
 

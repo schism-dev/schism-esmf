@@ -29,7 +29,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 ! !USES:
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
     & idry_s,su2,sv2,idry,eta2,tr_nd,uu2,vv2,ww2, &
-    & elnode,i34,rkind,kbe,kbs,isidenode,kbp
+    & elnode,i34,rkind,kbe,kbs,isidenode,kbp, &
+    & tempmin,tempmax,saltmin,saltmax,trnd_nu2,inu_tr
 ! Check only
   use mod_parallel_pdaf, only: mype_model,task_id,filterpe
   use mod_assimilation, only: offset_field_p
@@ -41,6 +42,7 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
   REAL, INTENT(inout) :: state_p(dim_p)  ! PE-local state vector
 
   integer :: i,j,k,itot,ifill,ifill2
+  real :: nu_weight ! Put to mod_assimilation later
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_get_state      (as U_dist_state)
@@ -81,6 +83,12 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        do k=1,nvrt
          itot=itot+1
          tr_nd(j,k,i)=state_p(itot)
+         ! Add limiter to avoid weird analysis
+         if (j==1) then
+            if(tr_nd(j,k,i)<tempmin.or.tr_nd(j,k,i)>tempmax) tr_nd(j,k,i)=max(tempmin,min(tr_nd(j,k,i),tempmax))
+         elseif (j==2) then
+            if(tr_nd(j,k,i)<saltmin.or.tr_nd(j,k,i)>saltmax) tr_nd(j,k,i)=max(saltmin,min(tr_nd(j,k,i),saltmax))
+         end if
        enddo !k
        if (ifill.eq.1) then
 !      Fill -9999 to see difference of analysis
@@ -91,6 +99,12 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        end if
      enddo !i
    enddo !j
+!  Updating nudge with analysis result to increase ens-spread with weighting, limit T/S only
+!  For 1st time step, tr_nd is pertubed already, therefore ens-spread is garanteed!
+   nu_weight=0.5
+   do k=1,2
+      if(inu_tr(k)==2) trnd_nu2(k,:,:)=(1.0d0-nu_weight)*trnd_nu2(k,:,:)+nu_weight*tr_nd(k,:,:)
+   end do
    ! U
    do i=1,npa
      do k=1,nvrt

@@ -209,6 +209,10 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 
   ! state_ens = state+ sqrt(dim_ens-1) eofV A^T
 
+! For lock-exchange test only
+! is=offset_field_p(2)+1
+! ie=offset_field_p(2)+nvrt*npa
+! state_p2(is:ie)=state_p2(is:ie)-1.00d0 !this is just for lock-exchange test, will remove after test done!
   DO col = 1,dim_ens
 !    new28
      if (ens_init==1) then
@@ -299,12 +303,12 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! write(*,'(a,6f8.2,i4)') 'state_p in ens',state_p(is-1:is+1),state_p(ie-1:ie+1),mype_model
 ! write(*,'(a,f6.2,2i4,l2)') 'In init_ens_pdaf, state_p(max)',maxval(state_p),kind(state_p),mype_world,task_id,filterpe
 ! *** Initialize ens_p
-! state_p(is:ie)=state_p(is:ie)-0.25d0 !this is just for lock-exchange test, will remove after test done!
+! state_p2(is:ie)=state_p2(is:ie)-1.00d0 !this is just for lock-exchange test, will remove after test done!
 ! increment_init= 0.5d0/real(dim_ens-1,8)
 ! DO member = 1,dim_ens
 !       ens_p(:,member) = state_p(:) !+ float(member-1)*1.d-2 ! temporary, add fesom example later
 !       state_p(is:ie)=state_p(is:ie)+increment_init !this is just for lock-exchange test, will remove after test done!
-!       ens_p(:,member) = state_p(:)  
+!       ens_p(:,member) = state_p2(:)  
 ! END DO
 ! write(*,*) 'in init_ens_pdaf',state_p(1:3)
 ! FESOM example is followed by init_seik, need to gen_cov first, then use its

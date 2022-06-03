@@ -69,7 +69,7 @@ module schism_esmf_util
 
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
-  public SCHISM_StateFieldCreateRealize
+  public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
   !public SCHISM_StateGetField, 
   public SCHISM_StateImportWaveTensor, SCHISM_MeshCreate, SCHISM_InitializePtrMap
   !public SCHISM_FieldGet, SCHISM_FieldPut, 
@@ -949,6 +949,107 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
   if (present(rc)) rc = rc_
 
 end subroutine SCHISM_StateFieldCreateRealize
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateFieldCreate"
+subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
+
+  use schism_glbl, only: nws,np
+
+  implicit none 
+
+  type(ESMF_GridComp), intent(inout)               :: comp
+  type(ESMF_State), intent(inout)                  :: state
+  character(len=*), intent(in)                     :: name
+  type(ESMF_Field), intent(out)                    :: field
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+
+  type(ESMF_Mesh)                    :: mesh
+  type(ESMF_DistGrid)                :: distgrid
+  integer(ESMF_KIND_I4)              :: localrc, rc_
+  type(ESMF_Array)                   :: array 
+  character(len=ESMF_MAXSTR)         :: compName, message
+  type(type_InternalStateWrapper)    :: internalState
+  type(type_InternalState), pointer  :: isDataPtr => null()
+  type(ESMF_StateItem_Flag)          :: itemType
+  logical                            :: isPresent
+  
+  rc_ = ESMF_SUCCESS
+  localrc = ESMF_SUCCESS
+
+  call ESMF_GridCompGet(comp, mesh=mesh, name=compName, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isDataPtr => internalState%wrap
+ 
+  write(message,'(A)') trim(compName)//' created array '//trim(name)//' on'
+  if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds)) then 
+    array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
+    haloSeqIndexList=isDataPtr%foreignNodeIds, &
+    name=trim(name), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A,I5,A,I5,A)') trim(message)//' ',isDataPtr%numOwnedNodes,'/', np, &
+    ' owned / resident nodes'
+  else
+    array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
+    name=trim(name), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A,I5,A)') trim(message)//' all resident nodes'
+  endif
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  field = ESMF_FieldCreate(name=trim(name), mesh=mesh, array=array, &
+    meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  isPresent = ESMF_RouteHandleIsCreated(isDataPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (.not. isPresent) then 
+    call ESMF_FieldHaloStore(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    write(message,'(A)') trim(compName)//' created halo route'
+  endif    
+
+  write(message,'(A)') trim(compName)//' created field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  call ESMF_StateAddReplace(state, (/field/), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  call ESMF_StateGet(state, trim(name), itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then 
+    write(message,'(A)') trim(compName)//' skipped non-advertised field '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+    return
+  endif
+
+  call ESMF_FieldHalo(field, routehandle=isDataPtr%haloHandle, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  write(message,'(A)') trim(compName)//' added halo route to field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+
+  write(message,'(A)') trim(compName)//' realized field '//trim(name)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+
+  if (present(rc)) rc = rc_
+
+end subroutine SCHISM_StateFieldCreate
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_MeshCreate"
