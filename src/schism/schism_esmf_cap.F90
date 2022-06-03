@@ -140,6 +140,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 ! use mod_assimilation, only: outf !PDAF module
 
   use schism_esmf_util, only: SCHISM_MeshCreate
+  use schism_esmf_util, only: SCHISM_StateFieldCreate
 
 #ifdef USE_FABM
   use fabm_schism, only: fabm_istart=>istart, fs
@@ -450,220 +451,233 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   ! nullify(farrayPtrI41)
 
+  call SCHISM_StateFieldCreate(comp, state=importState, &
+      name='inst_zonal_wind_height10m', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   ! define fields for import and export
-  schism_ptr2d => windx2(1:np)
-  fieldName = 'wind_x-velocity_in_10m_height'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+  call SCHISM_StateFieldCreate(comp, state=importState, &
+      name='inst_merid_wind_height10m', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateAddReplace(importstate, (/field/), rc=localrc)
+  call SCHISM_StateFieldCreate(comp, state=importState, &
+      name='air_pressure_at_sea_level', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => windy2(1:np)
-  fieldName = 'wind_y-velocity_in_10m_height'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => pr2(1:np)
-  fieldName = 'air_pressure_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => airt2(1:np)
-  fieldName = 'temperature_in_air'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => shum2(1:np)
-  fieldName = 'specific_humidity_in_air'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => srad(1:np)
-  fieldName = 'downwelling_short_wave_radiation_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => fluxevp(1:np)
-  !> @todo ist this the correct name for fluxevp?
-  fieldName = 'evaporation_flux_at_water_surface' !'temperature_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  schism_ptr2d => fluxprc(1:np)
-  fieldName = 'precipitation_flux_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           farrayPtr=schism_ptr2d, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created import field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  ! define fields for import and export
+!  schism_ptr2d => windx2(1:np)
+!  fieldName = 'wind_x-velocity_in_10m_height'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importstate, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => windy2(1:np)
+!  fieldName = 'wind_y-velocity_in_10m_height'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => pr2(1:np)
+!  fieldName = 'air_pressure_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => airt2(1:np)
+!  fieldName = 'temperature_in_air'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => shum2(1:np)
+!  fieldName = 'specific_humidity_in_air'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => srad(1:np)
+!  fieldName = 'downwelling_short_wave_radiation_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => fluxevp(1:np)
+!  !> @todo ist this the correct name for fluxevp?
+!  fieldName = 'evaporation_flux_at_water_surface' !'temperature_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  schism_ptr2d => fluxprc(1:np)
+!  fieldName = 'precipitation_flux_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           farrayPtr=schism_ptr2d, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_StateAddReplace(importState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created import field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! fill export state
 
-  fieldName = 'temperature_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !   initialize
-  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  schism_ptr2d(1:np)=tr_nd(1,nvrt,1:np)
-  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  !Bottom T (for benthic model)
-  name = 'temperature'
-  call schism_esmf_add_bottom_tracer(name,mesh2d,1,exportState)
-  write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
-    trim(name)//'"'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  fieldName = 'elevation_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !   initialize
-  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  schism_ptr2d(1:np)=eta2(1:np)
-  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-
-  fieldName = 'water_x-velocity_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !   initialize
-  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  schism_ptr2d(1:np)=uu2(nvrt,1:np)
-  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-  fieldName = 'water_y-velocity_at_water_surface'
-  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-                           typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! add maskValues to be used in regridding
-  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !   initialize
-  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  schism_ptr2d(1:np)=vv2(nvrt,1:np)
-  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  write(message, '(A,A)') trim(compName)//' created export field "', &
-    trim(fieldName)//'" on nodes'
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
-#ifdef USE_FABM
-  do i=1,fs%nvar
-    name = trim(fs%model%state_variables(i)%name)
-    call schism_esmf_add_bottom_tracer(name,mesh2d,fabm_istart-1+i, exportState, add_ws=.true., importState=importState)
-    write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
-      trim(name)//'"'
-    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-  end do
-#endif
-
-  call addCIM(comp, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  fieldName = 'temperature_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           typekind=ESMF_TYPEKIND_R8, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ! add maskValues to be used in regridding
+!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  !   initialize
+!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  schism_ptr2d(1:np)=tr_nd(1,nvrt,1:np)
+!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created export field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  !Bottom T (for benthic model)
+!  name = 'temperature'
+!  call schism_esmf_add_bottom_tracer(name,mesh2d,1,exportState)
+!  write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
+!    trim(name)//'"'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  fieldName = 'elevation_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           typekind=ESMF_TYPEKIND_R8, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ! add maskValues to be used in regridding
+!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  !   initialize
+!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  schism_ptr2d(1:np)=eta2(1:np)
+!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created export field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!
+!  fieldName = 'water_x-velocity_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           typekind=ESMF_TYPEKIND_R8, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ! add maskValues to be used in regridding
+!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  !   initialize
+!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  schism_ptr2d(1:np)=uu2(nvrt,1:np)
+!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created export field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!  fieldName = 'water_y-velocity_at_water_surface'
+!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
+!                           typekind=ESMF_TYPEKIND_R8, &
+!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ! add maskValues to be used in regridding
+!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  !   initialize
+!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  schism_ptr2d(1:np)=vv2(nvrt,1:np)
+!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  write(message, '(A,A)') trim(compName)//' created export field "', &
+!    trim(fieldName)//'" on nodes'
+!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!
+!#ifdef USE_FABM
+!  do i=1,fs%nvar
+!    name = trim(fs%model%state_variables(i)%name)
+!    call schism_esmf_add_bottom_tracer(name,mesh2d,fabm_istart-1+i, exportState, add_ws=.true., importState=importState)
+!    write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
+!      trim(name)//'"'
+!    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+!  end do
+!#endif
+!
+!  call addCIM(comp, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! clean up
   deallocate(nodeids, stat=localrc)
@@ -1013,41 +1027,41 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
   ! put data to fields in export state
   !   SST, copy uncontiguous data into field in ESMF
-  call ESMF_StateGet(exportState, 'temperature_at_water_surface', field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call ESMF_FieldGet(field, farrayPtr=ptr2d,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ptr2d(1:np) = tr_nd(1,nvrt,1:np)
-
-  name = 'temperature'
-  call schism_esmf_update_bottom_tracer(exportState, name, 1)
-
-#ifdef USE_FABM
-  do i=1,fs%nvar
-    name = trim(fs%model%state_variables(i)%name)
-    call schism_esmf_update_bottom_tracer(exportState, name, fabm_istart-1+i, importState=importState, dt=dt_coupling)
-  end do
-#endif
-
-  call ESMF_StateGet(exportState, 'elevation_at_water_surface', field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ptr2d(1:np) = eta2(1:np)
-
-  call ESMF_StateGet(exportState, 'water_x-velocity_at_water_surface', field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ptr2d(1:np) = uu2(nvrt,1:np)
-
-  call ESMF_StateGet(exportState, 'water_y-velocity_at_water_surface', field=field, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ptr2d(1:np) = vv2(nvrt,1:np)
+!  call ESMF_StateGet(exportState, 'temperature_at_water_surface', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  call ESMF_FieldGet(field, farrayPtr=ptr2d,rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!
+!  ptr2d(1:np) = tr_nd(1,nvrt,1:np)
+!
+!  name = 'temperature'
+!  call schism_esmf_update_bottom_tracer(exportState, name, 1)
+!
+!#ifdef USE_FABM
+!  do i=1,fs%nvar
+!    name = trim(fs%model%state_variables(i)%name)
+!    call schism_esmf_update_bottom_tracer(exportState, name, fabm_istart-1+i, importState=importState, dt=dt_coupling)
+!  end do
+!#endif
+!
+!  call ESMF_StateGet(exportState, 'elevation_at_water_surface', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ptr2d(1:np) = eta2(1:np)
+!
+!  call ESMF_StateGet(exportState, 'water_x-velocity_at_water_surface', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ptr2d(1:np) = uu2(nvrt,1:np)
+!
+!  call ESMF_StateGet(exportState, 'water_y-velocity_at_water_surface', field=field, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  call ESMF_FieldGet(field, farrayPtr=ptr2d, rc=localrc)
+!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+!  ptr2d(1:np) = vv2(nvrt,1:np)
 
   ! call ESMF_StateGet(exportState, 'x-velocity', field=field, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
