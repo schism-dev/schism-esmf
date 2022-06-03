@@ -404,8 +404,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call SCHISM_MeshCreate(comp, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_GridCompGet(comp, mesh=mesh2d, rc=localrc)
+  call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
   !> Create states if they were not created
 
   !> Create fields for export to describe mesh (this information is not yet
@@ -752,6 +753,14 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     currTime=currTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo SCHISM cannot yet handle advanceCount beyond Integer4 
+  if (advanceCount > huge(it)) then 
+    write(message, '(A,I4)') trim(compName)//' advanceCount ', advanceCount, ' is too large'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+    localrc = ESMF_RC_VAL_OUTOFRANGE
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif 
+
   call ESMF_ClockGet(parentClock, currTime=parentCurrTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -815,7 +824,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   out_dir=adjustl(in_dir(1:len_in_dir)//'outputs/')
   len_out_dir=len_trim(out_dir)
 
-  num_schism_steps=int(rnday*86400.d0/dt+0.5d0)
+  num_schism_steps=ceiling(dble(rnday)*86400.d0/dt+0.5d0)
 
   if (advanceCount<huge(it)) then 
     it=int(advanceCount+1,ESMF_KIND_I4) !SCHISM time step index
@@ -847,6 +856,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     write(message,*) 'it = ',it,', elapsed  ',it*dt,'s'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+    !> @todo change type of it to I8 inside SCHISM
     call schism_step(it)
 
 !Debug
