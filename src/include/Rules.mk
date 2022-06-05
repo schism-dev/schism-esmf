@@ -35,62 +35,54 @@ else
 	USE_MPI ?= true
 endif
 
+# Determine the original compilers (fortran and c++) used for the combination of compmiler and device
+
+ifeq ($(ESMF_FC),)
 # OpenMPI section
 ifeq ($(ESMF_COMM),openmpi)
-	ESMF_FC ?= $(shell basename $(ESMF_F90COMPILER) --showme:command 2> /dev/null)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null)
+	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null)
 ifeq ($(ESMF_FC),)
 ifeq ($(ESMF_F90COMPILER),mpifort)
-	ESMF_FC:=$(shell basename mpif90 --showme:command 2> /dev/null)
+	ESMF_FC:=$(shell mpif90 --showme:command 2> /dev/null)
 endif
 endif
-
-ifeq ($(ESMF_FC),)
-	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
-endif
-
-ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null)
 endif
 
 # IntelMPI section
 ifeq ($(ESMF_COMM),intelmpi)
-	ESMF_FC:=$(shell basename $(ESMF_F90COMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
-ifeq ($(ESMF_FC),)
-	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
-endif
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
 endif
 
-# MPIch 2 section
-ifeq ($(ESMF_COMM),mpich2)
-	ESMF_FC:=$(shell basename $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+
+# mpich2, mpich3, mvapich2 sections
+#ifeq ($(ESMF_COMM),mvapich2)
+ifneq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2))
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+	ESMF_FC:=$(shell basename $(ESMF_FC) | cut -d' ' -f1 )
+	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+	ESMF_CC:=$(shell basename $(ESMF_CC) | cut -d' ' -f1 )
+endif
+
+# Make a correction on triplets that end in the compiler name and start with x86_64
 ifeq ($(ESMF_FC),x86_64)
-	ESMF_FC:=$(shell basename $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f4)
-endif
-ifeq ($(ESMF_FC),)
-	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
-endif
-ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+	ESMF_FC:=$(shell basename $(ESMF_FC) | cut -d' ' -f4 )
+	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+	ESMF_CC:=$(shell basename $(ESMF_CC) | cut -d' ' -f4 )
 endif
 
-# MPIch 3 section
-ifeq ($(ESMF_COMM),mpich3)
-	ESMF_FC:=$(basename shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
-ifeq ($(ESMF_FC),x86_64)
-	ESMF_FC:=$(basename shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f4)
-endif
+# Finally exit if none of the above produced a valid ESMF_FC
 ifeq ($(ESMF_FC),)
 	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
-endif
-ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
 endif
 
-# MVAPICH2 section
-ifeq ($(ESMF_COMM),mvapich2)
-	ESMF_FC:=$(shell basename $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
-endif
-ifeq ($(ESMF_FC),)
-	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
-endif
-ESMF_CC:=$(shell basename $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
+export ESMF_FC
+export ESMF_CC
+export ESMF_COMPILER
+export ESMF_COMM
+$(info Fortran/C++ compilers are ${ESMF_FC} and ${ESMF_CC} based on ${ESMF_COMPILER}/${ESMF_COMM} device)
 endif
 
 
@@ -103,10 +95,6 @@ endif
 
 export USE_OMP
 export USE_MPI
-export ESMF_COMPILER
-export ESMF_COMM
-export ESMF_FC
-export ESMF_CC
 
 endif 
 endif 
