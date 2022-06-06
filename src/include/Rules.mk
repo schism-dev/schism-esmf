@@ -40,8 +40,8 @@ endif
 ifeq ($(ESMF_FC),)
 # OpenMPI section
 ifeq ($(ESMF_COMM),openmpi)
-	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null)
-	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null | cut -d'-' -f1)
+	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null | cut -d'-' -f1)
 ifeq ($(ESMF_FC),)
 ifeq ($(ESMF_F90COMPILER),mpifort)
 	ESMF_FC:=$(shell mpif90 --showme:command 2> /dev/null)
@@ -55,27 +55,34 @@ ifeq ($(ESMF_COMM),intelmpi)
 	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
 endif
 
-
 # mpich2, mpich3, mvapich2 sections
 #ifeq ($(ESMF_COMM),mvapich2)
 ifneq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2))
-	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-	ESMF_FC:=$(shell basename $(ESMF_FC) | cut -d' ' -f1 )
-	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-	ESMF_CC:=$(shell basename $(ESMF_CC) | cut -d' ' -f1 )
+  ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+  ESMF_FC:=$(shell $(basename $(ESMF_FC)))
+  ESMF_FC:=$(shell echo $(ESMF_FC) | cut -d'-' -f1)
+  ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+  ESMF_CC:=$(shell $(basename $(ESMF_CC)))
+  ESMF_CC:=$(shell echo $(ESMF_CC) | cut -d'-' -f1)
 endif
 
-# Make a correction on triplets that end in the compiler name and start with x86_64
+# Make a correction on quadruplets that end in the compiler name and start with x86_64
 ifeq ($(ESMF_FC),x86_64)
-	ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-	ESMF_FC:=$(shell basename $(ESMF_FC) | cut -d' ' -f4 )
-	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-	ESMF_CC:=$(shell basename $(ESMF_CC) | cut -d' ' -f4 )
+  ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+  ESMF_FC:=$(shell $(basename $(ESMF_FC)))
+  ESMF_FC:=$(shell echo $(ESMF_FC) | cut -d'-' -f4)
+  ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
+  ESMF_CC:=$(shell $(basename $(ESMF_CC)))
+  ESMF_CC:=$(shell echo $(ESMF_CC) | cut -d'-' -f4)
 endif
 
-# Finally exit if none of the above produced a valid ESMF_FC
+# Finally exit if none of the above produced a valid ESMF_FC or EMSF_CC, pointing
+# to a possible inconsistency between ESMFMKFILE and PATH
 ifeq ($(ESMF_FC),)
-	$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+$(error $(ESMF_F90COMPILER) is *not* based on $(ESMF_COMM)!)
+endif
+ifeq ($(ESMF_FC),)
+$(error $(ESMF_CXXCOMPILER) is *not* based on $(ESMF_COMM)!)
 endif
 
 export ESMF_FC
