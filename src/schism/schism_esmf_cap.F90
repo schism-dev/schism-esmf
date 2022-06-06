@@ -444,96 +444,38 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 !  schism_ptr2d => fluxprc(1:np)
 !  fieldName = 'precipitation_flux_at_water_surface'
 
+! Fill export state
+  call SCHISM_StateFieldCreate(comp, state=exportState, &
+      name='elevation_at_water_surface', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  call SCHISM_StateFieldCreate(comp, state=exportState, &
+      name='y-velocity_in_water', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! fill export state
+  call SCHISM_StateFieldCreate(comp, state=exportState, &
+      name='x-velocity_in_water', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> @todo consider how to generically add variables that need copying or slicing, i.e. 
+  !> all tracers
 !  fieldName = 'temperature_at_water_surface'
-!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-!                           typekind=ESMF_TYPEKIND_R8, &
-!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  ! add maskValues to be used in regridding
-!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  !   initialize
-!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d,rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
 !  schism_ptr2d(1:np)=tr_nd(1,nvrt,1:np)
-!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  write(message, '(A,A)') trim(compName)//' created export field "', &
-!    trim(fieldName)//'" on nodes'
-!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!
-!  !Bottom T (for benthic model)
+
+  !  !Bottom T (for benthic model)
 !  name = 'temperature'
 !  call schism_esmf_add_bottom_tracer(name,mesh2d,1,exportState)
 !  write(message, '(A,A)') trim(compName)//' added as bottom tracer "', &
 !    trim(name)//'"'
 !  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 !
-!  fieldName = 'elevation_at_water_surface'
-!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-!                           typekind=ESMF_TYPEKIND_R8, &
-!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  ! add maskValues to be used in regridding
-!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  !   initialize
-!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  schism_ptr2d(1:np)=eta2(1:np)
-!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  write(message, '(A,A)') trim(compName)//' created export field "', &
-!    trim(fieldName)//'" on nodes'
-!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!
-!
 !  fieldName = 'water_x-velocity_at_water_surface'
-!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-!                           typekind=ESMF_TYPEKIND_R8, &
-!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  ! add maskValues to be used in regridding
-!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  !   initialize
-!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 !  schism_ptr2d(1:np)=uu2(nvrt,1:np)
-!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  write(message, '(A,A)') trim(compName)//' created export field "', &
-!    trim(fieldName)//'" on nodes'
-!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!
+
 !  fieldName = 'water_y-velocity_at_water_surface'
-!  field = ESMF_FieldCreate(mesh2d, name=fieldName, &
-!                           typekind=ESMF_TYPEKIND_R8, &
-!                           meshloc=ESMF_MESHLOC_NODE, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  ! add maskValues to be used in regridding
-!  call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!  !   initialize
-!  call ESMF_FieldGet(field,farrayPtr=schism_ptr2d, rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 !  schism_ptr2d(1:np)=vv2(nvrt,1:np)
-!  call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
-!  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!
-!  write(message, '(A,A)') trim(compName)//' created export field "', &
-!    trim(fieldName)//'" on nodes'
-!  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-!
+
+  !
 !#ifdef USE_FABM
 !  do i=1,fs%nvar
 !    name = trim(fs%model%state_variables(i)%name)

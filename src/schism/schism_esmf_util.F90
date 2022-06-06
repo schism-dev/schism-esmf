@@ -185,11 +185,15 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(9)%name = 'downwelling_shortwave_radiation_at_sea_level'
   isPtr%wrap%ptrMap(9)%farrayPtr1 => srad
 
-  isPtr%wrap%ptrMap(11)%name = 'y-velocity'
+  isPtr%wrap%ptrMap(11)%name = 'y-velocity_in_water'
   isPtr%wrap%ptrMap(11)%farrayPtr2 => vv2
 
-  isPtr%wrap%ptrMap(10)%name = 'x-velocity'
+  isPtr%wrap%ptrMap(10)%name = 'x-velocity_in_water'
   isPtr%wrap%ptrMap(10)%farrayPtr2 => uu2
+
+  isPtr%wrap%ptrMap(12)%name = 'elevation_at_water_surface'
+  isPtr%wrap%ptrMap(12)%farrayPtr1 => eta2
+
   
 end subroutine SCHISM_InitializePtrMap
 
