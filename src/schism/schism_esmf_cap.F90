@@ -1123,6 +1123,34 @@ end subroutine Run
     if (itemTypes(i) == ESMF_STATEITEM_FIELD) then
       call ESMF_StateGet(importState, itemNames(i), field=field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      call ESMF_StateRemove(importState, (/field/), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      call ESMF_FieldDestroy(field, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
+  end do
+
+  if (allocated(itemTypes)) deallocate(itemTypes)
+  if (allocated(itemNames)) deallocate(itemNames)
+  call ESMF_StateGet(importState, itemCount=itemCount, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(itemTypes(itemCount))
+  allocate(itemNames(itemCount))
+
+  call ESMF_StateGet(exportState, itemNames=itemNames, itemTypes=itemTypes, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  do i=1, itemCount
+    if (itemTypes(i) == ESMF_STATEITEM_FIELD) then
+      call ESMF_StateGet(exportState, itemNames(i), field=field, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      call ESMF_StateRemove(exportState, (/field/), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
       call ESMF_FieldDestroy(field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
     endif
