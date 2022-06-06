@@ -9,7 +9,7 @@
 ! @author Joseph Zhang <yjzhang@vims.edu>
 ! @author Richard Hofmeister
 !
-! @license Apache License, Version 2.0 (the "License");
+! @license Apache License, 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !
@@ -132,7 +132,7 @@ contains
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
-  use schism_glbl, only: uu2, vv2 
+  use schism_glbl, only: uu2, vv2, srad, shum2, air2
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
@@ -151,7 +151,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(6))
+  allocate(isPtr%wrap%ptrMap(11))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
@@ -170,18 +170,27 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(4)%name = 'elevation_at_sea_level'
   isPtr%wrap%ptrMap(4)%farrayPtr1 => eta2
 
-  isPtr%wrap%ptrMap(5)%name = 'inst_merid_wind_height10m'
-  isPtr%wrap%ptrMap(5)%farrayPtr1 => windy2
+  isPtr%wrap%ptrMap(5)%name = 'air_temperature_at_sea_level'
+  isPtr%wrap%ptrMap(5)%farrayPtr1 => air2
 
   isPtr%wrap%ptrMap(6)%name = 'inst_zonal_wind_height10m'
   isPtr%wrap%ptrMap(6)%farrayPtr1 => windx2
 
-  isPtr%wrap%ptrMap(7)%name = 'x-velocity'
-  isPtr%wrap%ptrMap(7)%farrayPtr2 => uu2
+  isPtr%wrap%ptrMap(7)%name = 'inst_zonal_wind_height10m'
+  isPtr%wrap%ptrMap(7)%farrayPtr1 => windx2
 
-  isPtr%wrap%ptrMap(8)%name = 'y-velocity'
-  isPtr%wrap%ptrMap(8)%farrayPtr2 => vv2
+  isPtr%wrap%ptrMap(8)%name = 'air_specific_humidity_at_sea_level'
+  isPtr%wrap%ptrMap(8)%farrayPtr1 => shum2
 
+  isPtr%wrap%ptrMap(9)%name = 'downwelling_shortwave_radiation_at_sea_level'
+  isPtr%wrap%ptrMap(9)%farrayPtr1 => srad
+
+  isPtr%wrap%ptrMap(11)%name = 'y-velocity'
+  isPtr%wrap%ptrMap(11)%farrayPtr2 => vv2
+
+  isPtr%wrap%ptrMap(10)%name = 'x-velocity'
+  isPtr%wrap%ptrMap(10)%farrayPtr2 => uu2
+  
 end subroutine SCHISM_InitializePtrMap
 
 ! #undef  ESMF_METHOD
