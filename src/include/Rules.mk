@@ -20,6 +20,14 @@ ifdef ESMFMKFILE
 ifndef ESMF_OPENMP 
 $(info Found ESMF Makefile fragment $(ESMFMKFILE))
 include $(ESMFMKFILE)
+
+# We require at least ESMF 8.2
+ESMF_GT_8_1 := $(shell [ $(ESMF_VERSION_MAJOR) -gt 8 -o \( $(ESMF_VERSION_MAJOR) -eq 8 -a $(ESMF_VERSION_MINOR) -ge 1 \) ] && echo true)
+
+ifneq ($(ESMF_GT_8_1),true)
+$(error Your ESMF version $(ESMF_VERSION_MAJOR).$(ESMF_VERSION_MINOR) is too old. At least ESMF 8.1 is required)
+endif
+
 F90=$(ESMF_F90COMPILER)
 LIBS=$(ESMF_F90ESMFLINKLIBS)
 CPPFLAGS=$(ESMF_F90COMPILEOPTS)
