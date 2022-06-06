@@ -907,11 +907,11 @@ end subroutine Run
   type(ESMF_Mesh)       :: mesh
   type(ESMF_Field)      :: field
   type(ESMF_Distgrid)   :: distgrid
-  integer(ESMF_KIND_I4) :: localrc, itemCount
+  integer(ESMF_KIND_I4) :: localrc, itemCount, i
   character(ESMF_MAXSTR):: compName, message
 
-  type(ESMF_StateItemFlag), dimension(:), allocatable :: itemTypes
-  type(ESMF_MAXSTR), dimension(:), allocatable :: itemNames
+  type(ESMF_StateItem_Flag),  dimension(:), allocatable :: itemTypes
+  character(len=ESMF_MAXSTR), dimension(:), allocatable :: itemNames
 
   rc = ESMF_SUCCESS
 
@@ -926,7 +926,7 @@ end subroutine Run
   allocate(itemTypes(itemCount))
   allocate(itemNames(itemCount))
 
-  call ESMF_StateGet(importState, itemNames=itemNames, itemTypes=itemTypes, rc=localrc)
+  call ESMF_StateGet(importState, itemNameList=itemNames, itemTypeList=itemTypes, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i=1, itemCount
@@ -934,7 +934,7 @@ end subroutine Run
       call ESMF_StateGet(importState, itemNames(i), field=field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateRemove(importState, (/field/), rc=localrc)
+      call ESMF_StateRemove(importState, itemNames(i), relaxedFlag=.true., rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       call ESMF_FieldDestroy(field, rc=localrc)
@@ -944,13 +944,14 @@ end subroutine Run
 
   if (allocated(itemTypes)) deallocate(itemTypes)
   if (allocated(itemNames)) deallocate(itemNames)
-  call ESMF_StateGet(importState, itemCount=itemCount, rc=localrc)
+
+  call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   allocate(itemTypes(itemCount))
   allocate(itemNames(itemCount))
 
-  call ESMF_StateGet(exportState, itemNames=itemNames, itemTypes=itemTypes, rc=localrc)
+  call ESMF_StateGet(exportState, itemNameList=itemNames, itemTypeList=itemTypes, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   do i=1, itemCount
@@ -958,7 +959,7 @@ end subroutine Run
       call ESMF_StateGet(exportState, itemNames(i), field=field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateRemove(exportState, (/field/), rc=localrc)
+      call ESMF_StateRemove(exportState, itemNames(i), relaxedFlag=.true., rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
       call ESMF_FieldDestroy(field, rc=localrc)
@@ -969,7 +970,7 @@ end subroutine Run
   if (allocated(itemTypes)) deallocate(itemTypes)
   if (allocated(itemNames)) deallocate(itemNames)
 
-  call ESMF_StateGet(importState, mesh=mesh, rc=localrc)
+  call ESMF_GridCompGet(comp, mesh=mesh, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_MeshGet(mesh,elementDistgrid=distgrid,rc=localrc)

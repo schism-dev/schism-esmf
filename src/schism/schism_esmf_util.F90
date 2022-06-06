@@ -132,7 +132,7 @@ contains
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
-  use schism_glbl, only: uu2, vv2, srad, shum2, air2
+  use schism_glbl, only: uu2, vv2, srad, shum2, airt2
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
@@ -171,7 +171,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(4)%farrayPtr1 => eta2
 
   isPtr%wrap%ptrMap(5)%name = 'air_temperature_at_sea_level'
-  isPtr%wrap%ptrMap(5)%farrayPtr1 => air2
+  isPtr%wrap%ptrMap(5)%farrayPtr1 => airt2
 
   isPtr%wrap%ptrMap(6)%name = 'inst_zonal_wind_height10m'
   isPtr%wrap%ptrMap(6)%farrayPtr1 => windx2
