@@ -1097,8 +1097,11 @@ end subroutine Run
   type(ESMF_Mesh)       :: mesh
   type(ESMF_Field)      :: field
   type(ESMF_Distgrid)   :: distgrid
-  integer(ESMF_KIND_I4) :: localrc
+  integer(ESMF_KIND_I4) :: localrc, itemCount
   character(ESMF_MAXSTR):: compName, message
+
+  type(ESMF_StateItemFlag), dimension(:), allocatable :: itemTypes
+  type(ESMF_MAXSTR), dimension(:), allocatable :: itemNames
 
   rc = ESMF_SUCCESS
 
@@ -1107,21 +1110,37 @@ end subroutine Run
   write(message, '(A)') trim(compName)//' finalizing ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-  call ESMF_StateGet(importState, 'wind_x-velocity_in_10m_height', field=field, rc=localrc)
+  call ESMF_StateGet(importState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldGet(field, mesh=mesh, rc=localrc)
+  allocate(itemTypes(itemCount))
+  allocate(itemNames(itemCount))
+
+  call ESMF_StateGet(importState, itemNames=itemNames, itemTypes=itemTypes, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_FieldDestroy(field, rc=localrc)
+  do i=1, itemCount
+    if (itemTypes(i) == ESMF_STATEITEM_FIELD) then
+      call ESMF_StateGet(importState, itemNames(i), field=field, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      call ESMF_FieldDestroy(field, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    endif
+  end do
+
+  if (allocated(itemTypes)) deallocate(itemTypes)
+  if (allocated(itemNames)) deallocate(itemNames)
+
+  call ESMF_StateGet(importState, mesh=mesh, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_MeshGet(mesh,elementDistgrid=distgrid,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_MeshDestroy(mesh,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call ESMF_DistgridDestroy(distgrid,rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_MeshDestroy(mesh,rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, clock=schismClock, rc=localrc)
