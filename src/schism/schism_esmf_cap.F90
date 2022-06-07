@@ -917,6 +917,7 @@ end subroutine Run
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
   write(message, '(A)') trim(compName)//' finalizing ...'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
@@ -934,11 +935,15 @@ end subroutine Run
       call ESMF_StateGet(importState, itemNames(i), field=field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-      call ESMF_StateRemove(importState, itemNames(i), relaxedFlag=.true., rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
       call ESMF_FieldDestroy(field, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+      call ESMF_StateRemove(importState, itemNames(i:i), relaxedFlag=.true., rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    else
+      write(message, '(A)') trim(compName)//' does not (yet) implement removal of '// &
+        trim(itemNames(i))
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     endif
   end do
 
