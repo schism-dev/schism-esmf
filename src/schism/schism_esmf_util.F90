@@ -1055,10 +1055,8 @@ subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
   write(message,'(A)') trim(compName)//' added halo route to field '//trim(name)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
-
-  write(message,'(A)') trim(compName)//' realized field '//trim(name)
+  write(message,'(A)') trim(compName)//' created and added field '//trim(name)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
 
   if (present(rc)) rc = rc_
 
@@ -1391,16 +1389,20 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
+  !WIP here
+  !call SCHISM_StateFieldCreate(comp, exportState, 'mesh_global_node_id', field, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
   fieldName = 'mesh_global_node_id'
   field = ESMF_FieldCreate(mesh2d, name=fieldName,  &
     meshloc=ESMF_MESHLOC_NODE, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   !TODO: check resident
-  farrayPtrI41 = nodeIds(1:np)
+  write(*,*) ubound(farrayPtrI41,1), ubound(nodeIds(isDataPtr%ownedNodeIds),1)
+  farrayPtrI41 = isDataPtr%ownedNodeIds
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
