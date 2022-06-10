@@ -192,7 +192,7 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
    end do
 !  Update we
    do i=1,nea
-      if(idry_e(j)==1) cycle
+      if(idry_e(i)==1) cycle
       do k=kbe(i)+1,nvrt
          we(k,i)=sum(ww2(k,elnode(1:i34(i),i)))/real(i34(i),rkind)
       end do

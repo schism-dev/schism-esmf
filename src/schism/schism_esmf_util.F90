@@ -1400,8 +1400,6 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !TODO: check resident
-  write(*,*) ubound(farrayPtrI41,1), ubound(nodeIds(isDataPtr%ownedNodeIds),1)
   farrayPtrI41 = isDataPtr%ownedNodeIds
 
   call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
