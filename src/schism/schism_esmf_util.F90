@@ -45,6 +45,7 @@ module schism_esmf_util
     real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
+    real(ESMF_KIND_R8), pointer  :: farrayPtr3(:,:,:) => null()
     character(len=ESMF_MAXSTR)   :: name
   end type
 
@@ -151,7 +152,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(11))
+  allocate(isPtr%wrap%ptrMap(13))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
@@ -194,6 +195,8 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(12)%name = 'elevation_at_water_surface'
   isPtr%wrap%ptrMap(12)%farrayPtr1 => eta2
 
+  isPtr%wrap%ptrMap(13)%name = 'tracer_concentration_in_water'
+  isPtr%wrap%ptrMap(13)%farrayPtr3 => tr_nd
   
 end subroutine SCHISM_InitializePtrMap
 
