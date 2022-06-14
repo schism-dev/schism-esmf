@@ -100,7 +100,6 @@ export ESMF_COMM
 $(info Fortran/C++ compilers are ${ESMF_FC} and ${ESMF_CC} based on ${ESMF_COMPILER}/${ESMF_COMM} device)
 endif
 
-
 ESMF_OPENMP = $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
 ifeq ("$(ESMF_OPENMP)","OFF")
 	USE_OMP ?= false
@@ -111,8 +110,11 @@ endif
 export USE_OMP
 export USE_MPI
 
-endif 
-endif 
+# git section 
+CPPFLAGS+=-DSCHISM_ESMF_GIT_COMMIT_HASH="\"$(shell git rev-parse --short HEAD || unknown)\""
+
+endif # ESMF_OPENMP, ensuring only 1 iteration of this part
+endif # ESMFMKFILE
 
 ifdef SCHISM_BUILD_DIR
 $(info Found SCHISM build directory $(SCHISM_BUILD_DIR))
@@ -134,7 +136,7 @@ ifndef ESMFMKFILE
 	$(error ESMF Makefile snippet variable not defined)
 endif 
 ifeq ($(wildcard $(ESMFMKFILE)),)
-	$(error ESMF Makefile snippet not defined)
+	$(error ESMF Makefile snippet does not exist as $(ESMFMKFILE))
 endif 
 
 dep-schism: 
