@@ -46,7 +46,7 @@ ifeq ($(ESMF_COMPILER), gfortran)
 # OpenBLAS or vecLibFort (osx), this should be configured automatically ... we
 # really need to move to CMake
 #LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -lvecLibFort
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas #-lscalapack #-lOpenBLAS
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas -Wl,--allow-multiple-definition#-lscalapack #-lOpenBLAS
 endif
 endif
 

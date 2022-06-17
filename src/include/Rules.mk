@@ -48,11 +48,11 @@ endif
 ifeq ($(ESMF_FC),)
 # OpenMPI section
 ifeq ($(ESMF_COMM),openmpi)
-	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null | cut -d'-' -f1)
+	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null | rev | cut -d'/' -f1 | rev)
 	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) --showme:command 2> /dev/null | cut -d'-' -f1)
 ifeq ($(ESMF_FC),)
 ifeq ($(ESMF_F90COMPILER),mpifort)
-	ESMF_FC:=$(shell mpif90 --showme:command 2> /dev/null)
+	ESMF_FC:=$(shell mpif90 --showme:command 2> /dev/null | awk -F/ '{print $NF}')
 endif
 endif
 endif
