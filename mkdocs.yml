@@ -1,0 +1,17 @@
+site_name: SCHISM-ESMF
+site_url: https://github.com/schism-dev/schism-esmf
+docs_dir: ./doc
+use_directory_urls: false
+theme:
+  name: material
+  features:
+    - toc.integrate
+    - toc.follow
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/git-alt
+  logo: logo.png
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Legal: legal.md
