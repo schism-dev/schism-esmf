@@ -67,20 +67,20 @@ endif
 #ifeq ($(ESMF_COMM),mvapich2)
 ifneq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2))
   ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-  ESMF_FC:=$(shell $(basename $(ESMF_FC)))
+  ESMF_FC:=$(shell basename $(ESMF_FC))
   ESMF_FC:=$(shell echo $(ESMF_FC) | cut -d'-' -f1)
   ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-  ESMF_CC:=$(shell $(basename $(ESMF_CC)))
+  ESMF_CC:=$(shell basename $(ESMF_CC))
   ESMF_CC:=$(shell echo $(ESMF_CC) | cut -d'-' -f1)
 endif
 
 # Make a correction on quadruplets that end in the compiler name and start with x86_64
 ifeq ($(ESMF_FC),x86_64)
   ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-  ESMF_FC:=$(shell $(basename $(ESMF_FC)))
+  ESMF_FC:=$(shell basename $(ESMF_FC))
   ESMF_FC:=$(shell echo $(ESMF_FC) | cut -d'-' -f4)
   ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
-  ESMF_CC:=$(shell $(basename $(ESMF_CC)))
+  ESMF_CC:=$(shell basename $(ESMF_CC))
   ESMF_CC:=$(shell echo $(ESMF_CC) | cut -d'-' -f4)
 endif
 
