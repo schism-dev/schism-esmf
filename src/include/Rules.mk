@@ -21,7 +21,7 @@ ifndef ESMF_OPENMP
 $(info Found ESMF Makefile fragment $(ESMFMKFILE))
 include $(ESMFMKFILE)
 
-# We require at least ESMF 8.2
+# We require at least ESMF 8.1
 ESMF_GT_8_1 := $(shell [ $(ESMF_VERSION_MAJOR) -gt 8 -o \( $(ESMF_VERSION_MAJOR) -eq 8 -a $(ESMF_VERSION_MINOR) -ge 1 \) ] && echo true)
 
 ifneq ($(ESMF_GT_8_1),true)
@@ -43,9 +43,15 @@ else
 	USE_MPI ?= true
 endif
 
-# Determine the original compilers (fortran and c++) used for the combination of compmiler and device
+# Determine the original compilers (fortran and c++) used for the combination of compiler and device
 
 ifeq ($(ESMF_FC),)
+
+# We only implemented for a subset of MPI implementations
+ifeq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2 openmpi intelmpi))
+$(error The communicator $(ESMF_COMM) is not implemented yet, please file a bug report)
+endif
+
 # OpenMPI section
 ifeq ($(ESMF_COMM),openmpi)
 	ESMF_FC:=$(shell $(ESMF_F90COMPILER) --showme:command 2> /dev/null | rev | cut -d'/' -f1 | rev)
