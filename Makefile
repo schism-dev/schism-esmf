@@ -80,8 +80,12 @@ install-esmf:  schism_esmf_lib
 install-nuopc:  schism_nuopc_lib
 	mkdir -p $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR)
-	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
+	# The following break the installation process when ParMETIS
+	# is not being built within SCHISM or when the NO_PARMETIS
+	# option is enabled. Do we really need to install the *metis
+	# libraries?
+#DEL	cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR)
+#DEL	cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
 	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
