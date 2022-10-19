@@ -563,7 +563,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
        distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-       prepoststep_ens !, &            ! User supplied pre/poststep routine
+       prepoststep_pdaf !, &            ! User supplied pre/poststep routine
 !      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
 #endif
@@ -659,13 +659,13 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
 !new28: not sure needed
 !!  call PDAF_get_state(steps, timenow, doexit, next_observation_pdaf, &
-!!       distribute_state_pdaf, prepoststep_ens, status_pdaf)
+!!       distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
 
   call schism_get_state(cohortIndex)
 
 #ifdef USE_PDAF
 ! Put PDAF_get_state here
-  call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_ens, status_pdaf)
+  call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
 #endif
 
   !Rewind clock for forcing

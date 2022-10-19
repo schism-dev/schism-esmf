@@ -60,6 +60,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! *********************************
 
    time = real(time_stamp) ! time_stamp is real*8
+!  write(*,*) 'in next_obs:',mype_world,time,nsteps,stepnow
 
 ! *********************
 ! *** Set exit flag ***

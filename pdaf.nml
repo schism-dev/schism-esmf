@@ -17,5 +17,8 @@
  rms_type  = 1,  ! obs error handle, 1: uniform error from rms_obs; 2: specify error from rms_obs2; 3: specify error from obs files with extra column
  rms_obs2  = 0.02, 0.1, 0.1, 0.2, 0.2, ! specified error with different type obs, z/t/s/u/v
  ens_init  = 1,  ! ens state init option, 1: use eofs & hotstart.nc, 2: same as 1 but use meanstate, 3: restart from ens.bin
+ use_global_obs = 0, ! Option to turn on global observation searching, 0=local, 1=global
+ Zdepth_limit = 200., ! Control SSH/SSH-A data depth limiter, default: 200m
+ min_MSL_acDay = 10., ! Control minimum accumalation MSL day to derived SSH-A, unit: Days
 /
 

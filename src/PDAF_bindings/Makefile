@@ -18,12 +18,10 @@
 
 include ../include/Rules.mk
 
-include ../include/Rules.mk
-
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
 LIBS+= -lhydro -lcore -lparmetis -lmetis
-F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include #-I $(PDAF_LIB_DIR)/../src
+F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I$(PDAF_LIB_DIR)/../include
 
 # Add compiler-specific flags to CFLAGS and F90FLAGS
 
@@ -51,7 +49,7 @@ endif # intel
 endif # gfortran
 endif # g95
 
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_LIB_DIR) -lpdaf-d
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_LIB_DIR) -lpdaf-d 
 
 .SUFFIXES: .F90
 
@@ -66,11 +64,11 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L$(PDAF_LIB_DIR) -lpdaf-d
 
 default: all
 all: nuopc esmf
-esmf: dep-esmf dep-pdaf parser_mpi.o mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf.o init_pdaf_info.o finalize_pdaf.o \
-      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o output_netcdf_pdaf.o prepoststep_ens.o prepoststep_pdaf.o prepoststep_seek.o init_enkf.o init_seek.o init_seik.o \
-      collect_state_pdaf.o init_dim_obs_pdaf.o obs_op_pdaf.o init_obs_pdaf.o prodrinva_pdaf.o init_obsvar_pdaf.o assimilate_pdaf.o \
-      init_dim_obs_f_pdaf.o init_dim_obs_l_pdaf.o obs_op_f_pdaf.o init_obs_f_pdaf.o init_obs_l_pdaf.o prodrinva_l_pdaf.o init_obsvar_l_pdaf.o \
-      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o g2l_obs_pdaf.o 
+esmf: dep-esmf dep-pdaf mod_parallel_pdaf.o mod_assimilation.o init_parallel_pdaf.o init_pdaf_info.o finalize_pdaf.o \
+      init_ens_pdaf.o next_observation_pdaf.o distribute_state_pdaf.o output_netcdf_pdaf.o prepoststep_pdaf.o \
+      collect_state_pdaf.o init_dim_obs_all.o PDAFomi_obs_op_schism.o assimilate_pdaf.o \
+      init_n_domains_pdaf.o init_dim_l_pdaf.o g2l_state_pdaf.o l2g_state_pdaf.o \
+      obs_A_pdafomi.o obs_Z_pdafomi.o obs_S_pdafomi.o obs_T_pdafomi.o obs_U_pdafomi.o obs_V_pdafomi.o callback_obs_pdafomi.o init_pdaf.o
 nuopc: schism_nuopc_cap.o
 
 clean:

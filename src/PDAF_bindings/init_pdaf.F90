@@ -23,7 +23,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! !USES:
 !   USE mod_model, &        ! Model variables
 !        ONLY: nx, ny
-  use schism_glbl, only: errmsg,nea,nsa,npa,nvrt,ntracers
+  use schism_glbl, only: errmsg,nea,nsa,npa,nvrt,ntracers,xnd,ynd,xlon,ylat,ics,pi
   use schism_msgp, only: parallel_abort
   USE mod_parallel_pdaf, &     ! Parallelization variables
        ONLY: mype_world, n_modeltasks, task_id, &
@@ -34,7 +34,14 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        rank_analysis_enkf, locweight, local_range, srange, &
        filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
        ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF, &
-       rms_type,rms_obs2,ens_init,Zdepth_limit
+       rms_type,rms_obs2,ens_init,Zdepth_limit,use_global_obs,min_MSL_acDay
+  USE PDAFomi_obs_f, only: PDAFomi_set_domain_limits
+  use obs_A_pdafomi, only: assim_A
+  use obs_Z_pdafomi, only: assim_Z
+  use obs_S_pdafomi, only: assim_S
+  use obs_T_pdafomi, only: assim_T
+  use obs_U_pdafomi, only: assim_U
+  use obs_V_pdafomi, only: assim_V
 ! use PDAF_mod_filter, only: dim_p,state !just for check
 
   IMPLICIT NONE
@@ -58,6 +65,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   REAL    :: timenow           ! Not used in this implementation
   character(len=72) :: indir
   integer :: j
+  real :: gcoords(2,2),coords_p(2,npa) ! for domain_limits searching
 
 ! temp-add
 ! real :: state_p(dim_p)
@@ -67,7 +75,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time, 
                                        ! and dimension of next observation
        distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-       prepoststep_ens            ! User supplied pre/poststep routine
+       prepoststep_pdaf           ! User supplied pre/poststep routine
   
   NAMELIST /pdaf_nml/ screen, filtertype, subtype, &
            delt_obs, rms_obs, &
@@ -75,7 +83,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
            locweight, local_range, srange,varscale, &
            ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
            nhot_PDAF, nhot_write_PDAF, &
-           rms_type,rms_obs2,ens_init,Zdepth_limit
+           rms_type,rms_obs2,ens_init,Zdepth_limit, &
+           assim_A,assim_Z,assim_S,assim_T,assim_U,assim_V,use_global_obs,min_MSL_acDay
 
 
 ! ***************************
@@ -206,6 +215,14 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   outf = 1          ! output file switch
   nhot_PDAF = 0     ! hotstart rank output switch
   Zdepth_limit = 200. ! Control SSH/SSH-A data depth limiter, default: 200m, shelf depth
+  min_MSL_acDay = 10. ! Control minimum accumalation MSL day to derived SSH-A, unit: Days
+  use_global_obs=1   ! for domain searching, 
+  assim_A=.True.
+  assim_Z=.True.
+  assim_S=.True.
+  assim_T=.True.
+  assim_U=.True.
+  assim_V=.True.
 
 ! *** File names
   filename = 'output.dat'
@@ -327,6 +344,26 @@ SUBROUTINE init_pdaf(schismCount,ierr)
           ' in initialization of PDAF - stopping! (PE ', mype_world,')'
      CALL parallel_abort(errmsg)
   END IF
+
+
+! Domain searching option for use_global_obs=0
+! Here we can use domain limits, init_dim_obs_all will skip obs outside the domain_p.
+! To better capture obs, we add local_range to avoid missing point if obs is
+! located in different domain_p.
+  do j=1,npa
+     if (ics==2) then !degree
+         coords_p(1,j)=xlon(j)/pi*180.d0
+         coords_p(2,j)=ylat(j)/pi*180.d0
+     else  ! meter
+         coords_p(1,j)=xnd(j)
+         coords_p(2,j)=ynd(j)
+     end if
+  end do
+  gcoords(1,1) = minval(coords_p(1,:)) - local_range
+  gcoords(1,2) = maxval(coords_p(1,:)) + local_range
+  gcoords(2,2) = minval(coords_p(2,:)) - local_range
+  gcoords(2,1) = maxval(coords_p(2,:)) + local_range
+  call PDAFomi_set_domain_limits(gcoords)
 
 
 ! ******************************'***

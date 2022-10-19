@@ -33,6 +33,8 @@ MODULE mod_assimilation
   REAL, ALLOCATABLE    :: obs_f(:)        ! Vector holding full vector of observations
   integer, allocatable :: iep_obs_mod(:)  ! parent element for process-local observations
   character(len=1), allocatable :: obstype_mod(:)  ! obs type to store z/s/t/u/v for process-local observations
+  integer, allocatable :: dim_obstype_mod(:) ! dim of each obstype(z/s/t/u/v) For OMI
+  integer, allocatable :: obstype_index_mod(:,:) ! index of each obstype(z/s/t/u/v) in obs_p For OMI
   real, allocatable :: arco_obs_mod(:,:)    ! weighting for process-local observations
   REAL, ALLOCATABLE :: obs_coords_p(:,:)  ! Array for process-local observation coordinates
   REAL, ALLOCATABLE :: obs_coords_f(:,:)  ! Array for full observation coordinates
@@ -161,7 +163,11 @@ MODULE mod_assimilation
   integer :: rms_type  ! handle to control rms_obs type
   real :: rms_obs2(5)  ! type 2 rms_obs, z/t/s/u/v
   real :: Zdepth_limit ! Control SSH/SSH-A obs data, skip if data locate at depth < Zdepth_limit
+  real :: min_MSL_acDay ! Control minimum accumalation MSL day to derived SSH-A, unit: Days
   integer :: ens_init  ! ens init option
+  real :: coords_l(2) ! Coordinates of local analysis domain, OMI necessary
+  integer :: use_global_obs ! Domain searching option
+! INTEGER :: dim_obs_A,dim_obs_Z,dim_obs_S,dim_obs_T,dim_obs_U,dim_obs_V ! For OMI 
 
 ! REAL, ALLOCATABLE    :: rms_obs3(:) ! type3 rms_obs
   

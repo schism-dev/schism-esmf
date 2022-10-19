@@ -1,1 +1,1 @@
-PDAF-D_V1.15.1
+This release is based on PDAF_V2.0, porting to OMI interface.

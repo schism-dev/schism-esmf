@@ -22,7 +22,8 @@ SUBROUTINE init_dim_l_pdaf(step, domain_p, dim_l)
 ! Later revisions - see svn log
 !
 ! !USES:
-  use schism_glbl,only : nvrt,ntracers
+  use schism_glbl,only : nvrt,ntracers,xnd,ynd,xlon,ylat,ics,pi
+  use mod_assimilation, only: coords_l
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -48,5 +49,14 @@ SUBROUTINE init_dim_l_pdaf(step, domain_p, dim_l)
 ! ssh + t,s,u,v,w
 
   dim_l = 1+(ntracers+3)*nvrt
+
+  if (ics==2) then
+     coords_l(1)=xlon(domain_p)/pi*180.d0
+     coords_l(2)=ylat(domain_p)/pi*180.d0
+  else
+     coords_l(1)=xnd(domain_p)
+     coords_l(2)=ynd(domain_p)
+  end if
+
 
 END SUBROUTINE init_dim_l_pdaf

@@ -67,8 +67,8 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
        ONLY: mype_world, npes_world, mype_model, npes_model, &
        COMM_model, mype_filter, npes_filter, COMM_filter, filterpe, &
        n_modeltasks, local_npes_model, task_id, COMM_couple, MPIerr
-  USE parser, &
-       ONLY: parse
+! USE parser, &
+!      ONLY: parse
 
   IMPLICIT NONE    
   include 'mpif.h'
