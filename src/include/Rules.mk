@@ -34,8 +34,8 @@ CPPFLAGS=$(ESMF_F90COMPILEOPTS)
 F90FLAGS=$(ESMF_F90COMPILEPATHS)
 LDFLAGS+=$(ESMF_F90LINKOPTS) $(ESMF_F90LINKPATHS)
 
-ESMF_COMM = $(strip $(shell grep "\# ESMF_COMM:" $(ESMFMKFILE) | cut -d':' -f2-))
-ESMF_COMPILER = $(strip $(shell grep "\# ESMF_COMPILER:" $(ESMFMKFILE) | cut -d':' -f2-))
+ESMF_COMM = $(strip $(shell grep "^# ESMF_COMM:" $(ESMFMKFILE) | cut -d':' -f2-))
+ESMF_COMPILER = $(strip $(shell grep "^# ESMF_COMPILER:" $(ESMFMKFILE) | cut -d':' -f2-))
 
 ifeq ("x$(ESMF_COMM)","xmpiuni")
 	USE_MPI ?= false
@@ -106,7 +106,7 @@ export ESMF_COMM
 $(info Fortran/C++ compilers are ${ESMF_FC} and ${ESMF_CC} based on ${ESMF_COMPILER}/${ESMF_COMM} device)
 endif
 
-ESMF_OPENMP = $(strip $(shell grep "\# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
+ESMF_OPENMP = $(strip $(shell grep "^# ESMF_OPENMP:" $(ESMFMKFILE) | cut -d':' -f2-))
 ifeq ("$(ESMF_OPENMP)","OFF")
 	USE_OMP ?= false
 else
