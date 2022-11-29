@@ -48,7 +48,7 @@ endif
 ifeq ($(ESMF_FC),)
 
 # We only implemented for a subset of MPI implementations
-ifeq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2 openmpi intelmpi))
+ifeq (,$(filter $(ESMF_COMM),mpich mpich2 mpich3 mvapich2 openmpi intelmpi))
 $(error The communicator $(ESMF_COMM) is not implemented yet, please file a bug report)
 endif
 
@@ -69,9 +69,9 @@ ifeq ($(ESMF_COMM),intelmpi)
 	ESMF_CC:=$(shell $(ESMF_CXXCOMPILER) -show 2> /dev/null | cut -d' ' -f1 | cut -d'-' -f1)
 endif
 
-# mpich2, mpich3, mvapich2 sections
+# mpich mpich2, mpich3, mvapich2 sections
 #ifeq ($(ESMF_COMM),mvapich2)
-ifneq (,$(filter $(ESMF_COMM),mpich2 mpich3 mvapich2))
+ifneq (,$(filter $(ESMF_COMM),mpich mpich2 mpich3 mvapich2))
   ESMF_FC:=$(shell $(ESMF_F90COMPILER) -compile_info 2> /dev/null | cut -d' ' -f1 )
   ESMF_FC:=$(shell basename $(ESMF_FC))
   ESMF_FC:=$(shell echo $(ESMF_FC) | cut -d'-' -f1)
