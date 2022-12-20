@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum hereon GmbH (Hereon)
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
+
+[tool.poetry]
+name = "SCHISM-ESMF cap"
+version = "0.2.0"
+description = "A SCHISM cap for the Earth System Modeling Framework"
+authors = ["Carsten Lemmen <carsten.lemmen@hereon.de>"]
+license = "CC0-1.0"
+readme = "Readme.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+reuse = "^0.14.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
