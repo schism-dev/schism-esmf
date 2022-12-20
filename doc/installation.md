@@ -1,8 +1,9 @@
 ---
 title: Installation 
 summary: Instructions to install the SCHISM/ESMF cap
-author: Carsten Lemmen
-date: 2022-06-21
+SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
+SPDX-License-Identifier: CC0-1.0
+SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 ---
 
 # Installation

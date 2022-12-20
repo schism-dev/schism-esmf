@@ -1,8 +1,9 @@
 ---
 title: Legal aspects 
 summary: Legal aspects for using the SCHISM/ESMF cap
-author: Carsten Lemmen
-date: 2022-06-21
+SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
+SPDX-License-Identifier: CC0-1.0
+SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 ---
 
 The SCHISM-ESMF cap is free and open source.  You are welcome to use it in any way you like, you are encouraged to modify it and adapt it to your own purposes, and you are free to pass it on, within the bounds ofthe license terms set out below.
