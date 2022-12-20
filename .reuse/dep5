@@ -9,6 +9,27 @@ Source: https://github.com/schism-dev/schism-esmf
 
 # Sample paragraph, commented out:
 #
-# Files: src/*
-# Copyright: $YEAR $NAME <$CONTACT>
-# License: ...
+# Files: test/*
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
+# Files: ./*/*/*.gr3
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
+# Files: ./*/*/*.ll
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
+# Files: ./*/*/*.nml
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
+# Files: ./*/*/*.ic
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
+# Files: ./*/*/outputs/*
+# Copyright: 2020-2022 The SCHISM community
+# License: CC0-1.0
+
