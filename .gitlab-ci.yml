@@ -52,7 +52,7 @@ build-schism:
         - make -C ${SCHISM_BUILD_DIR} -j8 pschism
     artifacts:
         paths: 
-            - ${SCHISM_BUILD_DIR}/lib
+            - ${SCHISM_BUILD_DIR}/lib/lib*
     allow_failure: true
     interruptible: true
 
