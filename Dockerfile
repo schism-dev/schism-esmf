@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: CC0-1.0
 # SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 
-#FROM phusion/baseimage:jammy-1.0.1
-FROM platipodium/esmf:mpich-v8.4.0
+#FROM platipodium/esmf:openmpi-v8.4.0
+FROM registry.hzdr.de/schism/esmf-docker/esmf:v8.4.0-openmpi
 
 LABEL description="SCHISM-ESMF Docker environment based on Ubuntu"
 LABEL author="Carsten Lemmen <carsten.lemmen@hereon.de>"
@@ -13,11 +13,8 @@ LABEL copyright="2022 Helmholtz-Zentrum Hereon"
 # Arguments can be passed via the --build-arg key=value command to the 
 # docker build command.  The default values are set below to superbee 
 ARG TVD_LIM="SB"
-ARG COMMUNICATOR="mpich"
+ARG COMMUNICATOR="openmpi"
 
-#RUN apt-get update && apt-get -qy install cmake gcc-11 python3 \
-#    python-is-python3 lib${COMMUNICATOR}-dev libmetis-dev libnetcdf-dev \
-#    libnetcdff-dev libparmetis-dev git
 RUN apt-get update && apt-get -qy upgrade
 
 ENV PATH="/usr/lib64/${COMMUNICATOR}/bin:${PATH}"
