@@ -59,6 +59,8 @@ build-schism:
 build-schism-esmf: 
     image: ${CONTAINER_REGISTRY_BASEIMAGE}
     stage: build
+    needs: 
+      job: build-schism
     parallel:
         matrix:
             - COMMUNICATOR: ["openmpi", "mpich"]
