@@ -5,11 +5,12 @@
 # SPDX-License-Identifier: CC0-1.0
 # SPDX-FileContributor Carsten Lemmen <carsten.lemmen@hereon.de
 
-# First stage checks for metadata (licenses)
+# Stages are here defined as categorical only, as the CI/CD makes
+# use of directed acyclic graph technique with the needs job keyword
 stages:
     - lint
-    - build-schism
-    - build-schism-esmf
+    - doc
+    - build
     - docker
     - test
 
@@ -29,6 +30,7 @@ variables:
 license-compliance:
     image: python:3.11
     stage: lint
+    needs: []
     before_script:
         - pip install --upgrade pip
         - pip install poetry
@@ -39,7 +41,8 @@ license-compliance:
 
 mike-documentation:
     image: python:3.11
-    stage: lint
+    stage: doc
+    needs: []
     before_script:
         - pip install --upgrade pip
         - pip install mkdocs-material mike
@@ -57,7 +60,8 @@ mike-documentation:
 
 build-schism: 
     image: ${CONTAINER_REGISTRY_BASEIMAGE}
-    stage: build-schism
+    stage: build
+    needs: []
 
     parallel:
         matrix:
@@ -76,13 +80,15 @@ build-schism:
             - ./devel/schism/build/include/
             - ./devel/schism/build/lib/
             - ./devel/schism/build/bin/pschis*
+        expire_in: 20 minutes
+
     allow_failure: false
     interruptible: true
 
 build-schism-esmf: 
     image: ${CONTAINER_REGISTRY_BASEIMAGE}
-    stage: build-schism-esmf
-    dependencies: 
+    stage: build
+    needs: 
       - build-schism
     parallel:
         matrix:
@@ -107,6 +113,7 @@ build-docker:
     allow_failure: true
     interruptible: true
     stage: docker
+    needs: []
     before_script: 
         - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
 
@@ -124,9 +131,10 @@ test-docker:
     allow_failure: true
     interruptible: true
     stage: test
+    needs:
+        - build-docker
     before_script: 
         - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-
     script:
         - docker pull ${CONTAINER_REGISTRY_IMAGE}
         - docker run ${CONTAINER_REGISTRY_IMAGE} /usr/local/bin/ESMF_PrintInfo
