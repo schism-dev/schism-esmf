@@ -36,6 +36,7 @@ license-compliance:
         - poetry install
     script:
         - poetry run reuse lint
+    allow_failure: true
 
 build:
     extends: .base
