@@ -98,6 +98,8 @@ build-schism-esmf:
         - git clone --branch master --depth 1 https://github.com/schism-dev/schism-esmf ${SCHISM_ESMF_DIR}
     script: 
         - make -C ${SCHISM_ESMF_DIR} -j1 lib # parallel build fails
+        - make -C ${SCHISM_ESMF_DIR} -j1 install-esmf
+        - make -C ${SCHISM_ESMF_DIR} -j1 install-nuopc
         - make -C ${SCHISM_ESMF_DIR} -j1 install
     allow_failure: true
     interruptible: true
