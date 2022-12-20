@@ -1,3 +1,11 @@
+---
+title: Legal aspects 
+summary: Legal aspects for using the SCHISM/ESMF cap
+SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
+SPDX-License-Identifier: CC0-1.0
+SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
+---
+
 # SCHISM-ESMF 
 
 The Earth System Modeling Framework (ESMF) and National Unified Operational Prediction Capability (NUOPC) caps for SCHISM.
@@ -6,8 +14,8 @@ The Earth System Modeling Framework (ESMF) and National Unified Operational Pred
 
 The cap is meant to be used in the context of ESMF-based coupling frameworks, which come in two flavors, either based on ESMF or on its NUOPC extension. We also provide some standalone example applications which you can use to base your own implementation on
 
-1. Install the prerequisites following [Installation](installation.html)
-2. Build the cap's ESMF and NUOPC libraries following [Installation](installation.html)
+1. Install the prerequisites following [Installation](installation.md)
+2. Build the cap's ESMF and NUOPC libraries following [Installation](installation.md)
 3. Include the SCHISM-ESMF cap in your application's build system by linking to `-libschism_esmf`, see below
 
 ## Coupling frameworks
@@ -57,7 +65,7 @@ components and couplers, and of example coupled applications. The components
 "wrap" external models used in coastal and shelf sciences; these wrapped components are then coupled
 to each other in the Earth System Modeling Framework (ESMF).
 
-The [SCHISM ESMF](esmf.html) cap integrates with MOSSCO.
+The [SCHISM ESMF](esmf.md) cap integrates with MOSSCO.
 
 #### Obtaining and building MOSSCO
 
@@ -94,7 +102,7 @@ triple_schism.F90
 
 (1) The SCHISM ESMF cap is used to couple SCHISM to the Parallel Data Assimilation Framework leveraging the control structures of ESMF, see `schism_pdaf.F90`.
 
-(2) The SCHISM ESMF cap is used in the Modular System for Shelves and Coasts, see  [MOSSCO](mossco.html).  Within that system, SCHISM can be flexibly coupled to components for the atmosphere, waves, ocean BGC, generic input/output, sediment.
+(2) The SCHISM ESMF cap is used in the Modular System for Shelves and Coasts, see  [MOSSCO](mossco.md).  Within that system, SCHISM can be flexibly coupled to components for the atmosphere, waves, ocean BGC, generic input/output, sediment.
 
 ## Publications
 Hao-Cheng Yu, Yinglong J. Zhang, Nerger Lars, Carsten Lemmen, Jason C.S Yu, Tzu-Yin Chou, Chi-Hao Chu, and Chuen-Teyr Terng: Development of a flexible data assimilation method in a 3D unstructured-grid ocean model under Earth System Modeling Framework, submitted to Geoscientific Model Development, March 2022

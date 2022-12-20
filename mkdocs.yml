@@ -1,3 +1,8 @@
+# title: MkDocs YAML configuration file
+# SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
+
 site_name: SCHISM-ESMF
 site_url: https://github.com/schism-dev/schism-esmf
 docs_dir: ./doc
