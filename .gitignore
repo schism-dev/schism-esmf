@@ -43,8 +43,14 @@ schism_esmf_test
 *.out
 *.app
 
+.DS_Store
+
 # Log files from ESMF
 PET*
+*.log
+*.stderr
+*.stdout
+
 
 # Outputs from SCHISM
 

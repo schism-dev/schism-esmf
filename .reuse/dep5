@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum hereon GmbH (Hereon)
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
+
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: SCHISM-ESMF
+Upstream-Contact: Carsten Lemmen <carsten.lemmen@hereon.de>
+Source: https://github.com/schism-dev/schism-esmf
+
+# Sample paragraph, commented out:
+#
+# Files: src/*
+# Copyright: $YEAR $NAME <$CONTACT>
+# License: ...
