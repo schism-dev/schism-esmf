@@ -9,6 +9,7 @@
 stages:
     - lint
     - build
+    - docker
     - test
 
 variables:
@@ -16,17 +17,13 @@ variables:
     DOCKER_TLS_CERTDIR: "/certs"
     VERSION: v8.4.0
     CONTAINER_REGISTRY_IMAGE: $CI_REGISTRY_IMAGE/schism-esmf:${VERSION}-${COMMUNICATOR}
-
-.base:
-    image: docker:20.10.22
-    services:
-        - docker:20.10.22-dind
-    parallel:
-        matrix:
-            - COMMUNICATOR: ["openmpi", "mpich"]
-    allow_failure: true
-    interruptible: true
-
+    CONTAINER_REGISTRY_BASEIMAGE: $CI_REGISTRY_IMAGE/schism:${VERSION}-${COMMUNICATOR}
+    SCHISM_DIR: "/usr/src/schism"
+    SCHISM_BUILD_DIR: "/usr/src/schism/build"
+    SCHISM_ESMF_DIR: "/usr/src/schism-esmf"
+    OLDIO: "ON"
+    TVD_LIM: "SB"
+ 
 license-compliance:
     image: python:3.11
     stage: lint
@@ -38,9 +35,49 @@ license-compliance:
         - poetry run reuse lint
     allow_failure: true
 
-build:
-    extends: .base
+build-schism: 
+    image: ${CONTAINER_REGISTRY_BASEIMAGE}
     stage: build
+
+    parallel:
+        matrix:
+            - COMMUNICATOR: ["openmpi", "mpich"]
+
+    before_script:
+        - git clone  --branch master --depth 1 https://github.com/schism-dev/schism ${SCHISM_DIR}
+    script: 
+        - mkdir -p ${SCHISM_BUILD_DIR}
+        - cmake -S ${SCHISM_DIR}/src -B ${SCHISM_BUILD_DIR} -DOLDIO=${OLDIO} -DTVD_LIM=${TVD_LIM}
+        - make -C ${SCHISM_BUILD_DIR} -j8 pschism
+    artifacts:
+        paths: 
+            - ${SCHISM_BUILD_DIR}/lib
+    allow_failure: true
+    interruptible: true
+
+build-schism-esmf: 
+    image: ${CONTAINER_REGISTRY_BASEIMAGE}
+    stage: build
+    parallel:
+        matrix:
+            - COMMUNICATOR: ["openmpi", "mpich"]
+    before_script:
+        - git clone --branch master --depth 1 https://github.com/schism-dev/schism-esmf ${SCHISM_ESMF_DIR}
+    script: 
+        - make -C ${SCHISM_ESMF_DIR} -j8 all
+    allow_failure: true
+    interruptible: true
+
+build-docker:
+    image: docker:20.10.22
+    services:
+        - docker:20.10.22-dind
+    parallel:
+        matrix:
+            - COMMUNICATOR: ["openmpi", "mpich"]
+    allow_failure: true
+    interruptible: true
+    stage: docker
     before_script: 
         - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
 
@@ -48,8 +85,15 @@ build:
         - docker build -t ${CONTAINER_REGISTRY_IMAGE} --build-arg VERSION=${VERSION} --build-arg COMMUNICATOR=${COMMUNICATOR} .
         - docker push ${CONTAINER_REGISTRY_IMAGE}
 
-test:
-    extends: .base
+test-docker:
+    image: docker:20.10.22
+    services:
+        - docker:20.10.22-dind
+    parallel:
+        matrix:
+            - COMMUNICATOR: ["openmpi", "mpich"]
+    allow_failure: true
+    interruptible: true
     stage: test
     before_script: 
         - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
 # SPDX-License-Identifier: CC0-1.0
-# SPDX-FileContributor Carsten Lemmen <carsten.lemmen@hereon.de
+# SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 
 #FROM phusion/baseimage:jammy-1.0.1
 FROM platipodium/esmf:mpich-v8.4.0
