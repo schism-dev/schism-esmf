@@ -68,12 +68,13 @@ build-schism-esmf:
       - build-schism
     parallel:
         matrix:
-#            - COMMUNICATOR: ["openmpi", "mpich"]
+            - COMMUNICATOR: ["openmpi", "mpich"]
             - COMMUNICATOR: ["openmpi"]
     before_script:
         - git clone --branch master --depth 1 https://github.com/schism-dev/schism-esmf ${SCHISM_ESMF_DIR}
     script: 
-        - make -C ${SCHISM_ESMF_DIR} -j8 all
+        - make -C ${SCHISM_ESMF_DIR} -j8 lib
+        - make -C ${SCHISM_ESMF_DIR} -j8 install
     allow_failure: true
     interruptible: true
 

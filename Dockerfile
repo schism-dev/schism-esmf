@@ -49,5 +49,5 @@ RUN cmake -S ${SCHISM_DIR}/src -B ${SCHISM_BUILD_DIR} -DOLDIO=${OLDIO} -DTVD_LIM
 RUN make -C /usr/src/schism/build -j8 pschism
 
 RUN git clone  --branch master --depth 1 https://github.com/schism-dev/schism-esmf ${SCHISM_ESMF_DIR}
-RUN make -C ${SCHISM_ESMF_DIR} -j8 all
-
+RUN make -C ${SCHISM_ESMF_DIR} -j8 lib
+RUN make -C ${SCHISM_ESMF_DIR} -j8 install
