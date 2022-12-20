@@ -51,11 +51,12 @@ build-schism:
         - mkdir -p ${SCHISM_BUILD_DIR}
         - cmake -S ${SCHISM_DIR}/src -B ${SCHISM_BUILD_DIR} -DOLDIO=${OLDIO} -DTVD_LIM=${TVD_LIM}
         - make -C ${SCHISM_BUILD_DIR} -j8 pschism
-        - ls -1 ./devel/schism/build/lib/
+        - pwd
+        - ls -1 ${SCHISM_BUILD_DIR}/lib/*
     artifacts:
         paths: 
             - ./devel/schism/build/lib/
-    allow_failure: true
+    allow_failure: false
     interruptible: true
 
 build-schism-esmf: 

@@ -15,6 +15,10 @@ LABEL copyright="2022 Helmholtz-Zentrum Hereon"
 ARG TVD_LIM="SB"
 ARG COMMUNICATOR="openmpi"
 
+# Make ARG variables available within the container
+ENV TVD_LIM ${TVD_LIM}
+ENV COMMUNICATOR ${COMMUNICATOR}
+
 RUN apt-get update && apt-get -qy upgrade
 RUN apt-get update && apt-get -qy \
     install make lib${COMMUNICATOR}-dev \
