@@ -8,7 +8,8 @@
 # First stage checks for metadata (licenses)
 stages:
     - lint
-    - build
+    - build-schism
+    - build-schism-esmf
     - docker
     - test
 
@@ -38,7 +39,7 @@ license-compliance:
 
 build-schism: 
     image: ${CONTAINER_REGISTRY_BASEIMAGE}
-    stage: build
+    stage: build-schism
 
     parallel:
         matrix:
@@ -58,9 +59,9 @@ build-schism:
 
 build-schism-esmf: 
     image: ${CONTAINER_REGISTRY_BASEIMAGE}
-    stage: build
-    needs: 
-      job: build-schism
+    stage: build-schism-esmf
+    dependencies: 
+      - build-schism
     parallel:
         matrix:
             - COMMUNICATOR: ["openmpi", "mpich"]
