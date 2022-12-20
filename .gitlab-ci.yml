@@ -19,9 +19,9 @@ variables:
     CONTAINER_REGISTRY_IMAGE: $CI_REGISTRY_IMAGE/schism-esmf:${VERSION}-${COMMUNICATOR}
     #CONTAINER_REGISTRY_BASEIMAGE: registry.hzdr.de/mossco/esmf-docker/esmf:${VERSION}-${COMMUNICATOR}
     CONTAINER_REGISTRY_BASEIMAGE: platipodium/esmf:${VERSION}-${COMMUNICATOR}
-    SCHISM_DIR: "/usr/src/schism"
-    SCHISM_BUILD_DIR: "/usr/src/schism/build"
-    SCHISM_ESMF_DIR: "/usr/src/schism-esmf"
+    SCHISM_DIR: "./devel/schism"
+    SCHISM_BUILD_DIR: "./devel/schism/build"
+    SCHISM_ESMF_DIR: "./devel/schism-esmf"
     OLDIO: "ON"
     TVD_LIM: "SB"
  
