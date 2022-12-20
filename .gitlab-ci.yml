@@ -20,9 +20,9 @@ variables:
     CONTAINER_REGISTRY_IMAGE: $CI_REGISTRY_IMAGE/schism-esmf:${VERSION}-${COMMUNICATOR}
     #CONTAINER_REGISTRY_BASEIMAGE: registry.hzdr.de/mossco/esmf-docker/esmf:${VERSION}-${COMMUNICATOR}
     CONTAINER_REGISTRY_BASEIMAGE: platipodium/esmf:${VERSION}-${COMMUNICATOR}
-    SCHISM_DIR: "./devel/schism"
-    SCHISM_BUILD_DIR: "./devel/schism/build"
-    SCHISM_ESMF_DIR: "./devel/schism-esmf"
+    SCHISM_DIR: "/builds/schism/schism/devel/schism"
+    SCHISM_BUILD_DIR: "/builds/schism/schism/devel/schism/build"
+    SCHISM_ESMF_DIR: "/builds/schism/schism-esmf/devel/schism-esmf"
     OLDIO: "ON"
     TVD_LIM: "SB"
  
@@ -51,9 +51,10 @@ build-schism:
         - mkdir -p ${SCHISM_BUILD_DIR}
         - cmake -S ${SCHISM_DIR}/src -B ${SCHISM_BUILD_DIR} -DOLDIO=${OLDIO} -DTVD_LIM=${TVD_LIM}
         - make -C ${SCHISM_BUILD_DIR} -j8 pschism
+        - ls -1 ./devel/schism/build/lib/
     artifacts:
         paths: 
-            - ${SCHISM_BUILD_DIR}/lib/lib*
+            - ./devel/schism/build/lib/
     allow_failure: true
     interruptible: true
 
