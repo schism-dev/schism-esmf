@@ -16,6 +16,18 @@ ARG TVD_LIM="SB"
 ARG COMMUNICATOR="openmpi"
 
 RUN apt-get update && apt-get -qy upgrade
+RUN apt-get update && apt-get -qy \
+    install make lib${COMMUNICATOR}-dev \
+    cmake wget python3 python3-pip \
+    python-is-python3 libnetcdf-dev \
+    libnetcdff-dev libxerces-c-dev liblapack-dev libyaml-cpp-dev \
+    libparmetis-dev libmetis-dev subversion cvs git \
+    gcc-11 gfortran-11 g++-11
+
+# Remove all mpich related packages if communicator is not mpich, or
+# do the same for openmpi
+RUN if [ "x${COMMUNICATOR}" != "xmpich" ] ; then apt-get remove -qy *mpich* ; fi
+RUN if [ "x${COMMUNICATOR}" != "xopenmpi" ] ; then apt-get remove -qy *openmpi* ; fi
 
 ENV PATH="/usr/lib64/${COMMUNICATOR}/bin:${PATH}"
 
