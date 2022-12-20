@@ -15,10 +15,10 @@ LABEL copyright="2022 Helmholtz-Zentrum Hereon"
 ARG TVD_LIM="SB"
 ARG COMMUNICATOR="mpich"
 
-#RUN apt update && apt -qy install cmake gcc-11 python3 \
+#RUN apt-get update && apt-get -qy install cmake gcc-11 python3 \
 #    python-is-python3 lib${COMMUNICATOR}-dev libmetis-dev libnetcdf-dev \
 #    libnetcdff-dev libparmetis-dev git
-RUN apt update
+RUN apt-get update && apt-get -qy upgrade
 
 ENV PATH="/usr/lib64/${COMMUNICATOR}/bin:${PATH}"
 

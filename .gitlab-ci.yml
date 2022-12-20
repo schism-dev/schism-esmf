@@ -17,7 +17,8 @@ variables:
     DOCKER_TLS_CERTDIR: "/certs"
     VERSION: v8.4.0
     CONTAINER_REGISTRY_IMAGE: $CI_REGISTRY_IMAGE/schism-esmf:${VERSION}-${COMMUNICATOR}
-    CONTAINER_REGISTRY_BASEIMAGE: registry.hzdr.de/mossco/esmf-docker/esmf:${VERSION}-${COMMUNICATOR}
+    #CONTAINER_REGISTRY_BASEIMAGE: registry.hzdr.de/mossco/esmf-docker/esmf:${VERSION}-${COMMUNICATOR}
+    CONTAINER_REGISTRY_BASEIMAGE: platipodium/esmf:${VERSION}-${COMMUNICATOR}
     SCHISM_DIR: "/usr/src/schism"
     SCHISM_BUILD_DIR: "/usr/src/schism/build"
     SCHISM_ESMF_DIR: "/usr/src/schism-esmf"
