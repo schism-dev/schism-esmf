@@ -10,8 +10,8 @@
 stages:
     - lint
     - build
-    - test
     - deploy
+    - test
 
 variables:
     DOCKER_HOST: tcp://docker:2376
@@ -90,8 +90,7 @@ build-docker:
         - docker:20.10.22-dind
     parallel:
         matrix:
-            - COMMUNICATOR: ["openmpi"]
-#            - COMMUNICATOR: ["openmpi", "mpich"]
+            - COMMUNICATOR: ["openmpi", "mpich"]
     allow_failure: true
     interruptible: true
     stage: deploy
