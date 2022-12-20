@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: CC0-1.0
 # SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 
-#FROM platipodium/esmf:openmpi-v8.4.0
 ARG COMMUNICATOR="openmpi"
 FROM registry.hzdr.de/schism/esmf-docker/esmf:v8.4.0-${COMMUNICATOR}
+# FROM platipodium/esmf:openmpi-${COMMUNICATOR}
 
 LABEL description="SCHISM-ESMF Docker environment based on Ubuntu"
 LABEL author="Carsten Lemmen <carsten.lemmen@hereon.de>"
