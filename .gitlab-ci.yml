@@ -73,7 +73,7 @@ build-schism-esmf:
     before_script:
         - git clone --branch master --depth 1 https://github.com/schism-dev/schism-esmf ${SCHISM_ESMF_DIR}
     script: 
-        - make -C ${SCHISM_ESMF_DIR} -j8 lib
+        - make -C ${SCHISM_ESMF_DIR} -j1 lib # parallel build fails
         - make -C ${SCHISM_ESMF_DIR} -j8 install
     allow_failure: true
     interruptible: true
