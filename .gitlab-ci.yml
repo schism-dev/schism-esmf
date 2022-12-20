@@ -43,22 +43,21 @@ build-schism:
 
     parallel:
         matrix:
- #           - COMMUNICATOR: ["openmpi", "mpich"]
-            - COMMUNICATOR: ["openmpi"]
-
+            - COMMUNICATOR: ["openmpi", "mpich"]
+ 
     before_script:
         - git clone  --branch master --depth 1 https://github.com/schism-dev/schism ${SCHISM_DIR}
     script: 
         - mkdir -p ${SCHISM_BUILD_DIR}
         - cmake -S ${SCHISM_DIR}/src -B ${SCHISM_BUILD_DIR} -DOLDIO=${OLDIO} -DTVD_LIM=${TVD_LIM}
         - make -C ${SCHISM_BUILD_DIR} -j8 pschism
-        - pwd
-        - ls -1 ${SCHISM_BUILD_DIR}/lib/*
         - ls -1 ./devel/schism/build/lib/* || true
 
     artifacts:
         paths: 
+            - ./devel/schism/build/include/
             - ./devel/schism/build/lib/
+            - ./devel/schism/build/bin/pschis*
     allow_failure: false
     interruptible: true
 

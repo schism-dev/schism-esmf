@@ -3,17 +3,17 @@
 # SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 
 #FROM platipodium/esmf:openmpi-v8.4.0
-FROM registry.hzdr.de/schism/esmf-docker/esmf:v8.4.0-openmpi
+ARG COMMUNICATOR="openmpi"
+FROM registry.hzdr.de/schism/esmf-docker/esmf:v8.4.0-${COMMUNICATOR}
 
 LABEL description="SCHISM-ESMF Docker environment based on Ubuntu"
 LABEL author="Carsten Lemmen <carsten.lemmen@hereon.de>"
 LABEL license="CC0-1.0"
 LABEL copyright="2022 Helmholtz-Zentrum Hereon"
 
-# Arguments can be passed via the --build-arg key=value command to the 
+# Further arguments can be passed via the --build-arg key=value command to the 
 # docker build command.  The default values are set below to superbee 
 ARG TVD_LIM="SB"
-ARG COMMUNICATOR="openmpi"
 
 # Make ARG variables available within the container
 ENV TVD_LIM ${TVD_LIM}
