@@ -30,7 +30,7 @@ endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lschism_esmf -lparmetis -lmetis -lesmf
+LIBS+= -lschism_esmf -lesmf
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I src/schism
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
@@ -49,6 +49,15 @@ ifeq ($(ESMF_COMPILER), gfortran)
 LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas -Wl,--allow-multiple-definition#-lscalapack #-lOpenBLAS
 endif
 endif
+
+ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libparmetis.a),)
+LIBS+= -lparmetis
+endif
+
+ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libmetis.a),)
+LIBS+= -lmetis
+endif
+
 
 EXPAND_TARGETS= expand_schismlibs
 
