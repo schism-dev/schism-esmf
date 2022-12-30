@@ -80,9 +80,9 @@ install-esmf:  schism_esmf_lib
 install-nuopc:  schism_nuopc_lib
 	mkdir -p $(DESTDIR)
 	cp $(SCHISM_BUILD_DIR)/lib/libhydro.a $(DESTDIR)
-	test -f $(SCHISM_BUILD_DIR)/lib/libmetis.a && cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR)
-	test -f $(SCHISM_BUILD_DIR)/lib/libparmetis.a && cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR)
-	test -f $(SCHISM_BUILD_DIR)/lib/libfabm_schism.a && cp $(SCHISM_BUILD_DIR)/lib/libfabm_schism.a $(DESTDIR)
+	if  test -f $(SCHISM_BUILD_DIR)/lib/libmetis.a; then cp $(SCHISM_BUILD_DIR)/lib/libmetis.a $(DESTDIR); fi
+	if  test -f $(SCHISM_BUILD_DIR)/lib/libparmetis.a; then cp $(SCHISM_BUILD_DIR)/lib/libparmetis.a $(DESTDIR); fi
+	if  test -f $(SCHISM_BUILD_DIR)/lib/libfabm_schism.a; then cp $(SCHISM_BUILD_DIR)/lib/libfabm_schism.a $(DESTDIR); fi
 	cp $(SCHISM_BUILD_DIR)/lib/libcore.a $(DESTDIR)
 	cp libschism_cap.a $(DESTDIR)
 	cp libschism_cap.a $(SCHISM_BUILD_DIR)/lib
