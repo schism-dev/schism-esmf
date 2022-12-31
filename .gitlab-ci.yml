@@ -143,4 +143,8 @@ pages:
         paths:
             - public/
     only:
+        paths:
+          - doc/*.md'
+          - mkdocs.yml
+          
     allow_failure: true
