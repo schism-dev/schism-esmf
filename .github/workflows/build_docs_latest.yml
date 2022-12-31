@@ -13,6 +13,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    on:
+      push:
+        paths:
+          - 'doc/*md'
+          - mkdocs.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v2
