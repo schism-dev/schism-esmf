@@ -1,6 +1,6 @@
 # This Makefile snippet is part of the SCHISM-ESMF interface
 #
-# SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum hereon
+# SPDX-FileCopyrightText: 2022 Helmholtz-Zentrum Hereon
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileContributor Carsten Lemmen <carsten.lemmen@hereon.de
 

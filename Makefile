@@ -45,7 +45,6 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libmetis.a),)
 LIBS+= -lmetis
 endif
 
-
 EXPAND_TARGETS= expand_schismlibs
 
 ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
@@ -88,8 +87,10 @@ install-nuopc:  schism_nuopc_lib
 	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
+ifdef USE_PDAF
 test: pdaf 
 pdaf: dep-pdaf schism_pdaf
+endif
 
 # Internal make targets for final linking
 SCHISM_NUOPC_MODS=$(addprefix src/schism/,schism_nuopc_util.mod schism_nuopc_cap.mod)
