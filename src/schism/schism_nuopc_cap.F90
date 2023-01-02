@@ -1,12 +1,12 @@
 ! This code is part of the SCHISM-ESMF interface.  It defines
 ! the schism component for a NUOPC coupled system
 !
-! @copyright (C) 2021-2022 Helmholtz-Zentrum Hereon
-! @copyright (C) 2022 Virginia Institute of Marine Science
+! @copyright (C) 2021-2023 Helmholtz-Zentrum Hereon
+! @copyright (C) 2022-2023 Virginia Institute of Marine Science
 ! @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 !
-! @author Carsten Lemmen carsten.lemmen@hereon.de
-! @author Joseph Y. Zhang jzhang@vims.edu
+! @author Carsten Lemmen <carsten.lemmen@hereon.de>
+! @author Joseph Y. Zhang >jzhang@vims.edu>
 !
 ! @license Apache License, Version 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -128,6 +128,7 @@ subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
   character(len=ESMF_MAXSTR)  :: configFileName, compName
   character(len=ESMF_MAXSTR)  :: message
   type(ESMF_Config)           :: config
+  type(ESMF_Info)             :: info
 
   rc=ESMF_SUCCESS
 
@@ -150,8 +151,11 @@ subroutine InitializeP0(comp, importState, exportState, parentClock, rc)
   !  attrList=(/"InitializePhaseMap"/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_AttributeSet(comp, name="InitializePhaseMap", valueList=InitializePhaseMap, &
-    convention="NUOPC", purpose="General", rc=localrc)
+  call ESMF_InfoGetFromHost(comp, info=info, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_InfoSet(info, key="NUOPC/General/InitializePhaseMap", &
+    values=InitializePhaseMap, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Read the configuration for this component from file if not
