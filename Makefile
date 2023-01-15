@@ -1,6 +1,6 @@
 # This Makefile is part of the SCHISM-ESMF interface
 #
-# SPDX-FileCopyrightText: 2021-2022 Helmholtz-Zentrum Hereon
+# SPDX-FileCopyrightText: 2021-2023 Helmholtz-Zentrum Hereon
 # SPDX-FileCopyrightText: 2018-2021 Helmholtz-Zentrum Geesthacht
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
@@ -10,9 +10,14 @@ include src/include/Rules.mk
 
 DESTDIR?=./lib
 
+ifndef USE_PDAF
 ifdef PDAF_LIB_DIR
-CPPFLAGS+= -DUSE_PDAF
 USE_PDAF=ON
+endif
+endif
+
+ifeq ($(USE_PDAF),ON)
+CPPFLAGS+= -DUSE_PDAF
 endif
 
 # @todo parmetis should have been included in lschism_esmf, but
@@ -21,7 +26,7 @@ LIBS+= -lschism_esmf -lesmf
 F90FLAGS+= -I$(SCHISM_BUILD_DIR)/include -I src/schism #-r8  ###-I src/model -I src/schism
 ##PDAF requires MKL (BLAS, LAPACK), this should already be provided by ESMF_FLAGS ...
 
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 LDFLAGS+= -L$(PDAF_LIB_DIR) -lpdaf-d 
 endif
 ifeq ($(ESMF_COMPILER), intel)
@@ -51,6 +56,7 @@ ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libfabm.a),)
   $(info Include fabm libraries from $(SCHISM_BUILD_DIR)/lib/libfabm*.a)
   EXPAND_TARGETS+= expand_fabmlibs
   F90FLAGS += -DUSE_FABM
+  LIBS+= -lfabm_schism -lfabm
 endif
 
 .SUFFIXES:
@@ -87,7 +93,7 @@ install-nuopc:  schism_nuopc_lib
 	#sed 's#@@SCHISM_BUILD_DIR@@#'$(SCHISM_BUILD_DIR)'#g' ./src/schism/schism_nuopc_cap.mk.in > $(SCHISM_BUILD_DIR)/include/schism.mk
 
 ##test: concurrent_esmf_test triple_schism multi_schism schism_pdaf
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 test: pdaf 
 pdaf: dep-pdaf schism_pdaf
 endif
@@ -110,7 +116,7 @@ PDAF_OBJS=$(addprefix src/PDAF_bindings/,mod_parallel_pdaf.o mod_assimilation.o 
 #concurrent_esmf_test: $(SCHISM_OBJS) $(MODEL_OBJS) concurrent_esmf_test.o
 #	$(F90) $(CPPFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 schism_pdaf: install-esmf dep-pdaf $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o
 	$(F90) $(CPPFLAGS) $(PDAF_OBJS) $(SCHISM_OBJS) $(SCHISM_ESMF_OBJS) schism_pdaf.o -o $@ $(LDFLAGS)  -L./lib $(LIBS)
 endif
@@ -140,21 +146,21 @@ expand_fabmlibs: dep-fabm
 $(PDAF_OBJS):
 	make -C src/PDAF_bindings esmf
 
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 $(SCHISM_ESMF_OBJS): $(PDAF_OBJS) $(SCHISM_OBJS)
 else
 $(SCHISM_ESMF_OBJS): $(SCHISM_OBJS)
 endif
 	make -C src/schism esmf
 
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 $(SCHISM_NUOPC_OBJS): $(PDAF_OBJS) $(SCHISM_OBJS)
 else
 $(SCHISM_NUOPC_OBJS): $(SCHISM_OBJS)
 endif
 	make -C src/schism nuopc
 
-ifdef USE_PDAF
+ifeq ($(USE_PDAF),ON)
 $(SCHISM_OBJS): $(PDAF_OBJS)
 else
 $(SCHISM_OBJS):
