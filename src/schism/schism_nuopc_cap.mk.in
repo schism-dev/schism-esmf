@@ -1,6 +1,6 @@
 # This Makefile snippet is part of the SCHISM-ESMF interface
 #
-# @copyright (C) 2021 Helmholtz-Zentrum Hereon
+# @copyright (C) 2021-2023 Helmholtz-Zentrum Hereon
 # @copyright (C) 2020-2021 Helmholtz-Zentrum Geesthacht
 #
 # @author Carsten Lemmen carsten.lemmen@hereon.de
@@ -30,6 +30,10 @@ endif
 #OBJS=$(addsuffix .o, $(STEMS))
 LIBS=-lschism_cap -lhydro -lcore -lparmetis -lmetis
 CWD=$(shell pwd)/schism
+
+ifneq ($(wildcard @@SCHISM_BUILD_DIR@@/lib/libfabm_schism.a),)
+LIBS+=-lfabm_schism -lfabm
+endif
 
 # 1. ESMF_DEP_FRONT - The name of the Fortran module to be used in a USE statement, or (if it ends in ".h") the name of the header file to be used in an #include statement, or (if it ends in ".so") the name of the shared object to be loaded at run-time.
 
