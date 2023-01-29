@@ -26,9 +26,17 @@ ifeq ($(wildcard @@SCHISM_BUILD_DIR@@/lib/libhydro.a),)
 $(error SCHISM has to be compiled before ESMF-SCHISM in build directory @@SCHISM_BUILD_DIR@@.)
 endif
 
+NO_PARMETIS := $(shell echo ${SCHISM_NO_PARMETIS} | tr '[:lower:]' '[:upper:]')
+ifeq ($(NO_PARMETIS),OFF)
+  METIS_LDFLAGS =
+  ifneq ($(PARMETISHOME),)
+    METIS_LDFLAGS := -L$(PARMETISHOME)/lib
+  endif
+endif
+
 #STEMS=schism_bmi schism_esmf_util schism_nuopc_cap
 #OBJS=$(addsuffix .o, $(STEMS))
-LIBS=-lschism_cap -lhydro -lcore -lparmetis -lmetis
+LIBS=-lschism_cap -lhydro -lcore $(METIS_LDFLAGS) -lparmetis -lmetis
 CWD=$(shell pwd)/schism
 
 ifneq ($(wildcard @@SCHISM_BUILD_DIR@@/lib/libfabm_schism.a),)

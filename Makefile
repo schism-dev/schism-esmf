@@ -42,12 +42,22 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas -Wl,--allo
 endif
 endif
 
-ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libparmetis.a),)
-LIBS+= -lparmetis
-endif
-
-ifneq ($(wildcard $(SCHISM_BUILD_DIR)/lib/libmetis.a),)
-LIBS+= -lmetis
+# P. Velissariou (01/29/2023)
+# Are both metis/parmetis libraries needed in this stage of compilation?
+# If yes, then both parmetis and metis are needed; the "if" statements
+# should account for this fact (e.g., if metis is missing the compilation will fail)
+# What about using externally compiled ParMETIS library? We need to account for this
+# as well (as it is done in the SCHISM code). In the NEMS/src/incmake/component_SCHISM.mk
+# we define the new variable SCHISM_NO_PARMETIS that corresponds to NO_PARMETIS variable
+#in the SCHISM source code and we are checking for the use of the ParMETIS (internal/external)
+# as follows:
+NO_PARMETIS := $(shell echo ${SCHISM_NO_PARMETIS} | tr '[:lower:]' '[:upper:]')
+ifeq ($(NO_PARMETIS),OFF)
+  METIS_LDFLAGS =
+  ifneq ($(PARMETISHOME),)
+    METIS_LDFLAGS := -L$(PARMETISHOME)/lib
+  endif
+  LIBS+= $(METIS_LDFLAGS) -lparmetis -lmetis
 endif
 
 EXPAND_TARGETS= expand_schismlibs

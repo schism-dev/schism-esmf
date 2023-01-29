@@ -14,7 +14,15 @@ endif
 
 # @todo parmetis should have been included in lschism_esmf, but
 # that does not seem to work cross-platform ...
-LIBS+= -lhydro -lcore -lparmetis -lmetis
+NO_PARMETIS := $(shell echo ${SCHISM_NO_PARMETIS} | tr '[:lower:]' '[:upper:]')
+ifeq ($(NO_PARMETIS),OFF)
+  METIS_LDFLAGS =
+  ifneq ($(PARMETISHOME),)
+    METIS_LDFLAGS := -L$(PARMETISHOME)/lib
+  endif
+endif
+
+LIBS+= -lhydro -lcore $(METIS_LDFLAGS) -lparmetis -lmetis
 F90FLAGS+= -I $(SCHISM_BUILD_DIR)/include
 ifdef USE_PDAF
 F90FLAGS +=  -I ../PDAF_bindings #-g -traceback -mcmodel=medium #-shared-intel
