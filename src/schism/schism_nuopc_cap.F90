@@ -269,12 +269,12 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   endif
 
   if (.not.ESMF_StateIsCreated(exportState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
+    exportState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
       ESMF_STATEINTENT_EXPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     write(message,'(A)') trim(compName)//' created state "'//trim(compName)// &
-      'Import" for export'
+      'Export" for export'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
@@ -349,6 +349,8 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("y-velocity", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! for coupling to ATMESH
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
@@ -395,6 +397,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldAdvertise(exportState, "depth-averaged_y-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  ! required for coupling through CMEPS mediator
+  call NUOPC_FieldAdvertise(exportState, "ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
@@ -511,9 +517,15 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
     if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    call SCHISM_FieldRealize(exportState, itemNameList(i), &
-      mesh=mesh2d, typeKind=ESMF_TYPEKIND_R8, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    if (trim(itemNameList(i)) == 'ocean_mask') then
+      call SCHISM_FieldRealize(exportState, itemNameList(i), &
+        mesh=mesh2d, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    else
+      call SCHISM_FieldRealize(exportState, itemNameList(i), &
+        mesh=mesh2d, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    end if
 
     write(message,'(A)') trim(compName)//' realized field '//trim(itemNameList(i))// &
       ' in its export state'
@@ -651,7 +663,7 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav
+  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
   use schism_glbl,      only: uu2, vv2
   !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
@@ -780,6 +792,10 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_e, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
