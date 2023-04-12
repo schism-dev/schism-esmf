@@ -1341,6 +1341,18 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   write(message, '(A)') trim(compName)//' added mesh to component'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  ! clean up
+  deallocate(nodeids, stat=localrc)
+  deallocate(nodecoords2d, stat=localrc)
+  deallocate(nodeowners, stat=localrc)
+  deallocate(nodemask, stat=localrc)
+  deallocate(elementids, stat=localrc)
+  deallocate(elementtypes, stat=localrc)
+  deallocate(elementmask, stat=localrc)
+  deallocate(elementarea, stat=localrc)
+  deallocate(elementCoords2d, stat=localrc)
+  deallocate(nv, stat=localrc)
+
 end subroutine SCHISM_MeshCreate
 
 subroutine SCHISM_MeshCreate2(comp, kwe, rc)
