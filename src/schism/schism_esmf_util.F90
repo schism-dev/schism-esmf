@@ -68,11 +68,17 @@ module schism_esmf_util
     type(type_InternalState), pointer :: wrap => null()
   end type
 
+  type(ESMF_MeshLoc) :: meshloc
+
+  public meshloc
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
   !public SCHISM_StateGetField, 
-  public SCHISM_StateImportWaveTensor, SCHISM_MeshCreate, SCHISM_InitializePtrMap
+  public SCHISM_StateImportWaveTensor 
+  public SCHISM_MeshCreateNode
+  public SCHISM_MeshCreateElement
+  public SCHISM_InitializePtrMap
   !public SCHISM_FieldGet, SCHISM_FieldPut, 
   public SCHISM_StateUpdate, SCHISM_FieldPtrUpdate
   private 
@@ -971,39 +977,40 @@ subroutine SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
   call ESMF_GridCompGet(comp, mesh=mesh, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  call ESMF_MeshGet(mesh, elementDistgrid=distgrid, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  if (meshloc == ESMF_MESHLOC_NODE) then
+    call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  else
+    call ESMF_MeshGet(mesh, elementDistgrid=distgrid, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  end if
 
   call ESMF_GridCompGetInternalState(comp, internalState, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   isDataPtr => internalState%wrap
  
-  !write(message,'(A)') trim(compName)//' created array '//trim(name)//' on'
-  !if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds)) then 
-  !  array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
-  !  haloSeqIndexList=isDataPtr%foreignNodeIds, &
-  !  name=trim(name), rc=localrc)
-  !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  write(message,'(A)') trim(compName)//' created array '//trim(name)//' on'
+  if (isDataPtr%numForeignNodes > 0 .and. associated(isDataPtr%foreignNodeIds) .and. &
+      meshloc == ESMF_MESHLOC_NODE) then 
+    array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
+    haloSeqIndexList=isDataPtr%foreignNodeIds, &
+    name=trim(name), rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !  write(message,'(A,I5,A,I5,A)') trim(message)//' ',isDataPtr%numOwnedNodes,'/', np, &
-  !  ' owned / resident nodes'
-  !else
+    write(message,'(A,I5,A,I5,A)') trim(message)//' ',isDataPtr%numOwnedNodes,'/', np, &
+    ' owned / resident nodes'
+  else
     array = ESMF_ArrayCreate(distgrid, typekind=ESMF_TYPEKIND_R8, &
     name=trim(name), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !  write(message,'(A,I5,A)') trim(message)//' all resident nodes'
-  !endif
-  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    write(message,'(A,I5,A)') trim(message)//' all resident nodes'
+  endif
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   field = ESMF_FieldCreate(name=trim(name), mesh=mesh, array=array, &
-    meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
-  !field = ESMF_FieldCreate(mesh=mesh, typekind=ESMF_TYPEKIND_R8, name=trim(name), &
-  !  meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+    meshloc=meshloc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   isPresent = ESMF_RouteHandleIsCreated(isDataPtr%haloHandle, rc=localrc)
@@ -1081,8 +1088,13 @@ subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
   call ESMF_GridCompGet(comp, mesh=mesh, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  call ESMF_MeshGet(mesh, elementDistgrid=distgrid, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  if (meshloc == ESMF_MESHLOC_NODE) then
+    call ESMF_MeshGet(mesh, nodalDistgrid=distgrid, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  else
+    call ESMF_MeshGet(mesh, elementDistgrid=distgrid, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+  end if
 
   call ESMF_GridCompGetInternalState(comp, internalState, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
@@ -1108,7 +1120,7 @@ subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   field = ESMF_FieldCreate(name=trim(name), mesh=mesh, array=array, &
-    meshloc=ESMF_MESHLOC_NODE, rc=localrc)
+    meshloc=meshloc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   isPresent = ESMF_RouteHandleIsCreated(isDataPtr%haloHandle, rc=localrc)
@@ -1150,8 +1162,8 @@ subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
 end subroutine SCHISM_StateFieldCreate
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_MeshCreate"
-subroutine SCHISM_MeshCreate(comp, kwe, rc)
+#define ESMF_METHOD "SCHISM_MeshCreateElement"
+subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   use schism_glbl, only: pi
   use schism_glbl, only: np, npg, npa
   use schism_glbl, only: ne, neg, nea
@@ -1169,7 +1181,10 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   type(ESMF_Mesh)          :: mesh2d
   type(ESMF_DistGrid)      :: nodeDistgrid, elementDistgrid
   type(ESMF_CoordSys_Flag) :: coordsys
+  type(ESMF_Field)         :: field
+  type(ESMF_State)         :: exportState
 
+  integer :: localPet
   integer :: indx, ip, ie, ii, nvcount
   character(len=ESMF_MAXSTR) :: message
   character(len=ESMF_MAXSTR) :: compName
@@ -1178,15 +1193,19 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   integer, dimension(:), allocatable            :: nodeowners, elementtypes
   integer, dimension(:), allocatable            :: nodemask, elementmask
   real(ESMF_KIND_R8), dimension(:), allocatable :: elementarea
+  integer, dimension(1:4)                       :: elLocalNode
   integer :: rank2, localrc
+  integer :: ownedCount, foreignCount
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
   integer(ESMF_KIND_I4) :: rc_
-  integer, dimension(1:4)                       :: elLocalNode
+
+  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalState), pointer :: isDataPtr => null()
 
   rc_ = ESMF_SUCCESS
   if (present(rc)) rc = ESMF_SUCCESS
 
-  call ESMF_GridCompGet(comp, name=compName, rc=localrc)
+  call ESMF_GridCompGet(comp, name=compName, localPet=localPet, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! allocate arrays, do not include ghosts
@@ -1338,8 +1357,80 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  write(message, '(A)') trim(compName)//' added mesh to component'
+  write(message, '(A)') trim(compName)//' added mesh (element) to component'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  ! As the list of owned and non-owned nodes is not preserved in the ESMF_Mesh
+  ! structure, we need to save this information to an internal state, for later 
+  ! use in Array/Field creation.
+  !call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !isDataPtr => internalState%wrap
+
+  !isDataPtr%numOwnedNodes = 0
+  !isDataPtr%numForeignNodes = 0
+  !do ip = 1, npa
+  !  ! non-ghost nodes
+  !  if (ip <= np) then
+  !    if (nodeowners(ip) == localPet) then 
+  !      isDataPtr%numOwnedNodes = isDataPtr%numOwnedNodes + 1
+  !    else 
+  !      isDataPtr%numForeignNodes = isDataPtr%numForeignNodes + 1
+  !    end if
+  !  end if
+  !end do
+
+  !allocate(isDataPtr%ownedNodeIds(isDataPtr%numOwnedNodes), stat=localrc)
+  !allocate(isDataPtr%foreignNodeIds(isDataPtr%numForeignNodes), stat=localrc)
+
+  !ownedCount = 0
+  !foreignCount = 0
+  !do ip = 1, npa
+  !  ! non-ghost nodes
+  !  if (ip <= np) then
+  !    if (nodeowners(ip) == localPet) then
+  !      ownedCount=ownedCount + 1
+  !      isDataPtr%ownedNodeIds(ownedCount) = ip
+  !    else
+  !      foreignCount=foreignCount + 1
+  !      isDataPtr%foreignNodeIds(foreignCount) = ip
+  !    endif
+  !  end if
+  !enddo
+
+  ! add metadata
+  !field = ESMF_FieldEmptyCreate(name='mesh_topology', rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_) 
+
+  !call ESMF_AttributeSet(field, 'cf_role', 'mesh_topology', rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_AttributeSet(field, 'topology_dimension', 2, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_AttributeSet(field, 'node_coordinates', 'mesh_node_lon mesh_node_lat', rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_AttributeSet(field, 'face_node_connectivity', 'mesh_element_node_connectivity', rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_GridCompGet(comp, exportState=exportState, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_StateAddReplace(exportState, (/field/), rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !field = ESMF_FieldCreate(mesh2d, name='mesh_global_node_id', meshloc=ESMF_MESHLOC_NODE, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !call ESMF_FieldGet(field, farrayPtr=farrayPtrI41, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+  !farrayPtrI41 = isDataPtr%ownedNodeIds
+
+  !call ESMF_StateAddReplace(exportstate, (/field/), rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! clean up
   deallocate(nodeids, stat=localrc)
@@ -1353,9 +1444,11 @@ subroutine SCHISM_MeshCreate(comp, kwe, rc)
   deallocate(elementCoords2d, stat=localrc)
   deallocate(nv, stat=localrc)
 
-end subroutine SCHISM_MeshCreate
+end subroutine SCHISM_MeshCreateElement
 
-subroutine SCHISM_MeshCreate2(comp, kwe, rc)
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_MeshCreateNode"
+subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
   ! Define ESMF domain partition
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
@@ -1604,44 +1697,25 @@ subroutine SCHISM_MeshCreate2(comp, kwe, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc) 
   endif
 
-  ! create node distgrid
-  nodeDistgrid = ESMF_DistgridCreate(nodeids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  ! create element distgrid (distribute)
-  elementDistgrid = ESMF_DistgridCreate(elementids,rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
   !> This is a three-part mesh generation, with later addition of node 
-  !> and element information 
-  !mesh2d = ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
-  !           nodeIds=nodeids, nodeCoords=nodecoords2d, &
-  !           nodeOwners=nodeOwners, nodeMask=nodemask, &
-  !           elementIds=elementids,&
-  !           elementTypes=elementtypes, elementConn=nv, &
-  !           elementMask=elementmask, elementCoords=elementcoords2d, &
-  !           elementDistgrid=elementDistgrid, &
-  !           coordSys=coordsys, &
-  !           rc=rc)
+  !> and element information
+  mesh2d = ESMF_MeshCreate(parametricDim=2, spatialdim=2, coordSys=coordsys, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_) 
 
-  mesh2d = ESMF_MeshCreate(parametricDim=2,spatialDim=2, &
-             nodeIds=nodeids, nodeCoords=nodecoords2d, &
-             nodeOwners=nodeOwners, nodeMask=nodemask, &
-             nodalDistgrid=nodeDistgrid, &
-             elementIds=elementids,&
-             elementTypes=elementtypes, elementConn=nv, &
-             elementMask=elementmask, elementCoords=elementcoords2d, &
-             elementDistgrid=elementDistgrid, &
-             coordSys=coordsys, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  call ESMF_MeshWrite(mesh2d, filename="schism_mesh", rc=rc)
+  !> We can pass a nodalDistgrid (optional) 
+  call ESMF_MeshAddNodes(mesh2d, nodeIds=nodeids, nodeCoords=nodecoords2d, &
+    nodeOwners=nodeowners, nodeMask=nodemask, rc=localrc) 
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
 !> @todo We need a generic handling of intformat
   write(message, '(A,I5,A,I5,A,I5,A,I5,A)') trim(compName)//' created mesh from ', &
    npa, '/', np, ' nodes with ', ownedCount, ' own and ', foreigncount, ' foreign'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  !> optional arguments are elementArea and elementDistgrid
+  call ESMF_MeshAddElements(mesh2d, elementIds=elementids, elementTypes=elementtypes, &
+    elementConn=nv, elementMask=elementmask, elementCoords=elementcoords2d, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_MeshGet(mesh2d, numOwnedNodes=npo, numOwnedElements=neo, &
     rc=localrc)
@@ -1663,7 +1737,7 @@ subroutine SCHISM_MeshCreate2(comp, kwe, rc)
   call ESMF_GridCompSet(comp, mesh=mesh2d, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  write(message, '(A)') trim(compName)//' added mesh to component'
+  write(message, '(A)') trim(compName)//' added mesh (node) to component'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   !> @todo the following steps don't work in the NUOPC cap yet
@@ -1771,7 +1845,7 @@ subroutine SCHISM_MeshCreate2(comp, kwe, rc)
   if (allocated(elementCoords2d)) deallocate(elementCoords2d, stat=localrc)
   deallocate(nv, stat=localrc)
 
-end subroutine SCHISM_MeshCreate2
+end subroutine SCHISM_MeshCreateNode
 
 subroutine schism_esmf_add_bottom_tracer(name, mesh2d, tr_id, exportState, &
     importState,add_ws,rc)
@@ -1798,7 +1872,7 @@ subroutine schism_esmf_add_bottom_tracer(name, mesh2d, tr_id, exportState, &
 
   field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   ! add maskValues to be used in regridding
   !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -1820,7 +1894,7 @@ subroutine schism_esmf_add_bottom_tracer(name, mesh2d, tr_id, exportState, &
   if (add_ws_) then
     field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_z_velocity_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
     !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -1843,7 +1917,7 @@ subroutine schism_esmf_add_bottom_tracer(name, mesh2d, tr_id, exportState, &
   ! add upward flux fields into importState
     field = ESMF_FieldCreate(mesh2d, name = trim(name)//'_upward_flux_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
     !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -2170,7 +2244,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
 
   field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! add maskValues to be used in regridding
@@ -2194,7 +2268,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
   if (add_ws_) then
     field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_z_velocity_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
     !call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -2217,7 +2291,7 @@ subroutine schism_esmf_topbottom_tracer(name, mesh2d, tr_id, exportState, import
   ! add upward flux fields into importState
     field = ESMF_FieldCreate(mesh2d, name = trim(name)//'_upward_flux_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
     ! add maskValues to be used in regridding

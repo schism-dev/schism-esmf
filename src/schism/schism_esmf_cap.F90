@@ -138,7 +138,8 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_io, only: fill_nc_header!ncid
 ! use mod_assimilation, only: outf !PDAF module
 
-  use schism_esmf_util, only: SCHISM_MeshCreate
+  use schism_esmf_util, only: SCHISM_MeshCreateNode
+  use schism_esmf_util, only: SCHISM_MeshCreateElement
   use schism_esmf_util, only: SCHISM_StateFieldCreate
 
 #ifdef USE_FABM
@@ -396,8 +397,13 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_ClockSet(schismClock, timeStep=schism_dt, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_MeshCreate(comp, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (meshloc == ESMF_MESHLOC_NODE) then
+    call SCHISM_MeshCreateNode(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    call SCHISM_MeshCreateElement(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1021,7 +1027,7 @@ end subroutine Run
 
   field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   ! add maskValues to be used in regridding
   call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -1043,7 +1049,7 @@ end subroutine Run
   if (add_ws_) then
     field = ESMF_FieldCreate(mesh2d, name=trim(name)//'_z_velocity_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
     call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)
@@ -1066,7 +1072,7 @@ end subroutine Run
   ! add upward flux fields into importState
     field = ESMF_FieldCreate(mesh2d, name = trim(name)//'_upward_flux_at_soil_surface', &
                            typekind=ESMF_TYPEKIND_R8, &
-                           meshloc=ESMF_MESHLOC_ELEMENT, rc=localrc)
+                           meshloc=meshloc, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     ! add maskValues to be used in regridding
     call ESMF_AttributeSet(field, name="maskValues", valueList=maskValues, rc=localrc)

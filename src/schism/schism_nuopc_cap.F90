@@ -212,8 +212,6 @@ end subroutine InitializeP0
 !> its implementation is required
 subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
-  use schism_esmf_util, only: SCHISM_InitializePtrMap
-
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -223,9 +221,9 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   integer(ESMF_KIND_I4)       :: localrc, mpiCommunicator, mpiCommDuplicate
   integer(ESMF_KIND_I4)       :: ntime=0, iths=0, i
-  character(len=ESMF_MAXSTR)  :: message, compName
+  character(len=ESMF_MAXSTR)  :: message, compName, cvalue
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
-  logical                     :: isPresent
+  logical                     :: isPresent, isSet
 
   type(ESMF_VM)                     :: vm
   type(type_InternalStateWrapper)   :: internalState
@@ -311,6 +309,23 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
+  ! query attributes
+  call NUOPC_CompAttributeGet(comp, name='meshloc', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (isPresent .and. isSet) then
+    if (trim(cvalue) == 'node') then
+      meshloc = ESMF_MESHLOC_NODE
+    else
+      meshloc = ESMF_MESHLOC_ELEMENT
+    end if
+  else
+    cvalue = 'node'
+    meshloc = ESMF_MESHLOC_NODE
+  end if
+  write(message, '(A)') trim(compName)//' meshloc is set to '//trim(cvalue)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  ! init schism
   call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -413,7 +428,8 @@ end subroutine
 !> a separate routine should be provided for accepting fields.
 subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
-  use schism_esmf_util, only : SCHISM_MeshCreate
+  use schism_esmf_util, only : SCHISM_MeshCreateNode
+  use schism_esmf_util, only : SCHISM_MeshCreateElement
   
   !> @todo move all use statements of schism into schism_bmi
   use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
@@ -460,8 +476,13 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   !> call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
   !call addSchismMesh(comp, localrc)
 !>>>>>>> a9a0ce0 (Use MeshCreate instead off add Mesh)
-  call SCHISM_MeshCreate(comp, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (meshloc == ESMF_MESHLOC_NODE) then
+    call SCHISM_MeshCreateNode(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    call SCHISM_MeshCreateElement(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
