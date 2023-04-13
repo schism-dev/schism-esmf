@@ -42,7 +42,7 @@ module schism_esmf_util
 #ifndef ESMF_NO_SEQUENCE
     sequence 
 #endif
-    real(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
+    integer(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
     real(ESMF_KIND_R8), pointer  :: farrayPtr3(:,:,:) => null()
@@ -140,7 +140,7 @@ contains
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
-  use schism_glbl, only: uu2, vv2, srad, shum2, airt2
+  use schism_glbl, only: uu2, vv2, srad, shum2, airt2, idry_e
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
@@ -159,7 +159,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(13))
+  allocate(isPtr%wrap%ptrMap(14))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
@@ -204,6 +204,9 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   isPtr%wrap%ptrMap(13)%name = 'tracer_concentration_in_water'
   isPtr%wrap%ptrMap(13)%farrayPtr3 => tr_nd
+
+  isPtr%wrap%ptrMap(14)%name = 'ocean_mask'
+  isPtr%wrap%ptrMap(14)%iarrayPtr1 => idry_e
   
 end subroutine SCHISM_InitializePtrMap
 
