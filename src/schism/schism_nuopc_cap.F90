@@ -212,8 +212,6 @@ end subroutine InitializeP0
 !> its implementation is required
 subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
-  use schism_esmf_util, only: SCHISM_InitializePtrMap
-
   implicit none
 
   type(ESMF_GridComp)  :: comp
@@ -223,9 +221,9 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   integer(ESMF_KIND_I4)       :: localrc, mpiCommunicator, mpiCommDuplicate
   integer(ESMF_KIND_I4)       :: ntime=0, iths=0, i
-  character(len=ESMF_MAXSTR)  :: message, compName
+  character(len=ESMF_MAXSTR)  :: message, compName, cvalue
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
-  logical                     :: isPresent
+  logical                     :: isPresent, isSet
 
   type(ESMF_VM)                     :: vm
   type(type_InternalStateWrapper)   :: internalState
@@ -269,12 +267,12 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   endif
 
   if (.not.ESMF_StateIsCreated(exportState)) then
-    importState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
+    exportState=ESMF_StateCreate(name=trim(compName)//'Export', stateintent= &
       ESMF_STATEINTENT_EXPORT, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     write(message,'(A)') trim(compName)//' created state "'//trim(compName)// &
-      'Import" for export'
+      'Export" for export'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif
 
@@ -311,6 +309,23 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   endif
 
+  ! query attributes
+  call NUOPC_CompAttributeGet(comp, name='meshloc', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (isPresent .and. isSet) then
+    if (trim(cvalue) == 'node') then
+      meshloc = ESMF_MESHLOC_NODE
+    else
+      meshloc = ESMF_MESHLOC_ELEMENT
+    end if
+  else
+    cvalue = 'node'
+    meshloc = ESMF_MESHLOC_NODE
+  end if
+  write(message, '(A)') trim(compName)//' meshloc is set to '//trim(cvalue)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+  ! init schism
   call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -348,6 +363,8 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("x-velocity", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("y-velocity", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! for coupling to ATMESH
@@ -397,6 +414,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldAdvertise(exportState, "depth-averaged_y-velocity", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  ! required for coupling through CMEPS mediator
+  call NUOPC_FieldAdvertise(exportState, "ocean_mask", "1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
 end subroutine
 
 #undef ESMF_METHOD
@@ -407,7 +428,8 @@ end subroutine
 !> a separate routine should be provided for accepting fields.
 subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
-  use schism_esmf_util, only : SCHISM_MeshCreate
+  use schism_esmf_util, only : SCHISM_MeshCreateNode
+  use schism_esmf_util, only : SCHISM_MeshCreateElement
   
   !> @todo move all use statements of schism into schism_bmi
   use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
@@ -454,8 +476,13 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   !> call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
   !call addSchismMesh(comp, localrc)
 !>>>>>>> a9a0ce0 (Use MeshCreate instead off add Mesh)
-  call SCHISM_MeshCreate(comp, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (meshloc == ESMF_MESHLOC_NODE) then
+    call SCHISM_MeshCreateNode(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  else
+    call SCHISM_MeshCreateElement(comp, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -511,9 +538,15 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
     if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    call SCHISM_FieldRealize(exportState, itemNameList(i), &
-      mesh=mesh2d, typeKind=ESMF_TYPEKIND_R8, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    if (trim(itemNameList(i)) == 'ocean_mask') then
+      call SCHISM_FieldRealize(exportState, itemNameList(i), &
+        mesh=mesh2d, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    else
+      call SCHISM_FieldRealize(exportState, itemNameList(i), &
+        mesh=mesh2d, rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    end if
 
     write(message,'(A)') trim(compName)//' realized field '//trim(itemNameList(i))// &
       ' in its export state'
@@ -651,7 +684,7 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav
+  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
   use schism_glbl,      only: uu2, vv2
   !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
@@ -780,6 +813,10 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_e, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
