@@ -325,6 +325,16 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' meshloc is set to '//trim(cvalue)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  ! debug option
+  call NUOPC_CompAttributeGet(comp, name='dbug', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  dbug = .false.
+  if (isPresent .and. isSet) then
+     if (trim(cvalue) .eq. '.true.' .or. trim(cvalue) .eq. 'true') dbug = .true.
+  end if
+  write(message, '(A,L)') trim(compName)//' debug flag is set to ', dbug
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   ! init schism
   call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
@@ -708,6 +718,7 @@ subroutine ModelAdvance(comp, rc)
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
 
+  character(len=ESMF_MAXSTR) :: timeStr
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   integer(ESMF_KIND_I4)                   :: itemCount, i
@@ -774,6 +785,14 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Write fields on import state for debugging
+  if (dbug) then
+     call ESMF_TimeGet(currTime, timeStringISOFrac=timeStr , rc=rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+     call SCHISM_StateWriteVTK(importState, 'import_'//trim(timeStr), rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
+
   ! call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
   ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -820,6 +839,11 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Write fields on export state for debugging
+  if (dbug) then
+     call SCHISM_StateWriteVTK(importState, 'export_'//trim(timeStr), rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 end subroutine
 
 #undef ESMF_METHOD
@@ -884,5 +908,65 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateWriteVTK"
+subroutine SCHISM_StateWriteVTK(state, prefix, rc)
+
+  implicit none
+
+  ! input arguments
+  type(ESMF_State), intent(in) :: state
+  character(len=*), intent(in) :: prefix
+  integer, intent(out), optional :: rc
+
+  ! local variables
+  integer :: i, itemCount
+  type(ESMF_Field) :: field
+  character(ESMF_MAXSTR), allocatable :: itemNameList(:)
+  character(len=*),parameter  :: subname='(SCHISM_StateWriteVTK)'
+
+  rc = ESMF_SUCCESS
+  call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO)
+
+  ! get number of fields in the state
+  call ESMF_StateGet(state, itemCount=itemCount, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  ! get item names
+  if (.not. allocated(itemNameList)) allocate(itemNameList(itemCount))
+
+  call ESMF_StateGet(state, itemNameList=itemNameList, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  ! loop over fields and write them
+  do i = 1, itemCount
+     ! get field
+     call ESMF_StateGet(state, itemName=trim(itemNameList(i)), field=field, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+     ! write it
+     call ESMF_FieldWriteVTK(field, trim(prefix)//'_'//trim(itemNameList(i)), rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+  end do
+
+  ! clean temporary variables
+  if (allocated(itemNameList)) deallocate(itemNameList)
+
+  call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO)
+
+end subroutine SCHISM_StateWriteVTK
 
 end module schism_nuopc_cap

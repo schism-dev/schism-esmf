@@ -69,8 +69,9 @@ module schism_esmf_util
   end type
 
   type(ESMF_MeshLoc) :: meshloc
+  logical :: dbug
 
-  public meshloc
+  public meshloc, dbug
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
@@ -1355,7 +1356,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! write mesh in VTK format, just for debugging
-  if (.false.) then 
+  if (dbug) then 
     call ESMF_MeshWrite(mesh2d, filename="schism_mesh", rc=rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   end if
