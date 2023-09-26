@@ -841,7 +841,7 @@ subroutine ModelAdvance(comp, rc)
 
   !> Write fields on export state for debugging
   if (dbug) then
-     call SCHISM_StateWriteVTK(importState, 'export_'//trim(timeStr), rc)
+     call SCHISM_StateWriteVTK(exportState, 'export_'//trim(timeStr), rc)
      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end if
 end subroutine
