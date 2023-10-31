@@ -526,6 +526,9 @@ end subroutine SCHISM_FieldPtrUpdate
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate1"
 subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
+  use schism_glbl, only: np, npg, npa
+  use schism_glbl, only: ne, neg, nea
+  use schism_glbl, only: i34, elnode
 
   type(ESMF_State), intent(inout)                   :: state
   character(len=*), intent(in)                      :: name
@@ -538,6 +541,8 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   type(ESMF_Field)               :: field
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
   integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  integer(ESMF_KIND_I4)          :: ie, indx, ii
+  integer, dimension(1:4)        :: elLocalNode
   character(len=ESMF_MAXSTR)     :: message
   logical                        :: isPresent
   type(ESMF_StateIntent_Flag)    :: intent
@@ -574,8 +579,17 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
 
   if (intent == ESMF_STATEINTENT_IMPORT) then 
 
-    do ip = 1, isPtr%numOwnedNodes
-      farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+    ! all nodes that construct the element will get same value
+    indx = 0
+    do ie = 1, nea
+       do ii = 1, i34(ie)
+          elLocalNode(ii)=elnode(ii,ie)
+       end do
+       ! non-ghost elements
+       if (ie <= ne) then
+          indx = indx+1
+          farray(elLocalNode(1:i34(ie))) = farrayPtr1(indx)
+       end if
     end do
 
     write(message,'(A)') '--- SCHISM_StateUpdate1 imported '//trim(name)
