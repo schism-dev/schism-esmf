@@ -704,7 +704,7 @@ end subroutine
 subroutine ModelAdvance(comp, rc)
 
   use schism_glbl,      only: wtiminc, dt, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
-  use schism_glbl,      only: uu2, vv2
+  use schism_glbl,      only: nvrt, uu2, vv2
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
   type(ESMF_GridComp)  :: comp
@@ -822,12 +822,12 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  print*, 'uu2 min, max = ', minval(uu2), maxval(uu2)
-  call SCHISM_StateUpdate(exportState, 'ocn_current_zonal', uu2, &
+  print*, 'uu2 min, max = ', minval(uu2(nvrt,:)), maxval(uu2(nvrt,:))
+  call SCHISM_StateUpdate(exportState, 'ocn_current_zonal', uu2(nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'ocn_current_merid', vv2, &
+  call SCHISM_StateUpdate(exportState, 'ocn_current_merid', vv2(nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

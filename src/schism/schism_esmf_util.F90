@@ -526,7 +526,7 @@ end subroutine SCHISM_FieldPtrUpdate
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate1"
 subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
-  use schism_glbl, only: np, npg, npa
+
   use schism_glbl, only: ne, neg, nea
   use schism_glbl, only: i34, elnode
 
@@ -579,27 +579,49 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
 
   if (intent == ESMF_STATEINTENT_IMPORT) then 
 
-    ! all nodes that construct the element will get same value
-    indx = 0
-    do ie = 1, nea
-       do ii = 1, i34(ie)
-          elLocalNode(ii)=elnode(ii,ie)
+    if (meshloc == ESMF_MESHLOC_NODE) then
+       do ip = 1, isPtr%numOwnedNodes
+          farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
        end do
-       ! non-ghost elements
-       if (ie <= ne) then
-          indx = indx+1
-          farray(elLocalNode(1:i34(ie))) = farrayPtr1(indx)
-       end if
-    end do
+    else
+       ! nodes that construct the element will get same value
+       indx = 0
+       do ie = 1, nea
+          do ii = 1, i34(ie)
+             elLocalNode(ii) = elnode(ii,ie)
+          end do
+          ! non-ghost elements
+          if (ie <= ne) then
+             indx = indx+1
+             farray(elLocalNode(1:i34(ie))) = farrayPtr1(indx)
+          end if
+       end do
+    end if
 
     write(message,'(A)') '--- SCHISM_StateUpdate1 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   elseif (intent == ESMF_STATEINTENT_EXPORT) then 
 
-    do ip = 1, isPtr%numOwnedNodes
-       farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
-    end do
+    if (meshloc == ESMF_MESHLOC_NODE) then
+       do ip = 1, isPtr%numOwnedNodes
+          farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
+       end do
+    else
+       ! element will get average of the nodes that construct it
+       indx = 0
+       do ie = 1, nea
+          do ii = 1, i34(ie)
+             elLocalNode(ii) = elnode(ii,ie)
+          end do
+          ! non-ghost elements
+          if (ie <= ne) then
+             indx = indx+1
+             farrayPtr1(indx) = sum(farray(elLocalNode(1:i34(ie))))/dble(i34(ie))
+          end if
+       end do
+    end if
+       print*, 'farrayPtr1 min,max = ', minval(farrayPtr1), maxval(farrayPtr1)
 
     write(message,'(A)') '--- SCHISM_StateUpdate1 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -793,6 +815,9 @@ end subroutine SCHISM_StateUpdate3
 #define ESMF_METHOD "SCHISM_StateUpdate4"
 subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
 
+  use schism_glbl, only: ne, neg, nea
+  use schism_glbl, only: i34, elnode
+
   type(ESMF_State), intent(inout)                   :: state
   character(len=*), intent(in)                      :: name
   integer(ESMF_KIND_I4),  intent(inout), target     :: farray(:)
@@ -804,6 +829,8 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
   type(ESMF_Field)               :: field
   integer(ESMF_KIND_I4), pointer :: farrayPtr1(:) => null()
   integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  integer(ESMF_KIND_I4)          :: ie, indx, ii
+  integer, dimension(1:4)        :: elLocalNode
   character(len=ESMF_MAXSTR)     :: message
   logical                        :: isPresent
   type(ESMF_StateIntent_Flag)    :: intent
@@ -840,18 +867,48 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
 
   if (intent == ESMF_STATEINTENT_IMPORT) then
 
-    do ip = 1, isPtr%numOwnedNodes
-      farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-    end do
+    if (meshloc == ESMF_MESHLOC_NODE) then
+       do ip = 1, isPtr%numOwnedNodes
+          farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+       end do
+    else
+       ! nodes that construct the element will get same value
+       indx = 0
+       do ie = 1, nea
+          do ii = 1, i34(ie)
+             elLocalNode(ii) = elnode(ii,ie)
+          end do
+          ! non-ghost elements
+          if (ie <= ne) then
+             indx = indx+1
+             farray(elLocalNode(1:i34(ie))) = farrayPtr1(indx)
+          end if
+       end do
+    end if
 
     write(message,'(A)') '--- SCHISM_StateUpdate4 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   elseif (intent == ESMF_STATEINTENT_EXPORT) then
 
-    do ip = 1, isPtr%numOwnedNodes
-       farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
-    end do
+    if (meshloc == ESMF_MESHLOC_NODE) then
+       do ip = 1, isPtr%numOwnedNodes
+          farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
+       end do
+    else
+       ! element will get average of the nodes that construct it
+       indx = 0
+       do ie = 1, nea
+          do ii = 1, i34(ie)
+             elLocalNode(ii) = elnode(ii,ie)
+          end do
+          ! non-ghost elements
+          if (ie <= ne) then
+             indx = indx+1
+             farrayPtr1(indx) = sum(farray(elLocalNode(1:i34(ie))))/i34(ie)
+          end if
+       end do
+    end if
 
     write(message,'(A)') '--- SCHISM_StateUpdate4 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
