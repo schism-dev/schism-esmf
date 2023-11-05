@@ -674,25 +674,25 @@ subroutine SetRunClock(comp, rc)
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Clock) :: dclock, mclock
-  type(ESMF_Time)  :: dcurrtime
+  type(ESMF_Clock) :: driverClock, modelClock
+  type(ESMF_Time)  :: driverCurrTime
   integer          :: localrc
 
   rc = ESMF_SUCCESS
 
   !> query driver and the component clocks
-  call NUOPC_ModelGet(comp, driverClock=dclock, modelClock=mclock, rc=localrc)
+  call NUOPC_ModelGet(comp, driverClock=driverClock, modelClock=modelClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_ClockGet(dclock, currTime=dcurrtime, rc=localrc)
+  call ESMF_ClockGet(driverClock, currTime=driverCurrTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> set model clock to have the current start time as the driver clock
-  call ESMF_ClockSet(mclock, currTime=dcurrtime, rc=localrc)
+  call ESMF_ClockSet(modelClock, currTime=driverCurrTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> check the component clock against the driver clock
-  call NUOPC_CompCheckSetClock(comp, dclock, rc=localrc)
+  call NUOPC_CompCheckSetClock(comp, driverClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
@@ -822,7 +822,6 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  print*, 'uu2 min, max = ', minval(uu2(nvrt,:)), maxval(uu2(nvrt,:))
   call SCHISM_StateUpdate(exportState, 'ocn_current_zonal', uu2(nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
