@@ -326,13 +326,13 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! debug option
-  call NUOPC_CompAttributeGet(comp, name='dbug', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+  call NUOPC_CompAttributeGet(comp, name='debug_level', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  dbug = .false.
+  debug_level = 0
   if (isPresent .and. isSet) then
-     if (trim(cvalue) .eq. '.true.' .or. trim(cvalue) .eq. 'true') dbug = .true.
+     read(cvalue,*) debug_level
   end if
-  write(message, '(A,L)') trim(compName)//' debug flag is set to ', dbug
+  write(message, '(A,I1)') trim(compName)//' debug_level is set to ', debug_level
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! init schism
@@ -611,7 +611,7 @@ subroutine SetClock(comp, rc)
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Clock)           :: dClock, mClock
+  type(ESMF_Clock)           :: driverClock, modelClock
   type(ESMF_TimeInterval)    :: runDur, timeStep
   type(ESMF_Time)            :: startTime, stopTime
   integer                    :: localrc, d, h, m
@@ -620,7 +620,7 @@ subroutine SetClock(comp, rc)
 
   rc = ESMF_SUCCESS
 
-  call NUOPC_ModelGet(comp, driverClock=dClock, rc=localrc)
+  call NUOPC_ModelGet(comp, driverClock=driverClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Set start time
@@ -637,15 +637,15 @@ subroutine SetClock(comp, rc)
   stopTime = startTime+runDur
 
   !> Time step must be same with the driver
-  call ESMF_ClockGet(dclock, timeStep=timeStep, rc=localrc)
+  call ESMF_ClockGet(driverClock, timeStep=timeStep, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Create component clock
-  mclock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, rc=localrc)
+  modelClock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Update component clock
-  call ESMF_GridCompSet(comp, clock=mclock, rc=localrc)
+  call ESMF_GridCompSet(comp, clock=modelClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Check that wtiminc, i.e. the time between two new atmospheric inputs
@@ -792,7 +792,7 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Write fields on import state for debugging
-  if (dbug) then
+  if (debug_level > 0) then
      call ESMF_TimeGet(currTime, timeStringISOFrac=timeStr , rc=rc)
      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
      call SCHISM_StateWriteVTK(importState, 'import_'//trim(timeStr), rc)
@@ -843,7 +843,7 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Write fields on export state for debugging
-  if (dbug) then
+  if (debug_level > 0) then
      call SCHISM_StateWriteVTK(exportState, 'export_'//trim(timeStr), rc)
      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end if

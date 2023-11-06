@@ -69,9 +69,9 @@ module schism_esmf_util
   end type
 
   type(ESMF_MeshLoc) :: meshloc
-  logical :: dbug
+  logical :: debug_level 
 
-  public meshloc, dbug
+  public meshloc, debug_level 
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
@@ -540,8 +540,8 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
 
   type(ESMF_Field)               :: field
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
-  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
-  integer(ESMF_KIND_I4)          :: ie, indx, ii
+  integer(ESMF_KIND_I4)          :: rc_, localrc
+  integer(ESMF_KIND_I4)          :: ie, ip, ii
   integer, dimension(1:4)        :: elLocalNode
   character(len=ESMF_MAXSTR)     :: message
   logical                        :: isPresent
@@ -585,15 +585,15 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
        end do
     else
        ! nodes that construct the element will get same value
-       indx = 0
+       ip = 0
        do ie = 1, nea
           do ii = 1, i34(ie)
              elLocalNode(ii) = elnode(ii,ie)
           end do
           ! non-ghost elements
           if (ie <= ne) then
-             indx = indx+1
-             farray(elLocalNode(1:i34(ie))) = farrayPtr1(indx)
+             ip = ip+1
+             farray(elLocalNode(1:i34(ie))) = farrayPtr1(ip)
           end if
        end do
     end if
@@ -609,19 +609,18 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
        end do
     else
        ! element will get average of the nodes that construct it
-       indx = 0
+       ip = 0
        do ie = 1, nea
           do ii = 1, i34(ie)
              elLocalNode(ii) = elnode(ii,ie)
           end do
           ! non-ghost elements
           if (ie <= ne) then
-             indx = indx+1
-             farrayPtr1(indx) = sum(farray(elLocalNode(1:i34(ie))))/dble(i34(ie))
+             ip = ip+1
+             farrayPtr1(ip) = sum(farray(elLocalNode(1:i34(ie))))/dble(i34(ie))
           end if
        end do
     end if
-       print*, 'farrayPtr1 min,max = ', minval(farrayPtr1), maxval(farrayPtr1)
 
     write(message,'(A)') '--- SCHISM_StateUpdate1 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -1427,7 +1426,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! write mesh in VTK format, just for debugging
-  if (dbug) then 
+  if (debug_level > 0) then 
     call ESMF_MeshWrite(mesh2d, filename="schism_mesh", rc=rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   end if
