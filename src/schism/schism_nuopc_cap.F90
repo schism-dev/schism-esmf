@@ -330,7 +330,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   debug_level = 0
   if (isPresent .and. isSet) then
-     read(cvalue,*) debug_level
+     read(cvalue,fmt="(I)") debug_level
   end if
   write(message, '(A,I1)') trim(compName)//' debug_level is set to ', debug_level
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
