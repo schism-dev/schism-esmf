@@ -1197,7 +1197,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   integer, dimension(:), allocatable            :: nodemask, elementmask
   real(ESMF_KIND_R8), dimension(:), allocatable :: elementarea
   integer, dimension(1:4)                       :: elLocalNode
-  integer :: rank2, localrc
+  integer :: rank2, localrc,nd,nd1
   integer :: ownedCount, foreignCount
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
   integer(ESMF_KIND_I4) :: rc_
@@ -1305,9 +1305,25 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
         elLocalNode(ii)=elnode(ii,ie)
         nvcount = nvcount+1
         nv(nvcount) = elnode(ii,ie) 
-      end do
-      elementcoords2d(2*indx-1) = sum(nodecoords2d(2*elLocalNode(1:i34(ie))-1))/i34(ie)
+      end do !ii
       elementcoords2d(2*indx)   = sum(nodecoords2d(2*elLocalNode(1:i34(ie))))/i34(ie)
+      !elementcoords2d(2*indx-1) = sum(nodecoords2d(2*elLocalNode(1:i34(ie))-1))/i34(ie)
+      !lon needs care across jump
+      ownedCount=0
+      nd1=elLocalNode(1)
+      elementcoords2d(2*indx-1)=0.d0
+      do ii=2,i34(ie)
+        nd=elLocalNode(ii)
+        if(abs(nodecoords2d(2*nd1-1)-nodecoords2d(2*nd-1))<200.d0) then
+          ownedCount=ownedCount+1
+          elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)+nodecoords2d(2*nd-1)
+        endif
+      enddo !ii
+      if(ownedCount==0) then
+        !@Carsten: plz add fatal error here
+      else
+        elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)/ownedCount
+      endif
 
       ! mask
       elementmask(indx) = idry_e(ie)
