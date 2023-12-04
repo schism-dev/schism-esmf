@@ -1,13 +1,14 @@
 ! This code is part of the SCHISM-ESMF interface, it defines utility
 ! functions used both by the NUOPC and ESMF caps
 !
-! @copyright 2022 Virginia Institute of Marine Science
-! @copyright 2021-2022 Helmholtz-Zentrum Hereon
+! @copyright 2022-2023 Virginia Institute of Marine Science
+! @copyright 2021-2023 Helmholtz-Zentrum Hereon
 ! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
 !
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Joseph Zhang <yjzhang@vims.edu>
 ! @author Richard Hofmeister
+! @author Ufuk Turuncoglu
 !
 ! @license Apache License, 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -42,11 +43,11 @@ module schism_esmf_util
 #ifndef ESMF_NO_SEQUENCE
     sequence 
 #endif
-    integer(ESMF_KIND_I4), pointer  :: iarrayPtr1(:) => null()
-    real(ESMF_KIND_R8), pointer  :: farrayPtr1(:) => null()
-    real(ESMF_KIND_R8), pointer  :: farrayPtr2(:,:) => null()
-    real(ESMF_KIND_R8), pointer  :: farrayPtr3(:,:,:) => null()
-    character(len=ESMF_MAXSTR)   :: name
+    integer(ESMF_KIND_I4), pointer :: iarrayPtr1(:) => null()
+    real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
+    real(ESMF_KIND_R8), pointer    :: farrayPtr2(:,:) => null()
+    real(ESMF_KIND_R8), pointer    :: farrayPtr3(:,:,:) => null()
+    character(len=ESMF_MAXSTR)     :: name
   end type
 
   type type_InternalState
@@ -74,13 +75,12 @@ module schism_esmf_util
   public clockCreateFrmParam, SCHISM_FieldRealize
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
-  !public SCHISM_StateGetField, 
   public SCHISM_StateImportWaveTensor 
   public SCHISM_MeshCreateNode
   public SCHISM_MeshCreateElement
   public SCHISM_InitializePtrMap
-  !public SCHISM_FieldGet, SCHISM_FieldPut, 
   public SCHISM_StateUpdate, SCHISM_FieldPtrUpdate
+
   private 
 
   interface SCHISM_StateUpdate
@@ -517,11 +517,11 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
 
     write(message,'(A)') '--- obtained halo route for field '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-
   endif    
 
 end subroutine SCHISM_FieldPtrUpdate
 
+! This is the state update routine for a one-dimensional array
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate1"
 subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
@@ -601,6 +601,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
 
 end subroutine SCHISM_StateUpdate1
 
+! This is the state update routine for a two-dimensional array
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate2"
 subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
@@ -686,6 +687,8 @@ subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
 
 end subroutine SCHISM_StateUpdate2
 
+! This is the state update routine for a three-dimensional array, but 
+! currently works only on degenerate 3rd dimension arrays
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate3"
 subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
@@ -1064,7 +1067,9 @@ end subroutine SCHISM_StateFieldCreateRealize
 #define ESMF_METHOD "SCHISM_StateFieldCreate"
 subroutine SCHISM_StateFieldCreate(comp, state, name, field, kwe, rc)
 
-  use schism_glbl, only: nws,np
+  ! np is the number of nodes, nws the indicator for weather forcing
+  ! type
+  use schism_glbl, only: nws, np
 
   implicit none 
 
@@ -1167,6 +1172,7 @@ end subroutine SCHISM_StateFieldCreate
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_MeshCreateElement"
 subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
+
   use schism_glbl, only: pi
   use schism_glbl, only: np, npg, npa
   use schism_glbl, only: ne, neg, nea
@@ -1187,8 +1193,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   type(ESMF_Field)         :: field
   type(ESMF_State)         :: exportState
 
-  integer :: localPet
-  integer :: indx, ip, ie, ii, nvcount
+  integer                    :: localPet, indx, ip, ie, ii, nvcount
   character(len=ESMF_MAXSTR) :: message
   character(len=ESMF_MAXSTR) :: compName
   integer, dimension(:), allocatable            :: nodeids, elementids, nv
@@ -1197,12 +1202,13 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   integer, dimension(:), allocatable            :: nodemask, elementmask
   real(ESMF_KIND_R8), dimension(:), allocatable :: elementarea
   integer, dimension(1:4)                       :: elLocalNode
-  integer :: rank2, localrc,nd,nd1
-  integer :: ownedCount, foreignCount
+  
+  integer                       :: rank2, localrc, nd, nd1
+  integer                       :: ownedCount, foreignCount
   real(ESMF_KIND_R8), parameter :: rad2deg=180.0d0/pi
-  integer(ESMF_KIND_I4) :: rc_
+  integer(ESMF_KIND_I4)         :: rc_
 
-  type(type_InternalStateWrapper) :: internalState
+  type(type_InternalStateWrapper)   :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
 
   rc_ = ESMF_SUCCESS
@@ -1242,7 +1248,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   ! fill arrays, nodes
   indx = 0
   do ip = 1, npa
-    ! non-ghost nodes
+    ! non-ghost nodes go from 1:np, ghost nodes from np+1 to npa
     if (ip <= np) then
       ! ids
       indx = indx+1
@@ -1287,7 +1293,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   indx = 0
   nvcount = 0
   do ie = 1, nea
-    ! non-ghost elements
+    ! non-ghost elements from 1:ne, ghost ones ne+1:nea
     if (ie <= ne) then
       ! ids
       indx = indx+1
@@ -1306,10 +1312,16 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
         nvcount = nvcount+1
         nv(nvcount) = elnode(ii,ie) 
       end do !ii
+
+      ! The latitudes are saved at even positions of the 
+      ! flattened elementCoords vector
       elementcoords2d(2*indx)   = sum(nodecoords2d(2*elLocalNode(1:i34(ie))))/i34(ie)
-      if(ics==1) then
+
+      ! The longitudes are saved at odd positions of the 
+      ! flattened elementCoords vector
+      if (coordsys != ESMF_COORDSYS_SPH_DEG) then 
         elementcoords2d(2*indx-1) = sum(nodecoords2d(2*elLocalNode(1:i34(ie))-1))/i34(ie)
-      else !lon needs care across jump
+      else ! longitudes needs care across jump
         ownedCount=0
         nd1=elLocalNode(1)
         elementcoords2d(2*indx-1)=0.d0
@@ -1321,11 +1333,15 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
           endif
         enddo !ii
         if(ownedCount==0) then
-          !@Carsten: plz add fatal error here
+          write(message, '(A,I7)') trim(compName)// element without nodes: ', &
+            ie
+          call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+          localrc = ESMF_RC_ARG_SIZE
+          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)  
         else
           elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)/ownedCount
         endif
-      endif !ics
+      endif ! ESMF_COORDSYS_SPH_DEG
 
       ! mask
       elementmask(indx) = idry_e(ie)
