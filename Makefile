@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileContributor: Carsten Lemmen <carsten.lemmen@hereon.de
 # SPDX-FileContributor: Richard Hofmeister
+# SPDX-FileContributor: Panagiotis Velissariou
 
 include src/include/Rules.mk
 
@@ -42,7 +43,6 @@ LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -lpthread -lm -llapack -lblas -Wl,--allo
 endif
 endif
 
-# P. Velissariou (01/29/2023)
 # Are both metis/parmetis libraries needed in this stage of compilation?
 # If yes, then both parmetis and metis are needed; the "if" statements
 # should account for this fact (e.g., if metis is missing the compilation will fail)
