@@ -1394,7 +1394,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
 
       ! The longitudes are saved at odd positions of the 
       ! flattened elementCoords vector
-      if (coordsys != ESMF_COORDSYS_SPH_DEG) then 
+      if (coordsys /= ESMF_COORDSYS_SPH_DEG) then 
         elementcoords2d(2*indx-1) = sum(nodecoords2d(2*elLocalNode(1:i34(ie))-1))/i34(ie)
       else ! longitudes needs care across jump
         ownedCount=0
@@ -1408,8 +1408,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
           endif
         enddo !ii
         if(ownedCount==0) then
-          write(message, '(A,I7)') trim(compName)// element without nodes: ', &
-            ie
+          write(message, '(A,I7)') trim(compName)//' element without nodes: ', ie
           call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
           localrc = ESMF_RC_ARG_SIZE
           _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)  
