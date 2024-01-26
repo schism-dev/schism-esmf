@@ -325,6 +325,16 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   write(message, '(A)') trim(compName)//' meshloc is set to '//trim(cvalue)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+  ! debug option
+  call NUOPC_CompAttributeGet(comp, name='debug_level', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  debug_level = 0
+  if (isPresent .and. isSet) then
+     read(cvalue,fmt="(I)") debug_level
+  end if
+  write(message, '(A,I1)') trim(compName)//' debug_level is set to ', debug_level
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   ! init schism
   call schism_init(0, './', iths, ntime)
   write(message, '(A)') trim(compName)//' initialized science model'
@@ -335,16 +345,15 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   ! @todo this should be customized by a field dictionary-like configuration
   ! file
 
-  !call NUOPC_FieldDictionaryAddIfNeeded("surface_air_pressure", "N m-2", localrc)
   call NUOPC_FieldDictionaryAddIfNeeded("air_pressure_at_sea_level", "N m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("surface_downwelling_photosynthetic_radiative_flux", "W m-2 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("sea_surface_temperature", "K", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("temperature", "K", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("inst_temp_height2m", "K", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("salinity", "PSU", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("sea_surface_salinity", "PSU", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("inst_merid_wind_height10m", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -360,26 +369,22 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("depth-averaged_y-velocity", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("x-velocity", "m s-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("ocn_current_zonal", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("y-velocity", "m s-1", localrc)
+  call NUOPC_FieldDictionaryAddIfNeeded("ocn_current_merid", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! for coupling to ATMESH
+  ! for coupling to ATM/DATM
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
 
-  ! for coupling to WW3DATA
+  ! for coupling to WW3/WDAT
   call NUOPC_Advertise(importState, "eastward_wave_radiation_stress", rc=localrc)
   call NUOPC_Advertise(importState, "eastward_northward_wave_radiation_stress", rc=localrc)
   call NUOPC_Advertise(importState, "northward_wave_radiation_stress", rc=localrc)
-
-  ! call NUOPC_Advertise(importState, &
-  !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
-
 
   !> The mesh information is usually not in CF standard and therefore needs
   !> to be added to the FieldDictionary before advertising
@@ -399,13 +404,17 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   enddo
 
+  ! for coupling to WW3
+  call NUOPC_FieldAdvertise(exportState, "ocn_current_zonal", "m s-1", localrc)
+  call NUOPC_FieldAdvertise(exportState, "ocn_current_merid", "m s-1", localrc)
+
   call NUOPC_FieldAdvertise(exportState, "sea_surface_temperature", "K", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldAdvertise(exportState, "temperature", "K", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_FieldAdvertise(exportState, "salinity", "PSU", localrc)
+  call NUOPC_FieldAdvertise(exportState, "sea_surface_salinity", "PSU", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldAdvertise(exportState, "depth-averaged_x-velocity", "m s-1", localrc)
@@ -522,7 +531,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="northward_wave_radiation_stress", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-
   !> The list of export states is declared in InitializeAdvertise
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -597,28 +605,51 @@ end subroutine
 !> the parent's it needs to be set here.
 subroutine SetClock(comp, rc)
 
-  use schism_bmi, only : schismTimeStep
+  use schism_glbl, only : start_year, start_month, start_day, start_hour, rnday
   use schism_glbl, only : wtiminc
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Clock)              :: clock
-  type(ESMF_TimeInterval)       :: timeStep
-  integer(ESMF_KIND_I4)         :: localrc
-  real(ESMF_KIND_R8)            :: seconds
-  character(len=ESMF_MAXSTR)    :: message
+  type(ESMF_Clock)           :: driverClock, modelClock
+  type(ESMF_TimeInterval)    :: runDur, timeStep
+  type(ESMF_Time)            :: startTime, stopTime
+  integer                    :: localrc, d, h, m
+  real(ESMF_KIND_R8)         :: seconds
+  character(len=ESMF_MAXSTR) :: message
 
   rc = ESMF_SUCCESS
 
-  call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
+  call NUOPC_ModelGet(comp, driverClock=driverClock, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Set start time
+  call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, h=int(start_hour), rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Set stop time
+  d = int(rnday)
+  h = int((rnday-d)*24)
+  m = int((rnday-d)*24*60-h*60)
+  call ESMF_TimeIntervalSet(runDur, d=d, h=h, m=m, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
+  stopTime = startTime+runDur
+
+  !> Time step must be same with the driver
+  call ESMF_ClockGet(driverClock, timeStep=timeStep, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Create component clock
+  modelClock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Update component clock
+  call ESMF_GridCompSet(comp, clock=modelClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Check that wtiminc, i.e. the time between two new atmospheric inputs
-  !>  corresponds to the parent (coupling) time step
-  call ESMF_ClockGet(clock, timeStep=timeStep, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
+  !> corresponds to the parent (coupling) time step
   call ESMF_TimeIntervalGet(timeStep, s_r8=seconds, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -630,16 +661,6 @@ subroutine SetClock(comp, rc)
 
   wtiminc = seconds
 
-  !> Now get schism's internal timestep and synchronize that with the 
-  !> component's time step
-  call schismTimeStep(seconds)
-  call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  call NUOPC_CompSetClock(comp, externalClock=clock, &
-    stabilityTimeStep=timeStep, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
 end subroutine
 
 #undef ESMF_METHOD
@@ -650,30 +671,28 @@ end subroutine
 !> @todo (not registered and fully implemented yet, so not used)
 subroutine SetRunClock(comp, rc)
 
-  use schism_bmi, only : schismTimeStep
-
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
 
-  type(ESMF_Clock)              :: clock
-  type(ESMF_TimeInterval)       :: timeStep
-  integer(ESMF_KIND_I4)         :: localrc
-  real(ESMF_KIND_R8)            :: seconds
+  type(ESMF_Clock) :: driverClock, modelClock
+  type(ESMF_Time)  :: driverCurrTime
+  integer          :: localrc
 
   rc = ESMF_SUCCESS
 
-  call NUOPC_ModelGet(comp, modelClock=clock, rc=localrc)
+  !> query driver and the component clocks
+  call NUOPC_ModelGet(comp, driverClock=driverClock, modelClock=modelClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call schismTimeStep(seconds)
-  call ESMF_TimeIntervalSet(timeStep, s_r8=seconds, rc=localrc)
+  call ESMF_ClockGet(driverClock, currTime=driverCurrTime, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> @todo find integral partitioning of timesteps and
-  !> set schism's timestep temporarily
-  !> NUOPC_AdjustClock(clock, maxTimestep, rc)
+  !> set model clock to have the current start time as the driver clock
+  call ESMF_ClockSet(modelClock, currTime=driverCurrTime, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call NUOPC_CompSetClock(comp, clock, timeStep, rc=localrc)
+  !> check the component clock against the driver clock
+  call NUOPC_CompCheckSetClock(comp, driverClock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end subroutine
@@ -684,9 +703,8 @@ end subroutine
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
-  use schism_glbl,      only: uu2, vv2
-  !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
+  use schism_glbl,      only: wtiminc, dt, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
+  use schism_glbl,      only: nvrt, uu2, vv2
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
   type(ESMF_GridComp)  :: comp
@@ -700,7 +718,8 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)       :: localrc
   integer(ESMF_KIND_I8)       :: advanceCount
   integer, save               :: it=1
-  integer                     :: ip
+  integer                     :: ip, num_schism_steps
+  real(ESMF_KIND_R8)          :: seconds
 
   type(ESMF_Field) :: field
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
@@ -708,15 +727,13 @@ subroutine ModelAdvance(comp, rc)
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
 
+  character(len=ESMF_MAXSTR) :: timeStr
   character(len=ESMF_MAXSTR), allocatable :: itemNameList(:)
   type(ESMF_StateItem_Flag), allocatable  :: itemTypeList(:)
   integer(ESMF_KIND_I4)                   :: itemCount, i
   type(ESMF_FieldStatus_Flag)             :: fieldStatus 
 
   rc = ESMF_SUCCESS
-
-  !call ESMF_TraceRegionEnter("schism:ModelAdvance", rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -774,21 +791,26 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  ! call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', itemType=itemType, rc=localrc)
-  ! _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> Write fields on import state for debugging
+  if (debug_level > 0) then
+     call ESMF_TimeGet(currTime, timeStringISOFrac=timeStr , rc=rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+     call SCHISM_StateWriteVTK(importState, 'import_'//trim(timeStr), rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 
-  ! if (itemType == ESMF_STATEITEM_FIELD) then 
-  !   call ESMF_StateGet(importState, itemname='inst_zonal_wind_height10m', field=field, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  !   call SCHISM_FieldPtrUpdate(field, windx2, isPtr=isDataPtr, rc=localrc)
-  !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! endif 
+  !> Run SCHISM
+  call ESMF_TimeIntervalGet(timeStep, s_r8=seconds, rc=localrc) 
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call schism_step(it)
-  it = it + 1
+  num_schism_steps=int(seconds/dt) 
+  do i = it, it+num_schism_steps-1
+     call schism_step(i)
+     it = it + 1
+  end do
 
-  call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', eta2, &
+  !> Update fields on export state
+  call SCHISM_StateUpdate(exportState, 'sea_surface_height_above_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -800,19 +822,19 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'x-velocity', uu2, &
+  call SCHISM_StateUpdate(exportState, 'ocn_current_zonal', uu2(nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'y-velocity', vv2, &
+  call SCHISM_StateUpdate(exportState, 'ocn_current_merid', vv2(nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'temperature', tr_nd(1,:,:), &
+  call SCHISM_StateUpdate(exportState, 'sea_surface_temperature', tr_nd(1,:,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'salinity', tr_nd(2,:,:), &
+  call SCHISM_StateUpdate(exportState, 'sea_surface_salinity', tr_nd(2,:,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -820,6 +842,11 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Write fields on export state for debugging
+  if (debug_level > 0) then
+     call SCHISM_StateWriteVTK(exportState, 'export_'//trim(timeStr), rc)
+     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  end if
 end subroutine
 
 #undef ESMF_METHOD
@@ -884,5 +911,65 @@ subroutine SCHISM_RemoveUnconnectedFields(state, rc)
 
   enddo
 end subroutine SCHISM_RemoveUnconnectedFields
+
+#undef ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateWriteVTK"
+subroutine SCHISM_StateWriteVTK(state, prefix, rc)
+
+  implicit none
+
+  ! input arguments
+  type(ESMF_State), intent(in) :: state
+  character(len=*), intent(in) :: prefix
+  integer, intent(out), optional :: rc
+
+  ! local variables
+  integer :: i, itemCount
+  type(ESMF_Field) :: field
+  character(ESMF_MAXSTR), allocatable :: itemNameList(:)
+  character(len=*),parameter  :: subname='(SCHISM_StateWriteVTK)'
+
+  rc = ESMF_SUCCESS
+  call ESMF_LogWrite(trim(subname)//": called", ESMF_LOGMSG_INFO)
+
+  ! get number of fields in the state
+  call ESMF_StateGet(state, itemCount=itemCount, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  ! get item names
+  if (.not. allocated(itemNameList)) allocate(itemNameList(itemCount))
+
+  call ESMF_StateGet(state, itemNameList=itemNameList, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=__FILE__)) &
+      return  ! bail out
+
+  ! loop over fields and write them
+  do i = 1, itemCount
+     ! get field
+     call ESMF_StateGet(state, itemName=trim(itemNameList(i)), field=field, rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+
+     ! write it
+     call ESMF_FieldWriteVTK(field, trim(prefix)//'_'//trim(itemNameList(i)), rc=rc)
+     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         return  ! bail out
+  end do
+
+  ! clean temporary variables
+  if (allocated(itemNameList)) deallocate(itemNameList)
+
+  call ESMF_LogWrite(trim(subname)//": done", ESMF_LOGMSG_INFO)
+
+end subroutine SCHISM_StateWriteVTK
 
 end module schism_nuopc_cap
