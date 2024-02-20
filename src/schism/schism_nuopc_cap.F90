@@ -546,15 +546,9 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
     if (itemTypeList(i) /= ESMF_STATEITEM_FIELD) cycle
 
-    if (trim(itemNameList(i)) == 'ocean_mask') then
-      call SCHISM_FieldRealize(exportState, itemNameList(i), &
-        mesh=mesh2d, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    else
-      call SCHISM_FieldRealize(exportState, itemNameList(i), &
-        mesh=mesh2d, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    end if
+    call SCHISM_FieldRealize(exportState, itemNameList(i), &
+      mesh=mesh2d, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     write(message,'(A)') trim(compName)//' realized field '//trim(itemNameList(i))// &
       ' in its export state'
@@ -720,6 +714,7 @@ subroutine ModelAdvance(comp, rc)
   integer, save               :: it=1
   integer                     :: ip, num_schism_steps
   real(ESMF_KIND_R8)          :: seconds
+  real(ESMF_KIND_R8), allocatable, save :: idry_r8(:)
 
   type(ESMF_Field) :: field
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:)
@@ -838,7 +833,14 @@ subroutine ModelAdvance(comp, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_e, &
+  ! mediator expects mask in double rather then integer
+  if (.not. allocated(idry_r8)) then
+     allocate(idry_r8(size(idry_e)))
+     idry_r8(:) =0.0d0
+  end if
+  idry_r8(:) = dble(idry_e(:))
+
+  call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_r8, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 

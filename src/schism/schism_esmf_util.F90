@@ -572,7 +572,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   call ESMF_StateGet(state, stateintent=intent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  if (isPresent) then 
+  if (isPresent .and. meshloc == ESMF_MESHLOC_NODE) then
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif    
@@ -601,6 +601,9 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
     write(message,'(A)') '--- SCHISM_StateUpdate1 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+    write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farray), maxval(farray), sum(farray), size(farray)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   elseif (intent == ESMF_STATEINTENT_EXPORT) then 
 
     if (meshloc == ESMF_MESHLOC_NODE) then
@@ -608,21 +611,38 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
           farrayPtr1(ip) = farray(isPtr%ownedNodeIds(ip))
        end do
     else
-       ! element will get average of the nodes that construct it
-       ip = 0
-       do ie = 1, nea
-          do ii = 1, i34(ie)
-             elLocalNode(ii) = elnode(ii,ie)
+       ! check if input is on element or node
+       if (size(farray) == nea) then ! element
+          ! one-to-one map
+          ip = 0
+          do ie = 1, nea
+             ! non-ghost elements
+             if (ie <= ne) then
+                ip = ip+1
+                farray(ip) = farrayPtr1(ip)
+             end if
           end do
-          ! non-ghost elements
-          if (ie <= ne) then
-             ip = ip+1
-             farrayPtr1(ip) = sum(farray(elLocalNode(1:i34(ie))))/dble(i34(ie))
-          end if
-       end do
+       else ! node
+          ! element will get average of the nodes that construct it
+          ip = 0
+          do ie = 1, nea
+             do ii = 1, i34(ie)
+                elLocalNode(ii) = elnode(ii,ie)
+             end do
+             ! non-ghost elements
+             if (ie <= ne) then
+                ip = ip+1
+                farrayPtr1(ip) = sum(farray(elLocalNode(1:i34(ie))))/dble(i34(ie))
+             end if
+          end do
+       end if
     end if
 
     write(message,'(A)') '--- SCHISM_StateUpdate1 exported '//trim(name)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+    write(message,'(A,3G14.7,I8,L)') '--- '//trim(name), minval(farrayPtr1), maxval(farrayPtr1), &
+       sum(farrayPtr1), size(farrayPtr1), size(farray) == nea
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   else 
@@ -630,7 +650,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif    
 
-  if (isPresent) then 
+  if (isPresent .and. meshloc == ESMF_MESHLOC_NODE) then
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif 
@@ -862,7 +882,7 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
   call ESMF_StateGet(state, stateintent=intent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  if (isPresent) then
+  if (isPresent .and. meshloc == ESMF_MESHLOC_NODE) then
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
@@ -891,6 +911,9 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
     write(message,'(A)') '--- SCHISM_StateUpdate4 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+    write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farray), maxval(farray), sum(farray), size(farray)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
   elseif (intent == ESMF_STATEINTENT_EXPORT) then
 
     if (meshloc == ESMF_MESHLOC_NODE) then
@@ -915,12 +938,14 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
     write(message,'(A)') '--- SCHISM_StateUpdate4 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
+    write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farrayPtr1), maxval(farrayPtr1), sum(farrayPtr1), size(farrayPtr1)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   else
     write(message,'(A)') '--- SCHISM_StateUpdate4 skipped unspecified intent'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
-  if (isPresent) then
+  if (isPresent .and. meshloc == ESMF_MESHLOC_NODE) then
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
