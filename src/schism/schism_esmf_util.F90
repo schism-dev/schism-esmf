@@ -619,7 +619,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
              ! non-ghost elements
              if (ie <= ne) then
                 ip = ip+1
-                farray(ip) = farrayPtr1(ip)
+                farrayPtr1(ip) = farray(ip)
              end if
           end do
        else ! node
