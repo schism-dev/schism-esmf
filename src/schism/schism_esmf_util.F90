@@ -70,7 +70,7 @@ module schism_esmf_util
   end type
 
   type(ESMF_MeshLoc) :: meshloc
-  logical :: debug_level 
+  integer :: debug_level
 
   public meshloc, debug_level 
   public clockCreateFrmParam, SCHISM_FieldRealize
@@ -525,7 +525,7 @@ end subroutine SCHISM_FieldPtrUpdate
 ! This is the state update routine for a one-dimensional array
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_StateUpdate1"
-subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
+subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
 
   use schism_glbl, only: ne, neg, nea
   use schism_glbl, only: i34, elnode
@@ -535,7 +535,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   real(ESMF_KIND_R8),  intent(inout), target        :: farray(:)
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
   type(type_InternalState), pointer, intent(in)     :: isPtr
-  
+  logical, intent(in), optional                     :: onElement
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
   type(ESMF_Field)               :: field
@@ -544,12 +544,15 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   integer(ESMF_KIND_I4)          :: ie, ip, ii
   integer, dimension(1:4)        :: elLocalNode
   character(len=ESMF_MAXSTR)     :: message
-  logical                        :: isPresent
+  logical                        :: isPresent, eFlag
   type(ESMF_StateIntent_Flag)    :: intent
   type(ESMF_StateItem_Flag)      :: itemType
 
   localrc = ESMF_SUCCESS 
   if (present(rc)) rc = ESMF_SUCCESS
+
+  eFlag = .false.
+  if (present(onElement)) eFlag = onElement
 
   call ESMF_StateGet(state, itemname=trim(name), itemType=itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
@@ -612,7 +615,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
        end do
     else
        ! check if input is on element or node
-       if (size(farray) == nea) then ! element
+       if (eFlag) then ! element
           ! one-to-one map
           ip = 0
           do ie = 1, nea

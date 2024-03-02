@@ -336,7 +336,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   debug_level = 0
   if (isPresent .and. isSet) then
-     read(cvalue,fmt="(I)") debug_level
+     read(cvalue,*) debug_level
   end if
   write(message, '(A,I1)') trim(compName)//' debug_level is set to ', debug_level
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -944,7 +944,7 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   idry_r8(:) = dble(idry_e(:))
 
   call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_r8, &
-    isPtr=isDataPtr, rc=localrc)
+    isPtr=isDataPtr, onElement=.true., rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Write fields on export state for debugging
