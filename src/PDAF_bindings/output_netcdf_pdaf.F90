@@ -64,9 +64,9 @@
       real(rkind),intent(in) :: state_p(dim_p),std_p(dim_p)
 !     local var
       integer :: itot,i,j,k,num_schism_steps
-      real,allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:),sla(:),msl(:)
-      real,allocatable :: elev_std(:),salt_std(:,:),temp_std(:,:),uu_std(:,:),vv_std(:,:),ww_std(:,:)
-      real,allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
+      real(rkind),allocatable :: elev(:),salt(:,:),temp(:,:),uu(:,:),vv(:,:),ww(:,:),sla(:),msl(:)
+      real(rkind),allocatable :: elev_std(:),salt_std(:,:),temp_std(:,:),uu_std(:,:),vv_std(:,:),ww_std(:,:)
+      real(rkind),allocatable :: tr_el(:,:,:),tr_nd(:,:,:),su2(:,:),sv2(:,:),we(:,:),zero(:,:)
       character(len=1) :: typestr
       character(len=6) :: a_4
       character(len=72) :: fdb,it_char
@@ -374,7 +374,7 @@
             end do
             !  Update we
             do i=1,nea
-               if(idry_e(j)==1) cycle
+               if(idry_e(i)==1) cycle
                do k=kbe(i)+1,nvrt
                   we(k,i)=sum(ww(k,elnode(1:i34(i),i)))/real(i34(i),rkind)
                end do

@@ -39,7 +39,11 @@ else
 ifneq (,$(findstring pgf,$(ESMF_FC)))
   F90FLAGS += -O3 -fast -Mr8 -Mr8intrinsics -Mbyteswapio -Mpreprocess # modern version of -r8
 else
+ifneq (,$(findstring ifx,$(ESMF_FC)))
+  F90FLAGS += -r8 -xHOST -O3 #Change to PDAF setting #-real-size 64 # make only real double precision
+else
 $(error "Promotion of real to 8 byte not implemented for $(ESMF_FC)")
+endif # intel-ifx
 endif # pg
 endif # nag
 endif # intel

@@ -31,8 +31,10 @@ ifeq ($(USE_PDAF),ON)
 LDFLAGS+= -L$(PDAF_LIB_DIR) -lpdaf-d 
 endif
 ifeq ($(ESMF_COMPILER), intel)
-LDFLAGS+=-mkl -lpthread -lm -ldl
-LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
+#LDFLAGS+=-mkl -lpthread -lm -ldl
+LDFLAGS+=-qmkl #-lpthread -lm -ldl
+#LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
+LDFLAGS+= -L$(SCHISM_BUILD_DIR)/lib -L. -Wl,--start-group  $(MKLROOT)/lib/libmkl_intel_lp64.a $(MKLROOT)/lib/libmkl_intel_thread.a $(MKLROOT)/lib/libmkl_core.a -Wl,--end-group -qopenmp -lpthread -lm
 else
 ifeq ($(ESMF_COMPILER), gfortran)
 # @todo still some lapack routines missing, so we need to link with either
@@ -53,7 +55,7 @@ endif
 # as follows:
 NO_PARMETIS := $(shell echo ${SCHISM_NO_PARMETIS} | tr '[:lower:]' '[:upper:]')
 ifeq ($(NO_PARMETIS),OFF)
-  METIS_LDFLAGS =
+  METIS_LDFLAGS = -L$(SCHISM_BUILD_DIR)/lib
   ifneq ($(PARMETISHOME),)
     METIS_LDFLAGS := -L$(PARMETISHOME)/lib
   endif
