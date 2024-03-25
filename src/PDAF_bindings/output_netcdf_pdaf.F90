@@ -26,6 +26,7 @@
     module output_schism_pdaf
     use schism_glbl, only: nea,nsa,npa,nvrt,idry,idry_e,idry_s,znl,id_out_var,kbp,rkind,&
                    & np,ne,ns,time_stamp,iplg,xnd,ynd,rnday,dt,kbe,elnode,i34,kbs,isidenode,&
+                   & tempmin,tempmax,saltmin,saltmax,&
                    & nsteps_from_cold,cumsum_eta,windx,windy
     use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
@@ -115,6 +116,7 @@
          do k=1,nvrt
             itot=itot+1
             temp(k,i)=state_p(itot)
+            if(temp(k,i)<tempmin.or.temp(k,i)>tempmax) temp(k,i)=max(tempmin,min(temp(k,i),tempmax))
             temp_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
@@ -126,6 +128,7 @@
          do k=1,nvrt
             itot=itot+1
             salt(k,i)=state_p(itot)
+            if(salt(k,i)<saltmin.or.salt(k,i)>saltmax) salt(k,i)=max(saltmin,min(salt(k,i),saltmax))
             salt_std(k,i)=std_p(itot)
          end do
          do k=1,kbp(i)-1 ! extrapolation
