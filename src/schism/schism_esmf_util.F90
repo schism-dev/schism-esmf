@@ -507,9 +507,6 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  write(message,'(A,2g14.7)') 'min, max = ', minval(farrayPtr1), maxval(farrayPtr1)
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-  
   if (meshloc == ESMF_MESHLOC_NODE) then
      do ip = 1, isPtr%numOwnedNodes
         farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
