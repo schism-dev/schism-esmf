@@ -458,6 +458,10 @@ end subroutine SCHISM_InitializePtrMap
 #define ESMF_METHOD "SCHISM_FieldPtrUpdate"
 subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
 
+  use schism_glbl, only: ne, neg, nea
+  use schism_glbl, only: i34, elnode
+  implicit none
+
   type(ESMF_Field), intent(inout)                   :: field
   real(ESMF_KIND_R8),  intent(inout), target        :: farray(:)
   type(ESMF_KeywordEnforcer), intent(in), optional  :: kwe
@@ -466,7 +470,8 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
   integer(ESMF_KIND_I4), intent(out), optional      :: rc
 
   real(ESMF_KIND_R8), pointer    :: farrayPtr1(:) => null()
-  integer(ESMF_KIND_I4)          :: rc_, localrc, ip
+  integer(ESMF_KIND_I4)          :: rc_, localrc, ip, ie, ii
+  integer, dimension(1:4)        :: elLocalNode
   character(len=ESMF_MAXSTR)     :: message, name
   logical                        :: isPresent
 
@@ -501,10 +506,25 @@ subroutine SCHISM_FieldPtrUpdate(field, farray, kwe, isPtr, rc)
 
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  
-  do ip = 1, isPtr%numOwnedNodes
-    farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
-  end do
+
+  if (meshloc == ESMF_MESHLOC_NODE) then
+     do ip = 1, isPtr%numOwnedNodes
+        farray(isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
+     end do
+  else
+     ! nodes that construct the element will get same value
+     ip = 0
+     do ie = 1, nea
+        do ii = 1, i34(ie)
+           elLocalNode(ii) = elnode(ii,ie)
+        end do
+        ! non-ghost elements
+        if (ie <= ne) then
+           ip = ip+1
+           farray(elLocalNode(1:i34(ie))) = farrayPtr1(ip)
+        end if
+     end do
+  end if
 
   !> The following seems to overwrite valid data, so we cannot do this
   !do ip = 1,isPtr%numForeignNodes
@@ -2524,9 +2544,9 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
   type(ESMF_StateItem_Flag)  :: itemType
 
   real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
-  real(ESMF_KIND_R8), pointer :: eastward_wave_radiation_stress(:) => null()
-  real(ESMF_KIND_R8), pointer :: eastward_northward_wave_radiation_stress(:) => null()
-  real(ESMF_KIND_R8), pointer :: northward_wave_radiation_stress(:) => null()
+  real(ESMF_KIND_R8), allocatable :: eastward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), allocatable :: eastward_northward_wave_radiation_stress(:)
+  real(ESMF_KIND_R8), allocatable :: northward_wave_radiation_stress(:)
 
   if (present(rc)) rc=ESMF_SUCCESS
   localrc = ESMF_SUCCESS
@@ -2550,11 +2570,15 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
     call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    allocate(eastward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    allocate(eastward_wave_radiation_stress(np), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    eastward_wave_radiation_stress(:) = 0.0d0
 
-    eastward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
-  
+    eastward_wave_radiation_stress(:) = farrayPtr1(1:np)
+
+    write(message,'(A,2g14.7)') 'eastward_wave_radiation_stress = ', &
+      minval(eastward_wave_radiation_stress), maxval(eastward_wave_radiation_stress)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   endif 
 
   call ESMF_StateGet(state, itemname='eastward_northward_wave_radiation_stress', itemType=itemType, rc=localrc)
@@ -2567,10 +2591,14 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
     call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    allocate(eastward_northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    allocate(eastward_northward_wave_radiation_stress(np), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    eastward_northward_wave_radiation_stress(:) = 0.0d0
 
-    eastward_northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+    write(message,'(A,2g14.7)') 'eastward_northward_wave_radiation_stress = ', &
+      minval(farrayPtr1), maxval(farrayPtr1)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    eastward_northward_wave_radiation_stress(:) = farrayPtr1(1:np)
   endif 
 
   call ESMF_StateGet(state, itemname='northward_wave_radiation_stress', itemType=itemType, rc=localrc)
@@ -2583,11 +2611,17 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
     call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    allocate(northward_wave_radiation_stress(isPtr%numOwnedNodes), stat=localrc)
+    allocate(northward_wave_radiation_stress(np), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    northward_wave_radiation_stress(:) = 0.0d0
 
-    northward_wave_radiation_stress(:) = farrayPtr1(1:isPtr%numOwnedNodes)
+    write(message,'(A,2g14.7)') 'northward_wave_radiation_stress = ', &
+      minval(farrayPtr1), maxval(farrayPtr1)
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    northward_wave_radiation_stress(:) = farrayPtr1(1:np)
   endif 
+
+  write(message,'(A)') '--- skipped computing of wave stress'
 
   call compute_wave_force_lon(eastward_wave_radiation_stress, & 
     eastward_northward_wave_radiation_stress,northward_wave_radiation_stress)
