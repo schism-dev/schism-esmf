@@ -77,6 +77,7 @@ module schism_esmf_util
   public type_InternalState, type_InternalStateWrapper
   public SCHISM_StateFieldCreateRealize,SCHISM_StateFieldCreate
   public SCHISM_StateImportWaveTensor 
+  public SCHISM_StateImportWave3dVortex
   public SCHISM_MeshCreateNode
   public SCHISM_MeshCreateElement
   public SCHISM_InitializePtrMap
@@ -2632,5 +2633,251 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
   deallocate(farrayPtr1)
   
 end subroutine SCHISM_StateImportWaveTensor
+
+#undef  ESMF_METHOD
+#define ESMF_METHOD "SCHISM_StateImportWave3dVortex"
+subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
+
+  use schism_glbl, only: np
+  implicit none
+
+  type(ESMF_State), intent(in)                  :: state
+  type(type_InternalState), pointer, intent(in) :: isPtr
+  integer(ESMF_KIND_I4), intent(out), optional  :: rc
+
+  type(ESMF_Field)          :: field
+  type(ESMF_StateItem_Flag) :: itemType
+  character(len=ESMF_MAXSTR) :: message
+  integer(ESMF_KIND_I4)      :: localrc
+
+  real(ESMF_KIND_R8), pointer :: farrayPtr1(:) => null()
+  real(ESMF_KIND_R8), allocatable :: Sw_hs(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_bhd(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_tauox(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_tauoy(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_taubblx(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_taubbly(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_ubrx(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_ubry(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_thm(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_t0m1(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_wnmean(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_ustokes(:)
+  real(ESMF_KIND_R8), allocatable :: Sw_vstokes(:)
+
+  if (present(rc)) rc=ESMF_SUCCESS
+  localrc = ESMF_SUCCESS
+
+  allocate(farrayPtr1(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call ESMF_StateGet(state, itemname='Sw_hs', itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  if (itemType /= ESMF_STATEITEM_FIELD) then
+    write(message,'(A)') '--- skipped coupling with wave through vortex formulation'
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    return
+  endif
+
+  call ESMF_StateGet(state, itemname='Sw_hs', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_hs(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_hs(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_hs = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_hs(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_bhd', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_bhd(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_bhd(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_bhd = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_bhd(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_tauox', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_tauox(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_tauox(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_tauox = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_tauox(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_tauoy', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_tauoy(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_tauoy(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_tauoy = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_tauoy(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_taubblx', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_taubblx(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_taubblx(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_taubblx = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_taubblx(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_taubbly', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_taubbly(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_taubbly(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_taubbly = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_taubbly(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_ubrx', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_ubrx(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_ubrx(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_ubrx = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_ubrx(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_ubry', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_ubry(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_ubry(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_ubry = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_ubry(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_thm', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_thm(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_thm(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_thm = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_thm(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_t0m1', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_t0m1(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_t0m1(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_t0m1 = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_t0m1(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_wnmean', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_wnmean(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_wnmean(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_wnmean = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_wnmean(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_ustokes', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_ustokes(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_ustokes(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_ustokes = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_ustokes(:) = farrayPtr1(1:np)
+
+  call ESMF_StateGet(state, itemname='Sw_vstokes', field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  allocate(Sw_vstokes(np), stat=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  Sw_vstokes(:) = 0.0d0
+
+  write(message,'(A,2g14.7)') 'Sw_vstokes = ', &
+    minval(farrayPtr1), maxval(farrayPtr1)
+  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  Sw_vstokes(:) = farrayPtr1(1:np)
+
+  call get_WW3_arrays(Sw_hs,Sw_thm,Sw_t0m1,Sw_wnmean,Sw_bhd,Sw_ustokes,Sw_vstokes,&
+      Sw_tauox,Sw_tauoy,Sw_taubblx,Sw_taubbly,Sw_ubrx,Sw_ubry)
+
+end subroutine SCHISM_StateImportWave3dVortex
 
 end module schism_esmf_util
