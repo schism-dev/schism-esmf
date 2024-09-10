@@ -2671,7 +2671,7 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   allocate(farrayPtr1(np), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateGet(state, itemname='Sw_hs', itemType=itemType, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_wave_significant_height', itemType=itemType, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   if (itemType /= ESMF_STATEITEM_FIELD) then
@@ -2680,7 +2680,7 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
     return
   endif
 
-  call ESMF_StateGet(state, itemname='Sw_hs', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_wave_significant_height', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2690,12 +2690,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_hs(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_hs = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_wave_significant_height = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_hs(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_bhd', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_water_waves_effect_on_currents_bernoulli_head_adjustment', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2705,12 +2705,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_bhd(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_bhd = ', &
+  write(message,'(A,2g14.7)') 'sea_water_waves_effect_on_currents_bernoulli_head_adjustment = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_bhd(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_tauox', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_x_stress_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2720,12 +2720,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_tauox(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_tauox = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_x_stress_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_tauox(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_tauoy', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_y_stress_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2735,12 +2735,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_tauoy(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_tauoy = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_y_stress_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_tauoy(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_taubblx', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_bottom_upward_x_stress_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2750,12 +2750,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_taubblx(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_taubblx = ', &
+  write(message,'(A,2g14.7)') 'sea_bottom_upward_x_stress_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_taubblx(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_taubbly', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_bottom_upward_y_stress_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2765,12 +2765,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_taubbly(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_taubbly = ', &
+  write(message,'(A,2g14.7)') 'sea_bottom_upward_y_stress_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_taubbly(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_ubrx', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_bed_orbital_x_velocity_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2780,12 +2780,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_ubrx(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_ubrx = ', &
+  write(message,'(A,2g14.7)') 'sea_bed_orbital_x_velocity_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_ubrx(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_ubry', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_bed_orbital_y_velocity_due_to_waves', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2795,12 +2795,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_ubry(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_ubry = ', &
+  write(message,'(A,2g14.7)') 'sea_bed_orbital_y_velocity_due_to_waves = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_ubry(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_thm', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_wave_mean_direction', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2810,12 +2810,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_thm(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_thm = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_wave_mean_direction = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_thm(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_t0m1', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_wave_mean_period', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2825,12 +2825,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_t0m1(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_t0m1 = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_wave_mean_period = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_t0m1(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_wnmean', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='sea_surface_wave_mean_number', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2840,12 +2840,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_wnmean(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_wnmean = ', &
+  write(message,'(A,2g14.7)') 'sea_surface_wave_mean_number = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_wnmean(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_ustokes', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='eastward_surface_stokes_drift_current', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2855,12 +2855,12 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_ustokes(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_ustokes = ', &
+  write(message,'(A,2g14.7)') 'eastward_surface_stokes_drift_current = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_ustokes(:) = farrayPtr1(1:np)
 
-  call ESMF_StateGet(state, itemname='Sw_vstokes', field=field, rc=localrc)
+  call ESMF_StateGet(state, itemname='northward_surface_stokes_drift_current', field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_FieldPtrUpdate(field, farrayPtr1, isPtr=isPtr, rc=localrc)
@@ -2870,7 +2870,7 @@ subroutine SCHISM_StateImportWave3dVortex(state, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   Sw_vstokes(:) = 0.0d0
 
-  write(message,'(A,2g14.7)') 'Sw_vstokes = ', &
+  write(message,'(A,2g14.7)') 'northward_surface_stokes_drift_current = ', &
     minval(farrayPtr1), maxval(farrayPtr1)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   Sw_vstokes(:) = farrayPtr1(1:np)

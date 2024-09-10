@@ -390,19 +390,19 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
 
   ! for coupling to WW3/WDAT
-  call NUOPC_Advertise(importState, "Sw_hs", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_bhd", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_tauox", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_tauoy", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_taubblx", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_taubbly", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_ubrx", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_ubry", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_thm", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_t0m1", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_wnmean", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_ustokes", rc=localrc)
-  call NUOPC_Advertise(importState, "Sw_vstokes", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_wave_significant_height", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_water_waves_effect_on_currents_bernoulli_head_adjustment", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_x_stress_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_y_stress_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_bottom_upward_x_stress_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_bottom_upward_y_stress_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_bed_orbital_x_velocity_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_bed_orbital_y_velocity_due_to_waves", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_wave_mean_direction", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_wave_mean_period", rc=localrc)
+  call NUOPC_Advertise(importState, "sea_surface_wave_mean_number", rc=localrc)
+  call NUOPC_Advertise(importState, "eastward_surface_stokes_drift_current", rc=localrc)
+  call NUOPC_Advertise(importState, "northward_surface_stokes_drift_current", rc=localrc)
   call NUOPC_Advertise(importState, "eastward_wave_radiation_stress", rc=localrc)
   call NUOPC_Advertise(importState, "eastward_northward_wave_radiation_stress", rc=localrc)
   call NUOPC_Advertise(importState, "northward_wave_radiation_stress", rc=localrc)
@@ -540,55 +540,55 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_hs", field=field, rc=localrc)
+    name="sea_surface_wave_significant_height", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_bhd", field=field, rc=localrc)
+    name="sea_water_waves_effect_on_currents_bernoulli_head_adjustment", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_tauox", field=field, rc=localrc)
+    name="sea_surface_x_stress_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_tauoy", field=field, rc=localrc)
+    name="sea_surface_y_stress_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_taubblx", field=field, rc=localrc)
+    name="sea_bottom_upward_x_stress_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_taubbly", field=field, rc=localrc)
+    name="sea_bottom_upward_y_stress_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_ubrx", field=field, rc=localrc)
+    name="sea_bed_orbital_x_velocity_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_ubry", field=field, rc=localrc)
+    name="sea_bed_orbital_y_velocity_due_to_waves", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_thm", field=field, rc=localrc)
+    name="sea_surface_wave_mean_direction", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_t0m1", field=field, rc=localrc)
+    name="sea_surface_wave_mean_period", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_wnmean", field=field, rc=localrc)
+    name="sea_surface_wave_mean_number", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_ustokes", field=field, rc=localrc)
+    name="eastward_surface_stokes_drift_current", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
-    name="Sw_vstokes", field=field, rc=localrc)
+    name="northward_surface_stokes_drift_current", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo add more atmospheric fields (like humidity)
