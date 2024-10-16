@@ -8,23 +8,20 @@ module schism_driver_interfaces
       integer, optional :: communicator
     end subroutine parallel_init
 
-
     subroutine parallel_finalize
       implicit none
     end subroutine parallel_finalize
 
-
-    subroutine schism_init(indir,iths,ntime)
+    subroutine schism_init(indir, iths, ntime)
       implicit none
       character(len=*), intent(in) :: indir
-      integer, intent(out)         :: iths,ntime
+      integer, intent(out) :: iths, ntime
     end subroutine schism_init
 
     subroutine schism_step(it)
       implicit none
       integer, intent(in) :: it
     end subroutine schism_step
-
 
     subroutine schism_finalize()
       implicit none

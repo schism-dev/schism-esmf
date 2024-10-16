@@ -10,7 +10,7 @@
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !
-! 		http://www.apache.org/licenses/LICENSE-2.0
+!                 http://www.apache.org/licenses/LICENSE-2.0
 !
 ! Unless required by applicable law or agreed to in writing, software
 ! distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,38 +33,38 @@ program main
 
   use esmf
   use schism_esmf_cap, only: schismSetServices => SetServices
-  use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
+  use atmosphere_cmi_esmf, only: atmosSetServices => SetServices
 
   implicit none
 
   interface
     function clockCreateFrmParam(filename, rc)
       use esmf
-        character(len=ESMF_MAXSTR), intent(in) :: filename
-        integer(ESMF_KIND_I4), intent(out)     :: rc
-        type(ESMF_Clock)                       :: clockCreateFrmParam
+      character(len=ESMF_MAXSTR), intent(in) :: filename
+      integer(ESMF_KIND_I4), intent(out) :: rc
+      type(ESMF_Clock) :: clockCreateFrmParam
     end function clockCreateFrmParam
   end interface
 
-  type(ESMF_GridComp)     :: schism_component
-  type(ESMF_GridComp)     :: atmos_component
+  type(ESMF_GridComp) :: schism_component
+  type(ESMF_GridComp) :: atmos_component
 
-  type(ESMF_State)        :: schism_import, schism_export
-  type(ESMF_State)        :: atmos_import, atmos_export
+  type(ESMF_State) :: schism_import, schism_export
+  type(ESMF_State) :: atmos_import, atmos_export
 
   type(ESMF_TimeInterval) :: timestep
-  type(ESMF_Time)         :: start_time, stop_time
-  type(ESMF_Clock)        :: clock
+  type(ESMF_Time) :: start_time, stop_time
+  type(ESMF_Clock) :: clock
 
-  type(ESMF_Field)        :: field,field_in,field_out
-  type(ESMF_RouteHandle)  :: routehandle_air2sea, routehandle_sea2air
-  type(ESMF_Vm)           :: vm
+  type(ESMF_Field) :: field, field_in, field_out
+  type(ESMF_RouteHandle) :: routehandle_air2sea, routehandle_sea2air
+  type(ESMF_Vm) :: vm
 
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, inum, localrc
-  integer, allocatable        :: petlist_schism(:),petlist_atmos(:)
+  integer(ESMF_KIND_I4) :: rc, petCount, i, inum, localrc
+  integer, allocatable :: petlist_schism(:), petlist_atmos(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
-  logical                     :: isPresent
-  character(len=ESMF_MAXSTR)  :: filename
+  logical :: isPresent
+  character(len=ESMF_MAXSTR) :: filename
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -80,33 +80,33 @@ program main
   call ESMF_VMGet(vm, petCount=petCount, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(petlist_schism(max(1,petcount-1)), stat=localrc)
+  allocate (petlist_schism(max(1, petcount - 1)), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  do i=1, max(1, petcount-1)
-    petlist_schism(i)=i-1 !0 based
+  do i = 1, max(1, petcount - 1)
+    petlist_schism(i) = i - 1 !0 based
   end do
-  allocate(petlist_atmos(1))
-  petlist_atmos(1) = petcount-1
+  allocate (petlist_atmos(1))
+  petlist_atmos(1) = petcount - 1
 
   ! Create both components on their respective parallel
   ! environment provided by each petList, then register
   ! the components entry points.
 
   schism_component = ESMF_GridCompCreate(name='schism_component', &
-    petList=petlist_schism, rc=localrc)
+                                         petList=petlist_schism, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   atmos_component = ESMF_GridCompCreate(name='atmosphere_component', &
-    petList=petlist_atmos, rc=localrc)
+                                        petList=petlist_atmos, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(schism_component, &
-    schismSetServices, rc=localrc)
+                                schismSetServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(atmos_component, &
-    atmosSetServices, rc=localrc)
+                                atmosSetServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Create states for exchange of information between
@@ -144,12 +144,12 @@ program main
 
   ! Initialize SCHISM
   call ESMF_GridCompInitialize(schism_component, &
-    importState=schism_import, &
-    exportState=schism_export, clock=clock, rc=localrc)
+                               importState=schism_import, &
+                               exportState=schism_export, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
-    exportState=atmos_export, clock=clock, rc=localrc)
+                               exportState=atmos_export, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Make sure that all states are reconciled across the
@@ -163,36 +163,36 @@ program main
   ! Within the schism component, the following fields are
   ! defined for import and export (y-component not implemented yet)
   call ESMF_StateGet(schism_import, 'wind_x-velocity_in_10m_height', &
-    field=field_out, rc=localrc)
+                     field=field_out, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  call ESMF_StateGet(atmos_export,'wind_x-velocity', &
-    field=field_in, rc=localrc)
+  call ESMF_StateGet(atmos_export, 'wind_x-velocity', &
+                     field=field_in, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Precompute the weights
   call ESMF_FieldRegridStore(field_in, field_out, &
-    regridMethod =  ESMF_REGRIDMETHOD_BILINEAR, &
-    routehandle=routehandle_air2sea, unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
-    rc=localrc)
+                             regridMethod=ESMF_REGRIDMETHOD_BILINEAR, &
+                             routehandle=routehandle_air2sea, unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+                             rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! Loop over coupling timesteps until stopTime
-  do while ( .not. (ESMF_ClockIsStopTime(clock)))
+  do while (.not. (ESMF_ClockIsStopTime(clock)))
 
     !> Directly manipulate the fields from import and export
     !> states.  In less basic applications, this should be
     !> handled by a mediator component.
     call ESMF_FieldRegrid(field_in, field_out, &
-      routeHandle=routehandle_air2sea, rc=localrc)
+                          routeHandle=routehandle_air2sea, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
-      exportState=atmos_export, clock=clock, rc=localrc)
+                          exportState=atmos_export, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_GridCompRun(schism_component, importState=schism_import, &
-      exportState=schism_export, clock=clock, rc=localrc)
+                          exportState=schism_export, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_ClockAdvance(clock, rc=localrc)
@@ -201,7 +201,7 @@ program main
 
   !> Clean up
   call ESMF_GridCompFinalize(schism_component, importState=schism_import, &
-    exportState=schism_export, clock=clock, rc=localrc)
+                             exportState=schism_export, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
@@ -235,36 +235,36 @@ function clockCreateFrmParam(filename, rc) result(clock)
   implicit none
 
   character(len=ESMF_MAXSTR), intent(in) :: filename
-  integer(ESMF_KIND_I4), intent(out)     :: rc
-  type(ESMF_Clock)                       :: clock
+  integer(ESMF_KIND_I4), intent(out) :: rc
+  type(ESMF_Clock) :: clock
 
-  logical               :: isPresent
+  logical :: isPresent
   integer(ESMF_KIND_I4) :: unit, localrc
-  type(ESMF_Time)       :: stopTime, startTime
+  type(ESMF_Time) :: stopTime, startTime
   type(ESMF_TimeInterval) :: timeStep
 
-  integer(ESMF_KIND_I4) :: start_year=2000, start_month=1, start_day=1
-  integer(ESMF_KIND_I4) :: start_hour=0, rnday=2 !rnday in hours
+  integer(ESMF_KIND_I4) :: start_year = 2000, start_month = 1, start_day = 1
+  integer(ESMF_KIND_I4) :: start_hour = 0, rnday = 2 !rnday in hours
   namelist /global/ start_year, start_month, start_day, start_hour, rnday
 
-  inquire(file=filename, exist=isPresent)
+  inquire (file=filename, exist=isPresent)
   if (isPresent) then
 
     call ESMF_UtilIOUnitGet(unit, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    open(unit, file=filename, iostat=localrc)
+    open (unit, file=filename, iostat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    read(unit, nml=global, iostat=localrc)
+    read (unit, nml=global, iostat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    close(unit)
-  endif
+    close (unit)
+  end if
 
   ! Set day as timestep temporarily to count later to stop time
   call ESMF_TimeSet(startTime, yy=start_year, mm=start_month, dd=start_day, &
-    h=start_hour, rc=localrc)
+                    h=start_hour, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_TimeIntervalSet(timeStep, h=rnday, rc=localrc)
@@ -277,7 +277,7 @@ function clockCreateFrmParam(filename, rc) result(clock)
   timeStep = timeStep / 24
 
   clock = ESMF_ClockCreate(timeStep, startTime, stopTime=stopTime, &
-    name='main clock', rc=localrc)
+                           name='main clock', rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 end function clockCreateFrmParam

@@ -10,7 +10,7 @@
 ! you may not use this file except in compliance with the License.
 ! You may obtain a copy of the License at
 !
-! 		http://www.apache.org/licenses/LICENSE-2.0
+!                 http://www.apache.org/licenses/LICENSE-2.0
 !
 ! Unless required by applicable law or agreed to in writing, software
 ! distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,33 +34,33 @@ program main
   use esmf
   use schism_esmf_util, only: clockCreateFrmParam
   use schism_esmf_cap, only: schismSetServices => SetServices
-  use atmosphere_cmi_esmf,  only: atmosSetServices => SetServices
+  use atmosphere_cmi_esmf, only: atmosSetServices => SetServices
 
   implicit none
 
   type(ESMF_GridComp), allocatable :: schism_components(:)
-  type(ESMF_GridComp)     :: atmos_component
+  type(ESMF_GridComp) :: atmos_component
 
-  type(ESMF_State), allocatable   :: schism_imports(:), schism_exports(:)
-  type(ESMF_State)        :: atmos_import, atmos_export
+  type(ESMF_State), allocatable :: schism_imports(:), schism_exports(:)
+  type(ESMF_State) :: atmos_import, atmos_export
 
   type(ESMF_TimeInterval) :: timestep
-  type(ESMF_Time)         :: start_time, stop_time
-  type(ESMF_Clock)        :: clock
+  type(ESMF_Time) :: start_time, stop_time
+  type(ESMF_Clock) :: clock
 
-  type(ESMF_Field)               :: field, field_in
-  type(ESMF_Field), allocatable  :: fields_out(:)
+  type(ESMF_Field) :: field, field_in
+  type(ESMF_Field), allocatable :: fields_out(:)
 
-  type(ESMF_RouteHandle)  :: routehandle_sea2air
-  type(ESMF_RouteHandle), allocatable  :: routehandles_air2sea(:)
-  type(ESMF_Vm)           :: vm
+  type(ESMF_RouteHandle) :: routehandle_sea2air
+  type(ESMF_RouteHandle), allocatable :: routehandles_air2sea(:)
+  type(ESMF_Vm) :: vm
 
-  integer(ESMF_KIND_I4)       :: petCountLocal, schismCount=3
-  integer(ESMF_KIND_I4)       :: rc, petCount, i, j, inum, localrc
-  integer(ESMF_KIND_I4), allocatable    :: petlist(:)
+  integer(ESMF_KIND_I4) :: petCountLocal, schismCount = 3
+  integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc
+  integer(ESMF_KIND_I4), allocatable :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
-  logical                     :: isPresent
-  character(len=ESMF_MAXSTR)  :: filename, message
+  logical :: isPresent
+  character(len=ESMF_MAXSTR) :: filename, message
 
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -78,35 +78,34 @@ program main
 
   ! Create all components on their respective parallel
   ! environment provided by each petList
-  allocate(schism_components(schismCount))
+  allocate (schism_components(schismCount))
   do i = 1, schismCount
 
-    petCountLocal = petCount/max(1, schismCount)
-    allocate(petlist(petCountLocal), stat=localrc)
+    petCountLocal = petCount / max(1, schismCount)
+    allocate (petlist(petCountLocal), stat=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    do j=1, petCountLocal
-      petList(j)=(i-1)*petCountLocal + j - 1 ! 0 based
+    do j = 1, petCountLocal
+      petList(j) = (i - 1) * petCountLocal + j - 1 ! 0 based
     end do
 
-
-    write(message, '(A,I1)') 'schism_', i
+    write (message, '(A,I1)') 'schism_', i
     !write(0, *) trim(message), 'list=', petList, 'petCount=', petCount, petCountLocal
 
     schism_components(i) = ESMF_GridCompCreate(name=trim(message), &
-      petList=petlist, rc=localrc)
+                                               petList=petlist, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    deallocate(petList)
+    deallocate (petList)
   end do
 
-  allocate(schism_exports(schismCount))
-  allocate(schism_imports(schismCount))
+  allocate (schism_exports(schismCount))
+  allocate (schism_imports(schismCount))
 
   do i = 1, schismCount
 
     call ESMF_GridCompSetServices(schism_components(i), &
-      schismSetServices, rc=localrc)
+                                  schismSetServices, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     schism_exports(i) = ESMF_StateCreate(name='schism export state', rc=localrc)
@@ -118,7 +117,7 @@ program main
   end do
 
   atmos_component = ESMF_GridCompCreate(name='atmosphere_1', &
-    petList=(/petCount - 1/), rc=localrc)
+                                        petList=(/petCount - 1/), rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   atmos_export = ESMF_StateCreate(name='atmos export state', rc=localrc)
@@ -128,9 +127,8 @@ program main
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompSetServices(atmos_component, &
-    atmosSetServices, rc=localrc)
+                                atmosSetServices, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
 
   filename = './global.nml'
   clock = clockCreateFrmParam(filename, rc=localrc)
@@ -139,13 +137,13 @@ program main
   do i = 1, schismCount
 
     call ESMF_GridCompInitialize(schism_components(i), importState=schism_imports(i), &
-      exportState=schism_exports(i), clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+                                 exportState=schism_exports(i), clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   end do
 
   call ESMF_GridCompInitialize(atmos_component, importState=atmos_import, &
-    exportState=atmos_export, clock=clock, rc=localrc)
+                               exportState=atmos_export, clock=clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !Make sure that all states are reconciled across the
@@ -165,45 +163,45 @@ program main
 
   ! Within the schism component, the following fields are
   ! defined for import and export (y-component not implemented yet)
-  call ESMF_StateGet(atmos_export,'wind_x-velocity', &
-    field=field_in, rc=localrc)
+  call ESMF_StateGet(atmos_export, 'wind_x-velocity', &
+                     field=field_in, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(fields_out(schismCount))
-  allocate(routehandles_air2sea(schismCount))
+  allocate (fields_out(schismCount))
+  allocate (routehandles_air2sea(schismCount))
 
   do i = 1, schismCount
     call ESMF_StateGet(schism_imports(i), 'wind_x-velocity_in_10m_height', &
-      field=fields_out(i), rc=localrc)
+                       field=fields_out(i), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     ! Precompute the weights
     call ESMF_FieldRegridStore(field_in, fields_out(i), &
-      routehandle=routehandles_air2sea(i), rc=localrc)
+                               routehandle=routehandles_air2sea(i), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  enddo
+  end do
 
   ! Loop over coupling timesteps until stopTime
-  do while ( .not. (ESMF_ClockIsStopTime(clock)))
+  do while (.not. (ESMF_ClockIsStopTime(clock)))
 
     !> Directly manipulate the fields from import and export
     !> states.  In less basic applications, this should be
     !> handled by a mediator component.
-    do i=1, schismCount
+    do i = 1, schismCount
       call ESMF_FieldRegrid(field_in, fields_out(i), &
-          routeHandle=routehandles_air2sea(i), rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo
+                            routeHandle=routehandles_air2sea(i), rc=localrc)
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    end do
 
     call ESMF_GridCompRun(atmos_component, importState=atmos_import, &
-      exportState=atmos_export, clock=clock, rc=localrc)
+                          exportState=atmos_export, clock=clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    do i=1, schismCount
+    do i = 1, schismCount
       call ESMF_GridCompRun(schism_components(i), importState=schism_imports(i), &
-        exportState=schism_exports(i), clock=clock, rc=localrc)
+                            exportState=schism_exports(i), clock=clock, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    enddo
+    end do
 
     call ESMF_ClockAdvance(clock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -211,14 +209,14 @@ program main
 
   ! Clean up
 
-  deallocate(fields_out)
-  deallocate(routehandles_air2sea)
+  deallocate (fields_out)
+  deallocate (routehandles_air2sea)
 
   do i = 1, schismCount
 
     call ESMF_GridCompFinalize(schism_components(i), importState=schism_imports(i), &
-      exportState=schism_exports(i), clock=clock, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+                               exportState=schism_exports(i), clock=clock, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_StateDestroy(schism_imports(i), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -229,9 +227,9 @@ program main
     call ESMF_GridCompDestroy(schism_components(i), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end do
-  deallocate(schism_exports)
-  deallocate(schism_imports)
-  deallocate(schism_components)
+  deallocate (schism_exports)
+  deallocate (schism_imports)
+  deallocate (schism_components)
 
   call ESMF_ClockDestroy(clock, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
