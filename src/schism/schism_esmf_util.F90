@@ -2,13 +2,16 @@
 ! functions used both by the NUOPC and ESMF caps
 !
 ! @copyright 2022-2023 Virginia Institute of Marine Science
-! @copyright 2021-2023 Helmholtz-Zentrum Hereon
-! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht
+! @copyright 2021-2024 Helmholtz-Zentrum Hereon GmbH
+! @copyright 2018-2021 Helmholtz-Zentrum Geesthacht GmbH
 !
 ! @author Carsten Lemmen <carsten.lemmen@hereon.de>
 ! @author Joseph Zhang <yjzhang@vims.edu>
+! @author Dan Yu
 ! @author Richard Hofmeister
 ! @author Ufuk Turuncoglu
+!
+! @todo clarify contributor licenses for NOAA contributions 
 !
 ! @license Apache License, 2.0 (the "License");
 ! you may not use this file except in compliance with the License.
@@ -64,7 +67,8 @@ module schism_esmf_util
 
   type type_InternalStateWrapper
 #ifndef ESMF_NO_SEQUENCE
-    sequence ! why is this needed here? taken from documentation
+    ! @todo why is this needed here? taken from documentation
+    sequence 
 #endif
     type(type_InternalState), pointer :: wrap => null()
   end type
@@ -85,10 +89,12 @@ module schism_esmf_util
   private 
 
   interface SCHISM_StateUpdate
-    module procedure SCHISM_StateUpdate1
-    module procedure SCHISM_StateUpdate2
-    module procedure SCHISM_StateUpdate3
-    module procedure SCHISM_StateUpdate4
+    ! @todo we should implement a generator to create the 
+    ! interfaces for the different dimensions, also need this
+    ! potentially for non-floats
+    module procedure SCHISM_StateUpdateF1
+    module procedure SCHISM_StateUpdateF2
+    module procedure SCHISM_StateUpdateF3
   end interface 
 
 contains
@@ -544,8 +550,8 @@ end subroutine SCHISM_FieldPtrUpdate
 
 ! This is the state update routine for a one-dimensional array
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateUpdate1"
-subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
+#define ESMF_METHOD "SCHISM_StateUpdateF1"
+subroutine SCHISM_StateUpdateF1(state, name, farray, kwe, isPtr, onElement, rc)
 
   use schism_glbl, only: ne, neg, nea
   use schism_glbl, only: i34, elnode
@@ -578,7 +584,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (itemType /= ESMF_STATEITEM_FIELD) then 
-    write(message,'(A)') '--- SCHISM_StateUpdate1 skipped non-field '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF1 skipped non-field '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif 
@@ -621,7 +627,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
        end do
     end if
 
-    write(message,'(A)') '--- SCHISM_StateUpdate1 imported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF1 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farray), maxval(farray), sum(farray), size(farray)
@@ -661,7 +667,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
        end if
     end if
 
-    write(message,'(A)') '--- SCHISM_StateUpdate1 exported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF1 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     write(message,'(A,3G14.7,I8,L)') '--- '//trim(name), minval(farrayPtr1), maxval(farrayPtr1), &
@@ -669,7 +675,7 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   else 
-    write(message,'(A)') '--- SCHISM_StateUpdate1 skipped unspecified intent'
+    write(message,'(A)') '--- SCHISM_StateUpdateF1 skipped unspecified intent'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif    
 
@@ -678,12 +684,12 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, onElement, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif 
 
-end subroutine SCHISM_StateUpdate1
+end subroutine SCHISM_StateUpdateF1
 
 ! This is the state update routine for a two-dimensional array
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateUpdate2"
-subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
+#define ESMF_METHOD "SCHISM_StateUpdateF2"
+subroutine SCHISM_StateUpdateF2(state, name, farray, kwe, isPtr, rc)
 
   type(ESMF_State), intent(inout)                   :: state
   character(len=*), intent(in)                      :: name
@@ -705,7 +711,7 @@ subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
   if (present(rc)) rc = ESMF_SUCCESS
 
   if (ubound(farray,1) - lbound(farray,1) > 0) then 
-    write(message,'(A)') '--- SCHISM_StateUpdate2 skipped non-degenerate '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF2 skipped non-degenerate '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif 
@@ -714,7 +720,7 @@ subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (itemType /= ESMF_STATEITEM_FIELD) then 
-    write(message,'(A)') '--- SCHISM_StateUpdate2 skipped non-field '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF2 skipped non-field '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif 
@@ -742,7 +748,7 @@ subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
       farray(1,isPtr%ownedNodeIds(ip)) = farrayPtr1(ip)
     end do
 
-    write(message,'(A)') '--- SCHISM_StateUpdate2 imported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF2 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   elseif (intent == ESMF_STATEINTENT_EXPORT) then 
@@ -756,21 +762,21 @@ subroutine SCHISM_StateUpdate2(state, name, farray, kwe, isPtr, rc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
     endif 
 
-    write(message,'(A)') '--- SCHISM_StateUpdate2 exported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF2 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   else 
-    write(message,'(A)') '--- SCHISM_StateUpdate2 skipped unspecified intent'
+    write(message,'(A)') '--- SCHISM_StateUpdateF2 skipped unspecified intent'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif    
 
-end subroutine SCHISM_StateUpdate2
+end subroutine SCHISM_StateUpdateF2
 
 ! This is the state update routine for a three-dimensional array, but 
 ! currently works only on degenerate 3rd dimension arrays
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateUpdate3"
-subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
+#define ESMF_METHOD "SCHISM_StateUpdateF3"
+subroutine SCHISM_StateUpdateF3(state, name, farray, kwe, isPtr, rc)
 
   use schism_glbl, only: nvrt 
   implicit none 
@@ -795,7 +801,7 @@ subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
   if (present(rc)) rc = ESMF_SUCCESS
 
   if (ubound(farray,1) - lbound(farray,1) > 0) then 
-    write(message,'(A)') '--- SCHISM_StateUpdate3 skipped non-degenerate '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF3 skipped non-degenerate '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif 
@@ -804,7 +810,7 @@ subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (itemType /= ESMF_STATEITEM_FIELD) then 
-    write(message,'(A)') '--- SCHISM_StateUpdate3 skipped non-field '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF3 skipped non-field '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif 
@@ -832,7 +838,7 @@ subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
       farray(1,isPtr%ownedNodeIds(ip),1:nvrt) = farrayPtr2(ip,1:nvrt)
     end do
 
-    write(message,'(A)') '--- SCHISM_StateUpdate3 imported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF3 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   elseif (intent == ESMF_STATEINTENT_EXPORT) then 
@@ -854,12 +860,14 @@ subroutine SCHISM_StateUpdate3(state, name, farray, kwe, isPtr, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif    
 
-end subroutine SCHISM_StateUpdate3
+end subroutine SCHISM_StateUpdateF3
 
 #undef  ESMF_METHOD
-#define ESMF_METHOD "SCHISM_StateUpdate4"
-subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
+#define ESMF_METHOD "SCHISM_StateUpdateF4"
+subroutine SCHISM_StateUpdateF4(state, name, farray, kwe, isPtr, rc)
 
+  ! @todo I don't think we need this procedure, it is not fully 
+  ! implemented anyway (boilerplate from StateupdateF1)
   use schism_glbl, only: ne, neg, nea
   use schism_glbl, only: i34, elnode
 
@@ -888,7 +896,7 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   if (itemType /= ESMF_STATEITEM_FIELD) then
-    write(message,'(A)') '--- SCHISM_StateUpdate1 skipped non-field '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF1 skipped non-field '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     return
   endif
@@ -931,7 +939,7 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
        end do
     end if
 
-    write(message,'(A)') '--- SCHISM_StateUpdate4 imported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF4 imported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farray), maxval(farray), sum(farray), size(farray)
@@ -958,13 +966,13 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
        end do
     end if
 
-    write(message,'(A)') '--- SCHISM_StateUpdate4 exported '//trim(name)
+    write(message,'(A)') '--- SCHISM_StateUpdateF4 exported '//trim(name)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     write(message,'(A,3G14.7,I8)') '--- '//trim(name), minval(farrayPtr1), maxval(farrayPtr1), sum(farrayPtr1), size(farrayPtr1)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   else
-    write(message,'(A)') '--- SCHISM_StateUpdate4 skipped unspecified intent'
+    write(message,'(A)') '--- SCHISM_StateUpdateF4 skipped unspecified intent'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
   endif
 
@@ -973,7 +981,7 @@ subroutine SCHISM_StateUpdate4(state, name, farray, kwe, isPtr, rc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif
 
-end subroutine SCHISM_StateUpdate4
+end subroutine SCHISM_StateUpdateF4
 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_GetPtr"
@@ -1383,7 +1391,9 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
         nodecoords2d(2*indx)   = ynd(ip)
       end if
 
-      ! owner
+      ! Exclusive ownership of nodes.  If 
+      ! two ranks share a node, exclusive ownership of that 
+      ! node is assigned to the one with lower rank.
       rank2 = ipgl(iplg(ip))%rank
       nodeowners(indx) = rank2
       if (associated(ipgl(iplg(ip))%next)) then
@@ -1445,10 +1455,12 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
         elementcoords2d(2*indx-1)=0.d0
         do ii=2,i34(ie)
           nd=elLocalNode(ii)
+          ! We take care of non-jumping coords here
           if(abs(nodecoords2d(2*nd1-1)-nodecoords2d(2*nd-1))<200.d0) then
             ownedCount=ownedCount+1
             elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)+nodecoords2d(2*nd-1)
           endif
+          ! @todo we seem to be missing an implementation of jumping coords, e.g. -179 and 176
         enddo !ii
         if(ownedCount==0) then
           write(message, '(A,I7)') trim(compName)//' element without nodes: ', ie
@@ -1558,6 +1570,9 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   ! add metadata
+  ! @todo there seem to be lots of violations of DRY here
+  ! @todo ideally, this routine does not depend on NUOPC but works 
+  ! in non-NUOPC context likewise.
   fieldName = 'mesh_topology'
   if (NUOPC_IsConnected(exportstate, fieldName=fieldName)) then  
      field = ESMF_FieldEmptyCreate(name=trim(fieldName), rc=localrc)
