@@ -1294,7 +1294,7 @@ end subroutine SCHISM_StateFieldCreate
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_MeshCreateElement"
 subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
-
+  !Domain decomp based on elements?
   use NUOPC, only: NUOPC_IsConnected
   use schism_glbl, only: pi
   use schism_glbl, only: np, npg, npa
@@ -1337,6 +1337,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
 
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
+  real(ESMF_KIND_R8) ::  tmpm,tmplon
 
   rc_ = ESMF_SUCCESS
   if (present(rc)) rc = ESMF_SUCCESS
@@ -1450,27 +1451,32 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
       ! flattened elementCoords vector
       if (coordsys /= ESMF_COORDSYS_SPH_DEG) then 
         elementcoords2d(2*indx-1) = sum(nodecoords2d(2*elLocalNode(1:i34(ie))-1))/i34(ie)
-      else ! longitudes needs care across jump
-        ownedCount=0
-        nd1=elLocalNode(1)
+      else ! longitudes needs care across jump - check against max lon
+!        nd1=elLocalNode(1)
+        tmpm=maxval(nodecoords2d(2*elLocalNode(1:i34(ie))-1)) !max lon
         elementcoords2d(2*indx-1)=0.d0
-        do ii=2,i34(ie)
+        do ii=1,i34(ie)
           nd=elLocalNode(ii)
-          ! We take care of non-jumping coords here
-          if(abs(nodecoords2d(2*nd1-1)-nodecoords2d(2*nd-1))<200.d0) then
-            ownedCount=ownedCount+1
-            elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)+nodecoords2d(2*nd-1)
-          endif
-          ! @todo we seem to be missing an implementation of jumping coords, e.g. -179 and 176
+          tmplon=nodecoords2d(2*nd-1)
+          if(abs(tmplon-tmpm)>=100.d0) then
+            !Progressively increment by 360 and retest
+            ownedCount=0 !# of iterations
+            do 
+              ownedCount=ownedCount+1
+              if(ownedCount>100) then
+                write(message, '(A,I7)') trim(compName)//' element without nodes: ', ie
+                call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+                localrc = ESMF_RC_ARG_SIZE
+                _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)  
+              endif
+              tmplon=tmplon+360
+              if(abs(tmplon-tmpm)<100.d0) exit
+            end do 
+          endif !abs
+
+          elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)+tmplon !nodecoords2d(2*nd-1)
         enddo !ii
-        if(ownedCount==0) then
-          write(message, '(A,I7)') trim(compName)//' element without nodes: ', ie
-          call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-          localrc = ESMF_RC_ARG_SIZE
-          _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)  
-        else
-          elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)/ownedCount
-        endif
+        elementcoords2d(2*indx-1)=elementcoords2d(2*indx-1)/i34(ie)
       endif ! ESMF_COORDSYS_SPH_DEG
 
       ! mask
@@ -1678,7 +1684,7 @@ end subroutine SCHISM_MeshCreateElement
 #undef  ESMF_METHOD
 #define ESMF_METHOD "SCHISM_MeshCreateNode"
 subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
-  ! Define ESMF domain partition
+  ! Define ESMF domain partition based on nodes
   use schism_glbl, only: pi, llist_type, elnode, i34, ipgl
   use schism_glbl, only: iplg, ielg, idry_e, idry, ynd, xnd
   !use schism_glbl, only: ylat, xlon, np, ne, ics
@@ -1726,6 +1732,7 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
 
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
+  real(ESMF_KIND_R8) ::  tmpm,tmplon
 
 !  write(0,*)'__LINE__ inside addSchismMesh'
 !  call ESMF_Finalize() 
@@ -1917,8 +1924,35 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
       nv(nvcount) =elnode(ii,i) 
     end do
 
-    elementcoords2d(2*i-1)=sum(nodecoords2d(2*elLocalNode(1:i34(i))-1))/i34(i)
     elementcoords2d(2*i)=sum(nodecoords2d(2*elLocalNode(1:i34(i))))/i34(i)
+    if (coordsys /= ESMF_COORDSYS_SPH_DEG) then
+      elementcoords2d(2*i-1)=sum(nodecoords2d(2*elLocalNode(1:i34(i))-1))/i34(i)
+    else ! longitudes needs care across jump - check against max lon
+      tmpm=maxval(nodecoords2d(2*elLocalNode(1:i34(i))-1)) !max lon
+      elementcoords2d(2*i-1)=0.d0
+      do ii=1,i34(i)
+        nd=elLocalNode(ii)
+        tmplon=nodecoords2d(2*nd-1)
+        if(abs(tmplon-tmpm)>=100.d0) then
+          !Progressively increment by 360 and retest
+          ownedCount=0 !# of iterations
+          do
+            ownedCount=ownedCount+1
+            if(ownedCount>100) then
+              write(message, '(A,I7)') trim(compName)//' element with jump: ', i
+              call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+              localrc = ESMF_RC_ARG_SIZE
+              _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+            endif
+            tmplon=tmplon+360
+            if(abs(tmplon-tmpm)<100.d0) exit
+          end do
+        endif !abs
+
+        elementcoords2d(2*i-1)=elementcoords2d(2*i-1)+tmplon
+      enddo !ii
+      elementcoords2d(2*i-1)=elementcoords2d(2*i-1)/i34(i)
+    endif !coordsys
   end do ! i=1, nea
 
   if(ubound(nv,1) /= nvcount) then
