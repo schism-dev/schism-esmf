@@ -1375,9 +1375,9 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
 
   ! fill arrays, nodes
   indx = 0
-  do ip = 1, npa
+  do ip = 1, np !a
     ! non-ghost nodes go from 1:np, ghost nodes from np+1 to npa
-    if (ip <= np) then
+!    if (ip <= np) then
       ! ids
       indx = indx+1
       nodeids(indx) = iplg(ip)
@@ -1413,8 +1413,8 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
           nodeids(indx), nodeowners(indx), nodecoords2d(2*indx-1), nodecoords2d(2*indx), nodemask(indx)
         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
       end if
-    end if
-  end do
+!    end if
+  end do !i=1,np
 
   ! allocate array to store element connections
   allocate(nv(sum(i34(1:ne))), stat=localrc)
@@ -1422,9 +1422,9 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
   ! fill arrays, elements
   indx = 0
   nvcount = 0
-  do ie = 1, nea
+  do ie = 1, ne !a
     ! non-ghost elements from 1:ne, ghost ones ne+1:nea
-    if (ie <= ne) then
+!    if (ie <= ne) then
       ! ids
       indx = indx+1
       elementids(indx) = ielg(ie)
@@ -1464,7 +1464,7 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
             do 
               ownedCount=ownedCount+1
               if(ownedCount>100) then
-                write(message, '(A,I7)') trim(compName)//' element without nodes: ', ie
+                write(message, '(A,I7,I7)') trim(compName)//' element with large jump: ', ie,ielg(ie)
                 call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
                 localrc = ESMF_RC_ARG_SIZE
                 _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)  
@@ -1491,8 +1491,8 @@ subroutine SCHISM_MeshCreateElement(comp, kwe, rc)
           elementids(indx), elementcoords2d(2*indx-1), elementcoords2d(2*indx), elementmask(indx)
         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
       end if
-    end if
-  end do
+!    end if
+  end do !ie=1,ne
 
   ! create node distgrid
   nodeDistgrid = ESMF_DistgridCreate(nodeids,rc=localrc)
@@ -1939,7 +1939,7 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
           do
             ownedCount=ownedCount+1
             if(ownedCount>100) then
-              write(message, '(A,I7)') trim(compName)//' element with jump: ', i
+              write(message, '(A,I7,I7)') trim(compName)//' element with jump: ', i,ielg(i)
               call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
               localrc = ESMF_RC_ARG_SIZE
               _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
