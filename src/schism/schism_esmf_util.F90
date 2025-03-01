@@ -1709,7 +1709,7 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
   integer, dimension(:), allocatable            :: schismTolocalNodes,testids
   integer, dimension(1:4)                       :: elLocalNode
   integer               :: numNodeHaloIdx
-  integer               :: i,n,nvcount
+  integer               :: i,n,nvcount,nd
   integer               :: ii,ip,ie, localrc, rc_
   integer               :: npo,neo,nef,npf,rank2
   type(llist_type),pointer :: nextp=>null()
