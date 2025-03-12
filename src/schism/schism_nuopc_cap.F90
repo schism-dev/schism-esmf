@@ -936,7 +936,7 @@ end subroutine SCHISM_RemoveUnconnectedFields
 #define ESMF_METHOD "SCHISM_Export"
 subroutine SCHISM_Export(comp, exportState, clock, rc)
 
-  use schism_glbl,      only: nvrt, eta2, dav, uu2, vv2, tr_nd, idry_e
+  use schism_glbl,      only: nvrt, eta2, dav, uu2, vv2, tr_nd, idry_e, npa
   use schism_esmf_util, only: SCHISM_StateUpdate
 
   implicit none
@@ -953,6 +953,7 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   type(type_InternalState), pointer :: isDataPtr => null()
   integer(ESMF_KIND_I4) :: localrc
   real(ESMF_KIND_R8), allocatable, save, target :: idry_r8(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: sst_K(:)
   character(len=ESMF_MAXSTR) :: timeStr
   character(len=*), parameter :: subname = '(SCHISM_Export): '
   !--------------------------------
@@ -996,12 +997,17 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> surface temperature
-  call SCHISM_StateUpdate(exportState, 'sea_surface_temperature', tr_nd(1,:,:), &
+  if (.not. allocated(sst_K)) then
+     allocate(sst_K(npa))
+     sst_K(:) =0.0d0+273.15d0
+  end if
+  sst_K(:) = tr_nd(1,nvrt,:)+273.15d0 !Change unit to K
+  call SCHISM_StateUpdate(exportState, 'sea_surface_temperature', sst_K(:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> surface salinity
-  call SCHISM_StateUpdate(exportState, 'sea_surface_salinity', tr_nd(2,:,:), &
+  call SCHISM_StateUpdate(exportState, 'sea_surface_salinity', tr_nd(2,nvrt,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
