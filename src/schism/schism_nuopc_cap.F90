@@ -388,6 +388,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
   call NUOPC_Advertise(importState, "inst_merid_wind_height10m", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_temp_height2m", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_spec_humid_height2m", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_net_sw_flx", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_down_lw_flx", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_prec_rate", rc=localrc)
 
   ! for coupling to WW3/WDAT
   call NUOPC_Advertise(importState, "sea_surface_wave_significant_height", rc=localrc)
@@ -592,6 +597,25 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> @todo add more atmospheric fields (like humidity)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_temp_height2m", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_spec_humid_height2m", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_net_sw_flx", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_down_lw_flx", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_prec_rate", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Wave parameters, for now we only have those from the WW3DATA cap in 
   !> NOAA's CoastalApp.  
@@ -676,7 +700,7 @@ end subroutine
 subroutine SetClock(comp, rc)
 
   use schism_glbl, only : start_year, start_month, start_day, start_hour, rnday
-  use schism_glbl, only : wtiminc
+  use schism_glbl, only : wtiminc, wtime2
 
   type(ESMF_GridComp)  :: comp
   integer, intent(out) :: rc
@@ -730,6 +754,7 @@ subroutine SetClock(comp, rc)
   endif
 
   wtiminc = seconds
+  wtime2 = wtiminc !Also need to reset wtime2 to make it consistent
 
 end subroutine
 
@@ -856,6 +881,11 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   num_schism_steps=int(seconds/dt) 
+  if (mod(seconds,dt) /= 0) then
+          write(message, '(A)') 'Coupling step cannot be divided by dt, please adjust to avoid lack of steps! '
+     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
+  end if
+
   do i = it, it+num_schism_steps-1
      call schism_step(i)
      it = it + 1
@@ -1044,6 +1074,7 @@ end subroutine SCHISM_Export
 subroutine SCHISM_Import(comp, importState, clock, rc)
 
   use schism_glbl     , only: RADFLAG, windx2, windy2, pr2
+  use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
@@ -1100,6 +1131,31 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
 
   !> Surface air pressure
   call SCHISM_StateUpdate(importState, 'air_pressure_at_sea_level', pr2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Air temperature at sea level
+  call SCHISM_StateUpdate(importState, 'inst_temp_height2m', airt2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Air humidity at sea level
+  call SCHISM_StateUpdate(importState, 'inst_spec_humid_height2m', shum2, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Downward shortwave at sea level
+  call SCHISM_StateUpdate(importState, 'inst_net_sw_flx', srad, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Downward longwave at sea level
+  call SCHISM_StateUpdate(importState, 'inst_down_lw_flx', hradd, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Precipatation rate
+  call SCHISM_StateUpdate(importState, 'inst_prec_rate', fluxprc, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
