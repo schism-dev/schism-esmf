@@ -384,6 +384,81 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+
+  !>---------------------------------------------------------------------------------
+  !>                              Adding CICE fields to ufs_fd
+  !>---------------------------------------------------------------------------------
+  
+  call NUOPC_FieldDictionaryAddIfNeeded("Si_uvel", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Si_vvel", "m s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_taux", "N m-2", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_tauy", "N m-2", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Si_vsno", "m3", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Si_vice", "m3", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_meltw", "kg m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_salt", "kg m-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_melth", "W m-2", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call NUOPC_FieldDictionaryAddIfNeeded("Fioi_swpen", "W m-2", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !>---------------------------------------------------------------------------------
+  !>---------------------------------------------------------------------------------
+
+  
+  !>---------------------------------------------------------------------------------
+  !>                              Adertizing CICE states
+  !>---------------------------------------------------------------------------------
+   call NUOPC_Advertise(importState, "sea_surface_height_above_sea_level", rc=localrc)
+  !> ice-vel xy-dir -----------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Si_uvel", rc=localrc)
+  call NUOPC_Advertise(importState, "Si_vvel", rc=localrc)
+
+  !> ice-to-ocn stress xy-dir -------------------------------------------------------
+  call NUOPC_Advertise(importState, "Fioi_taux", rc=localrc)
+  call NUOPC_Advertise(importState, "Fioi_tauy", rc=localrc)
+
+  !> Volume_of_snow -----------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Si_vsno", rc=localrc)
+
+  !> Volume_of_ice ------------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Si_vice", rc=localrc)
+
+  !> ice_fraction -------------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Si_ifrac", rc=localrc)
+
+  !> Melt_water_flux ----------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Fioi_meltw", rc=localrc)
+
+  !> Salinity_flux  -----------------------------------------------------------------
+  call NUOPC_Advertise(importState, "Fioi_salt", rc=localrc)
+
+  !> Heat_flux_ice_to_ocn -----------------------------------------------------------
+  call NUOPC_Advertise(importState, "Fioi_melth", rc=localrc)
+
+  !> Pen_shortwave_rad_through_ice --------------------------------------------------
+  call NUOPC_Advertise(importState, "Fioi_swpen", rc=localrc)
+ 
+  !>---------------------------------------------------------------------------------
+  !>---------------------------------------------------------------------------------
+
   ! for coupling to ATM/DATM
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
@@ -508,12 +583,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
   localrc= ESMF_SUCCESS
 
-!<<<<<<< HEAD
-!=======
-  !> @todo move addSchismMesh back to schism_esmf_util to share with ESMF cap
-  !> call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
-  !call addSchismMesh(comp, localrc)
-!>>>>>>> a9a0ce0 (Use MeshCreate instead off add Mesh)
   if (meshloc == ESMF_MESHLOC_NODE) then
     call SCHISM_MeshCreateNode(comp, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -616,6 +685,65 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="inst_prec_rate", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !>------------------------------------------------------------
+  !>         Adding CICE vars to import state
+  !>------------------------------------------------------------
+
+  !> Ice_velocity ----------------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Si_uvel", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Si_vvel", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Ice_to_ocean_stress ---------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_taux", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_tauy", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Volume of snow --------------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Si_vsno", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Volume of ice ---------------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Si_vice", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> ---- ice_fraction -----------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Si_ifrac", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+ 
+  !> Melt_water_flux -------------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_meltw", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Salinity_flux ---------------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_salt", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Heat_flux_ice_to_ocn --------------------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_melth", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Pen_shortwave_rad_through_ice -----------------------------
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="Fioi_swpen", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !>------------------------------------------------------------
+  !>------------------------------------------------------------
+
 
   !> Wave parameters, for now we only have those from the WW3DATA cap in 
   !> NOAA's CoastalApp.  
@@ -1073,7 +1201,7 @@ end subroutine SCHISM_Export
 #define ESMF_METHOD "SCHISM_Import"
 subroutine SCHISM_Import(comp, importState, clock, rc)
 
-  use schism_glbl     , only: RADFLAG, windx2, windy2, pr2
+  use schism_glbl     , only: RADFLAG, windx2, windy2, pr2, npa
   use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
@@ -1086,7 +1214,23 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   type(ESMF_State)   , intent(inout) :: importState
   type(ESMF_Clock)   , intent(in)    :: clock
   integer            , intent(inout) :: rc
-
+  !>---------------------------------------------------
+  !         Creating vars to dump cice fields to
+  !>---------------------------------------------------
+  real(ESMF_KIND_R8), allocatable, save, target :: uvice(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: vvice(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: taux(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: tauy(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: vsno(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: vice(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: aice(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: ifresh_flux(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: isalt_flux(:)
+  real(ESMF_KIND_R8), allocatable, save, target :: iheat_flux(:)  
+  real(ESMF_KIND_R8), allocatable, save, target :: isw_pen(:)
+  !>---------------------------------------------------
+  !>---------------------------------------------------
+  
   !> Local variables
   type(ESMF_Time) :: currTime
   type(type_InternalStateWrapper) :: internalState
@@ -1158,6 +1302,115 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   call SCHISM_StateUpdate(importState, 'inst_prec_rate', fluxprc, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    
+  !>-------------------------------------------------------
+  !>              Allocated vars to dump import to
+  !>-------------------------------------------------------
+  
+  if (.not. allocated(uvice)) then
+      allocate(uvice(npa))
+      uvice(:) =0.0d0
+  end if
+  if (.not. allocated(vvice)) then
+      allocate(vvice(npa))
+      vvice(:) =0.0d0
+  end if
+  if (.not. allocated(taux)) then
+      allocate(taux(npa))
+      taux(:) =0.0d0
+  end if
+  if (.not. allocated(tauy)) then
+      allocate(tauy(npa))
+      tauy(:) =0.0d0
+  end if
+  if (.not. allocated(vsno)) then
+      allocate(vsno(npa))
+      vsno(:) =0.0d0
+  end if
+  if (.not. allocated(vice)) then
+      allocate(vice(npa))
+      vice(:) =0.0d0
+  end if
+  if (.not. allocated(aice)) then
+      allocate(aice(npa))
+      aice(:) =0.0d0
+  end if
+  if (.not. allocated(ifresh_flux)) then
+      allocate(ifresh_flux(npa))
+      ifresh_flux(:) =0.0d0
+  end if
+  if (.not. allocated(isalt_flux)) then
+      allocate(isalt_flux(npa))
+      isalt_flux(:) =0.0d0
+  end if
+  if (.not. allocated(iheat_flux)) then
+      allocate(iheat_flux(npa))
+      iheat_flux(:) =0.0d0
+  end if
+  if (.not. allocated(isw_pen)) then
+      allocate(isw_pen(npa))
+      isw_pen(:) =0.0d0
+  end if
+  
+  !>-------------------------------------------------------
+  !>-------------------------------------------------------
+
+  !>-------------------------------------------------------
+  !>          Importing CICE vars into schism
+  !>-------------------------------------------------------
+  !> u-direction ------------------------------------------
+  call SCHISM_StateUpdate(importState, 'Si_uvel', uvice, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> v-direction ------------------------------------------
+  call SCHISM_StateUpdate(importState, 'Si_vvel', vvice, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> ice-stress x-direction -------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_taux', taux, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> ice-stress x-direction -------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_tauy', tauy, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !> Volume of snow ---------------------------------------
+  call SCHISM_StateUpdate(importState, 'Si_vsno', vsno, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Volume of ice ----------------------------------------
+  call SCHISM_StateUpdate(importState, 'Si_vice', vice, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> ice_fraction -----------------------------------------
+  call SCHISM_StateUpdate(importState, 'Si_ifrac', aice, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Melt_water_flux --------------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_meltw', ifresh_flux, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Melt_water_flux --------------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_salt', isalt_flux, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Heat_flux_ice_to_ocn ---------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_melth', iheat_flux, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+ 
+  !> Heat_flux_ice_to_ocn --------------------------------
+  call SCHISM_StateUpdate(importState, 'Fioi_swpen', isw_pen, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !>-------------------------------------------------------
+  !>-------------------------------------------------------
 
   !> Write fields on import state for debugging
   if (debug_level > 0) then
