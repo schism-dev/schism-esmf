@@ -155,6 +155,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   integer(ESMF_KIND_I4), intent(out), optional        :: rc
 
   integer(ESMF_KIND_I4)           :: rc_, localrc, i, ip 
+  integer(ESMF_KIND_I4), allocatable, target :: idry_ini(:)
   character(len=ESMF_MAXSTR)      :: message, name
   type(type_InternalStateWrapper) :: isPtr
 
@@ -166,6 +167,12 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !Initialize idry_ini
+  if (.not. allocated(idry_ini)) then
+     allocate(idry_ini(size(idry_e)))
+     idry_ini(:) = 0
+  end if
 
   allocate(isPtr%wrap%ptrMap(14))
 
@@ -214,7 +221,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(13)%farrayPtr3 => tr_nd
 
   isPtr%wrap%ptrMap(14)%name = 'ocean_mask'
-  isPtr%wrap%ptrMap(14)%iarrayPtr1 => idry_e
+  isPtr%wrap%ptrMap(14)%iarrayPtr1 = idry_ini !Force to all elements (For import sflux vars)
   
 end subroutine SCHISM_InitializePtrMap
 
