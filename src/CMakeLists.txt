@@ -1,16 +1,5 @@
-# src/CMakeLists.txt
-
-# Add subdirectories. Order might matter for dependencies between them.
-# Based on src/Makefile, typical order might be:
-# (PDAF_bindings if USE_PDAF)
-# schism (provides modules needed by model and driver)
-# model (provides modules needed by driver)
-# driver
-# (mossco if MOSSCO_DIR is set - will handle MOSSCO later if needed)
-
-if(USE_PDAF)
-  add_subdirectory(PDAF_bindings)
-endif()
+add_executable(main_esmf main_esmf.F90)
+add_executable(main_nuopc main_nuopc.F90)
 
 add_subdirectory(schism)
 
@@ -34,7 +23,6 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules) # Central place 
 file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 
 # ESMF executable
-add_executable(main_esmf main_esmf.F90)
 target_include_directories(main_esmf PUBLIC
     ${CMAKE_Fortran_MODULE_DIRECTORY} # For .mod files from this project
     # Other necessary include paths from dependencies like ESMF, SCHISM etc.
@@ -45,49 +33,22 @@ target_include_directories(main_esmf PUBLIC
 if(ESMF_LIBRARIES)
     target_link_libraries(main_esmf PRIVATE ${ESMF_LIBRARIES})
 endif()
-if(MPI_Fortran_FOUND) # ESMF usually needs MPI
-    target_link_libraries(main_esmf PRIVATE MPI::MPI_Fortran)
-endif()
  # Link SCHISM libraries
 if(SCHISM_LIBRARIES)
     target_link_libraries(main_esmf PRIVATE ${SCHISM_LIBRARIES})
 endif()
-# Link core dependencies (NetCDF, LAPACK, BLAS)
-if(NetCDF_FOUND)
-    target_link_libraries(main_esmf PRIVATE NetCDF::NetCDF_Fortran) # Or however NetCDF exports its Fortran libs
-endif()
-if(LAPACK_FOUND)
-    target_link_libraries(main_esmf PRIVATE ${LAPACK_LIBRARIES})
-endif()
-if(BLAS_FOUND)
-    target_link_libraries(main_esmf PRIVATE ${BLAS_LIBRARIES})
-endif()
 
 
 # NUOPC executable
-add_executable(main_nuopc main_nuopc.F90)
 target_include_directories(main_nuopc PUBLIC
     ${CMAKE_Fortran_MODULE_DIRECTORY}
 )
 if(ESMF_LIBRARIES) # NUOPC also builds on ESMF
     target_link_libraries(main_nuopc PRIVATE ${ESMF_LIBRARIES})
 endif()
-if(MPI_Fortran_FOUND)
-    target_link_libraries(main_nuopc PRIVATE MPI::MPI_Fortran)
-endif()
 if(SCHISM_LIBRARIES)
     target_link_libraries(main_nuopc PRIVATE ${SCHISM_LIBRARIES})
 endif()
-if(NetCDF_FOUND)
-    target_link_libraries(main_nuopc PRIVATE NetCDF::NetCDF_Fortran)
-endif()
-if(LAPACK_FOUND)
-    target_link_libraries(main_nuopc PRIVATE ${LAPACK_LIBRARIES})
-endif()
-if(BLAS_FOUND)
-    target_link_libraries(main_nuopc PRIVATE ${BLAS_LIBRARIES})
-endif()
-
 
 # The MOSSCO part from src/Makefile:
 # MOSSCO_LIB=

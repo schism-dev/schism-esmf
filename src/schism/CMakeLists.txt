@@ -1,5 +1,3 @@
-# src/schism/CMakeLists.txt
-set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules CACHE PATH "Directory for Fortran modules" FORCE)
 include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
 
 # Common source files for both ESMF and NUOPC interface variants

@@ -113,8 +113,8 @@ message(STATUS "SCHISM libraries found: ${SCHISM_LIBRARIES}")
 # # Handle FABM dependency
 # include(cmake/fabm.cmake)
 
-# # Add src subdirectory
-# add_subdirectory(src)
+# Add src subdirectory
+add_subdirectory(src)
 
 # add_subdirectory(example)
 
