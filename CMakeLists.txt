@@ -5,45 +5,12 @@ enable_language(Fortran)
 
 # Add more CMake code in the subsequent steps.
 
-# Find MPI
-find_package(MPI REQUIRED)
-
-# Find NetCDF
-find_package(NetCDF REQUIRED)
-
-# Find LAPACK
-find_package(LAPACK REQUIRED)
-
-# Find BLAS
-find_package(BLAS REQUIRED)
-
-# Include directories for NetCDF
-if(NetCDF_FOUND)
-  include_directories(${NetCDF_INCLUDE_DIRS})
-  link_libraries(${NetCDF_LIBRARIES})
-endif()
-
-# Include directories and libraries for LAPACK and BLAS
-if(LAPACK_FOUND)
-  include_directories(${LAPACK_INCLUDE_DIRS}) # LAPACK_INCLUDE_DIRS may not always be set, but good practice
-  link_libraries(${LAPACK_LIBRARIES})
-endif()
-
-if(BLAS_FOUND)
-  include_directories(${BLAS_INCLUDE_DIRS}) # BLAS_INCLUDE_DIRS may not always be set
-  link_libraries(${BLAS_LIBRARIES})
-endif()
-
-# ESMF often requires MPI Fortran support
-if (MPI_Fortran_FOUND)
-  include_directories(${MPI_Fortran_INCLUDE_PATH})
-  link_libraries(${MPI_Fortran_LIBRARIES})
-else()
-  message(WARNING "MPI Fortran libraries not found, this might cause issues with ESMF.")
-endif()
-
 # SCHISM Dependency
 # SCHISM is expected to be pre-built. Its location is specified by SCHISM_BUILD_DIR.
+# MPI, NetCDF, LAPACK, and BLAS are expected to be handled by the ESMF dependency.
+# If ESMF is not found or doesn't correctly export them, issues might arise.
+# Users might need to ensure their ESMF build correctly wraps these or install them separately
+# and adjust CMake configurations if direct linking becomes necessary.
 set(SCHISM_BUILD_DIR_ENV $ENV{SCHISM_BUILD_DIR})
 
 if(NOT SCHISM_BUILD_DIR_ENV)
@@ -90,30 +57,6 @@ set_target_properties(SCHISM_hydro PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_HY
 # Group SCHISM libraries for easier linking
 set(SCHISM_LIBRARIES SCHISM_core SCHISM_hydro)
 message(STATUS "SCHISM libraries found: ${SCHISM_LIBRARIES}")
-
-# Metis and ParMetis (often bundled or direct dependencies of SCHISM)
-# These are listed in the root Makefile's LDFLAGS and also extracted from SCHISM_BUILD_DIR/lib
-# Let's try to find them in SCHISM_LIBRARY_DIR first.
-find_library(SCHISM_LIB_PARMETIS_PATH NAMES parmetis NAMES_PER_DIR PATHS "${SCHISM_LIBRARY_DIR}" NO_DEFAULT_PATH)
-find_library(SCHISM_LIB_METIS_PATH NAMES metis NAMES_PER_DIR PATHS "${SCHISM_LIBRARY_DIR}" NO_DEFAULT_PATH)
-
-if(SCHISM_LIB_PARMETIS_PATH)
-  add_library(SCHISM_parmetis STATIC IMPORTED GLOBAL)
-  set_target_properties(SCHISM_parmetis PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_PARMETIS_PATH}")
-  list(APPEND SCHISM_LIBRARIES SCHISM_parmetis)
-  message(STATUS "SCHISM ParMetis library found: ${SCHISM_LIB_PARMETIS_PATH}")
-else()
-  message(WARNING "SCHISM ParMetis library not found in ${SCHISM_LIBRARY_DIR}. This might be optional or found elsewhere.")
-endif()
-
-if(SCHISM_LIB_METIS_PATH)
-  add_library(SCHISM_metis STATIC IMPORTED GLOBAL)
-  set_target_properties(SCHISM_metis PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_METIS_PATH}")
-  list(APPEND SCHISM_LIBRARIES SCHISM_metis)
-  message(STATUS "SCHISM Metis library found: ${SCHISM_LIB_METIS_PATH}")
-else()
-  message(WARNING "SCHISM Metis library not found in ${SCHISM_LIBRARY_DIR}. This might be optional or found elsewhere.")
-endif()
 
 # ESMF Dependency
 # Attempt to find ESMF using find_package first
@@ -173,7 +116,7 @@ else()
   else()
     message(WARNING "ESMF_F90ESMFLINKLIBS environment variable not found. Linking ESMF applications might fail.")
   endif()
-
+  
   set(ESMF_LIBRARIES ${ESMF_LIBRARIES_TEMP}) # Assign collected libraries to ESMF_LIBRARIES
 
   if(ESMF_INCLUDE_OPTS_ENV)
@@ -261,7 +204,7 @@ if(USE_PDAF)
   if(PDAF_INC_DIR_ENV)
     set(PDAF_INCLUDE_DIR ${PDAF_INC_DIR_ENV}) # User-specified include dir takes precedence
   endif()
-
+  
   if(EXISTS "${PDAF_INCLUDE_DIR}")
     include_directories(${PDAF_INCLUDE_DIR})
     message(STATUS "PDAF include directory added: ${PDAF_INCLUDE_DIR}")
@@ -303,73 +246,30 @@ else()
     endif()
 endif()
 
-# FABM Dependency
-# Check for FABM libraries within the SCHISM_LIBRARY_DIR
-set(FABM_core_lib_path "${SCHISM_LIBRARY_DIR}/libfabm.a")
-set(FABM_schism_lib_path "${SCHISM_LIBRARY_DIR}/libfabm_schism.a")
-
-option(USE_FABM "Enable FABM features" OFF)
-
-if(EXISTS ${FABM_core_lib_path})
-  if(NOT DEFINED CMAKE_USER_SET_USE_FABM) # Check if user explicitly set USE_FABM via -D
-    set(USE_FABM ON CACHE BOOL "Enable FABM features (auto-enabled due to found libfabm.a)" FORCE)
-    message(STATUS "Found libfabm.a in SCHISM_LIBRARY_DIR. USE_FABM automatically enabled.")
-  elseif(USE_FABM)
-    message(STATUS "Found libfabm.a in SCHISM_LIBRARY_DIR. USE_FABM is ON as per user request or prior auto-enable.")
-  else()
-    message(STATUS "Found libfabm.a in SCHISM_LIBRARY_DIR, but USE_FABM is OFF as per user request.")
-  endif()
-else()
-  if(USE_FABM)
-    message(WARNING "USE_FABM is ON, but libfabm.a not found in ${SCHISM_LIBRARY_DIR}. FABM features might not compile/link correctly.")
-  else()
-    message(STATUS "libfabm.a not found in ${SCHISM_LIBRARY_DIR}. USE_FABM is OFF.")
-  endif()
-endif()
-
-if(USE_FABM)
-  add_compile_definitions(USE_FABM)
-  message(STATUS "FABM is enabled. Compile definition USE_FABM added.")
-
-  # Define FABM libraries as imported targets
-  if(EXISTS ${FABM_core_lib_path})
-    add_library(FABM_core STATIC IMPORTED GLOBAL)
-    set_target_properties(FABM_core PROPERTIES IMPORTED_LOCATION "${FABM_core_lib_path}")
-    list(APPEND SCHISM_LIBRARIES FABM_core) # Adding to SCHISM_LIBRARIES for now, or create a new list
-    message(STATUS "FABM core library (libfabm.a) found and added as target.")
-  else()
-    message(FATAL_ERROR "USE_FABM is ON but FABM core library (libfabm.a) not found at ${FABM_core_lib_path}.")
-  endif()
-
-  if(EXISTS ${FABM_schism_lib_path})
-    add_library(FABM_schism STATIC IMPORTED GLOBAL)
-    set_target_properties(FABM_schism PROPERTIES IMPORTED_LOCATION "${FABM_schism_lib_path}")
-    list(APPEND SCHISM_LIBRARIES FABM_schism) # Adding to SCHISM_LIBRARIES
-    message(STATUS "FABM SCHISM library (libfabm_schism.a) found and added as target.")
-  else()
-    # This might be a critical error or a warning depending on how FABM is structured.
-    # The Makefile implies both are needed if USE_FABM is active.
-    message(FATAL_ERROR "USE_FABM is ON but FABM SCHISM library (libfabm_schism.a) not found at ${FABM_schism_lib_path}.")
-  endif()
-
-  set(FABM_LIBRARIES FABM_core FABM_schism) # Specific list for FABM libs
-else()
-  message(STATUS "FABM is disabled.")
-endif()
-
-# Logic to remember if user explicitly set USE_FABM
-if(DEFINED USE_FABM_INIT)
-    if(NOT USE_FABM STREQUAL USE_FABM_INIT)
-        set(CMAKE_USER_SET_USE_FABM ON CACHE INTERNAL "User has explicitly set USE_FABM")
-    endif()
-else()
-    set(USE_FABM_INIT ${USE_FABM} CACHE INTERNAL "Initial value of USE_FABM for change detection")
-    if(USE_FABM AND EXISTS ${FABM_core_lib_path}) # If default was ON due to libfabm.a
-        # Don't mark as user-set unless they explicitly set it
-    elseif(DEFINED CMAKE_CACHE_ARGS_USE_FABM)
-        set(CMAKE_USER_SET_USE_FABM ON CACHE INTERNAL "User has explicitly set USE_FABM")
-    endif()
-endif()
+# Handle FABM dependency
+include(cmake/fabm.cmake)
 
 # Add src subdirectory
 add_subdirectory(src)
+
+add_subdirectory(example)
+
+install(TARGETS main_esmf main_nuopc
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+
+# Install the configured schism.mk file
+set(SCHISM_MK_CONFIGURED_PATH "${CMAKE_BINARY_DIR}/schism.mk")
+# Check for existence at configure time for the message.
+# install(FILES) will check again at install time.
+if(EXISTS "${SCHISM_MK_CONFIGURED_PATH}")
+    install(FILES "${SCHISM_MK_CONFIGURED_PATH}"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}" # Matches original Makefile's DESTDIR for schism.mk
+        RENAME schism.mk
+    )
+    message(STATUS "Installation rule added for schism.mk to ${CMAKE_INSTALL_LIBDIR}")
+else()
+    # This message is for configure time. If schism.mk is generated by a build step
+    # that hasn't run yet during configure, it might show this warning but still be installable.
+    message(STATUS "Configured schism.mk not found at ${SCHISM_MK_CONFIGURED_PATH} during CMake configure phase. If it's generated by a build command, it might still be installed correctly.")
+endif()
