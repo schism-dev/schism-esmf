@@ -3,7 +3,59 @@ project(SCHISM_ESMF_Interface LANGUAGES Fortran C)
 
 enable_language(Fortran)
 
-# Add more CMake code in the subsequent steps.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# ESMF Dependency
+# Use the FindESMF.cmake module to locate ESMF and its settings.
+find_package(ESMF MODULE REQUIRED) # Assumes FindESMF.cmake is in CMAKE_MODULE_PATH
+
+# ESMF_FOUND is implicitly true if REQUIRED is used and no error occurred.
+message(STATUS "ESMF found via FindESMF.cmake module.")
+message(STATUS "ESMF Version: ${ESMF_VERSION}")
+message(STATUS "ESMF Include Dirs: ${ESMF_INCLUDE_DIRS}")
+message(STATUS "ESMF Libraries: ${ESMF_LIBRARIES}") # This might be the path to libesmf.so/a or an IMPORTED target
+message(STATUS "ESMF Compile Definitions: ${ESMF_COMPILE_DEFINITIONS}")
+message(STATUS "ESMF Compile Options: ${ESMF_COMPILE_OPTIONS}")
+message(STATUS "ESMF Link Flags: ${ESMF_LINK_FLAGS}")
+
+# Apply ESMF settings
+if(ESMF_INCLUDE_DIRS)
+  include_directories(${ESMF_INCLUDE_DIRS})
+endif()
+
+if(ESMF_COMPILE_DEFINITIONS)
+  add_compile_definitions(${ESMF_COMPILE_DEFINITIONS})
+endif()
+
+if(ESMF_COMPILE_OPTIONS)
+  # These are general compile options. Add them globally or per target.
+  # For global options:
+  add_compile_options(${ESMF_COMPILE_OPTIONS})
+  # For target-specific options, use target_compile_options(myTarget PRIVATE ${ESMF_COMPILE_OPTIONS})
+  # Global is likely fine here as these usually affect all Fortran code using ESMF.
+endif()
+
+# Linking:
+# Prefer using the ESMF::ESMF target if it's robustly set up by FindESMF.cmake
+# This target should encapsulate include directories, link libraries, and other properties.
+# For now, we will explicitly add link flags and assume ESMF_LIBRARIES refers to the actual library files or names.
+# If ESMF::ESMF is the intended way, target_link_libraries(your_target PUBLIC ESMF::ESMF) would be used.
+# The variable ESMF_LIBRARIES from FindESMF.cmake is currently set to ESMF_LIBRARY_LOCATION.
+# The variable ESMF_INTERFACE_LINK_LIBRARIES from FindESMF.cmake has more comprehensive link information.
+# Let's rely on ESMF_LINK_FLAGS for additional linker flags, and ESMF_LIBRARIES for the core library.
+# The ESMF::ESMF target's INTERFACE_LINK_LIBRARIES is set to ESMF_INTERFACE_LINK_LIBRARIES.
+# So, linking against ESMF::ESMF should be preferred for targets.
+
+if(ESMF_LINK_FLAGS)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ESMF_LINK_FLAGS}")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ESMF_LINK_FLAGS}")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ESMF_LINK_FLAGS}")
+endif()
+
+# Note: Actual linking of ESMF libraries to your targets (e.g., main_esmf, main_nuopc)
+# will happen in their respective target_link_libraries() calls, typically with ESMF::ESMF or ${ESMF_LIBRARIES}.
+# For example: target_link_libraries(my_target PRIVATE ESMF::ESMF)
+
 
 # SCHISM Dependency
 # SCHISM is expected to be pre-built. Its location is specified by SCHISM_BUILD_DIR.
@@ -58,205 +110,17 @@ set_target_properties(SCHISM_hydro PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_HY
 set(SCHISM_LIBRARIES SCHISM_core SCHISM_hydro)
 message(STATUS "SCHISM libraries found: ${SCHISM_LIBRARIES}")
 
-# ESMF Dependency
-# Attempt to find ESMF using find_package first
-find_package(ESMF QUIET)
+# # Handle FABM dependency
+# include(cmake/fabm.cmake)
 
-if(ESMF_FOUND)
-  message(STATUS "ESMF found using find_package.")
-  # If ESMF_FOUND, it should have set up targets like ESMF::ESMF or variables
-  # Assume it provides ESMF_INCLUDE_DIRS and ESMF_LIBRARIES
-  if(TARGET ESMF::ESMF)
-    message(STATUS "ESMF target ESMF::ESMF found.")
-    set(ESMF_LIBRARIES ESMF::ESMF)
-    # Include directories should be handled by the target properties
-  else()
-    # Fallback if specific target isn't there but ESMF_FOUND is true
-    if(DEFINED ESMF_INCLUDE_DIRS)
-      message(STATUS "Using ESMF_INCLUDE_DIRS: ${ESMF_INCLUDE_DIRS}")
-      include_directories(${ESMF_INCLUDE_DIRS})
-    endif()
-    if(NOT DEFINED ESMF_LIBRARIES)
-      message(WARNING "find_package(ESMF) succeeded but ESMF_LIBRARIES is not defined. Manual configuration might be needed.")
-    else()
-      message(STATUS "Using ESMF_LIBRARIES: ${ESMF_LIBRARIES}")
-    endif()
-  endif()
-else()
-  message(STATUS "ESMF not found via find_package. Attempting to use ESMF environment variables (often set by sourcing esmf.mk).")
-  set(ESMFMKFILE_ENV $ENV{ESMFMKFILE})
+# # Add src subdirectory
+# add_subdirectory(src)
 
-  if(NOT ESMFMKFILE_ENV)
-    message(WARNING "ESMFMKFILE environment variable is not set. This is a strong indicator that ESMF environment variables might be missing.")
-  else()
-    message(STATUS "ESMFMKFILE found: ${ESMFMKFILE_ENV}. Relying on environment variables set by sourcing this or a similar script.")
-  endif()
+# add_subdirectory(example)
 
-  # Check for essential ESMF environment variables
-  set(ESMF_LIBS_ENV $ENV{ESMF_LIBS})
-  set(ESMF_INCLUDE_OPTS_ENV $ENV{ESMF_INCLUDE_OPTS})
-  set(ESMF_LINK_OPTS_ENV $ENV{ESMF_LINK_OPTS})
-  set(ESMF_F90ESMFLINKLIBS_ENV $ENV{ESMF_F90ESMFLINKLIBS})
-  set(ESMF_F90COMPILEOPTS_ENV $ENV{ESMF_F90COMPILEOPTS})
-  set(ESMF_F90COMPILECPPFLAGS_ENV $ENV{ESMF_F90COMPILECPPFLAGS})
-  set(ESMF_F90COMPILEFREECPP_ENV $ENV{ESMF_F90COMPILEFREECPP})
-
-  set(ESMF_LIBRARIES_TEMP "") # Initialize a temporary list/string for libraries
-
-  if(ESMF_LIBS_ENV)
-    message(STATUS "Using ESMF_LIBS from environment: ${ESMF_LIBS_ENV}")
-    list(APPEND ESMF_LIBRARIES_TEMP ${ESMF_LIBS_ENV})
-  else()
-    message(WARNING "ESMF_LIBS environment variable not found.")
-  endif()
-
-  if(ESMF_F90ESMFLINKLIBS_ENV)
-    message(STATUS "Using ESMF_F90ESMFLINKLIBS from environment: ${ESMF_F90ESMFLINKLIBS_ENV}")
-    list(APPEND ESMF_LIBRARIES_TEMP ${ESMF_F90ESMFLINKLIBS_ENV})
-  else()
-    message(WARNING "ESMF_F90ESMFLINKLIBS environment variable not found. Linking ESMF applications might fail.")
-  endif()
-  
-  set(ESMF_LIBRARIES ${ESMF_LIBRARIES_TEMP}) # Assign collected libraries to ESMF_LIBRARIES
-
-  if(ESMF_INCLUDE_OPTS_ENV)
-    message(STATUS "Using ESMF_INCLUDE_OPTS from environment: ${ESMF_INCLUDE_OPTS_ENV}")
-    # Parse -I options and add them to include directories
-    string(REGEX MATCHALL "-I[^ ]+" _esmf_includes "${ESMF_INCLUDE_OPTS_ENV}")
-    foreach(_inc ${_esmf_includes})
-      string(REPLACE "-I" "" _inc_path "${_inc}")
-      include_directories(${_inc_path})
-      message(STATUS "Added ESMF include directory: ${_inc_path}")
-    endforeach()
-  else()
-    message(WARNING "ESMF_INCLUDE_OPTS environment variable not found. ESMF includes might be missing.")
-  endif()
-
-  if(ESMF_F90COMPILEOPTS_ENV)
-      message(STATUS "Adding ESMF compile options from ESMF_F90COMPILEOPTS: ${ESMF_F90COMPILEOPTS_ENV}")
-      add_compile_options(${ESMF_F90COMPILEOPTS_ENV})
-  endif()
-
-  if(ESMF_LINK_OPTS_ENV)
-      message(STATUS "Adding ESMF link options from ESMF_LINK_OPTS: ${ESMF_LINK_OPTS_ENV}")
-      # These are linker flags like -L paths or rpaths.
-      # Add them to linker flags.
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ESMF_LINK_OPTS_ENV}")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ESMF_LINK_OPTS_ENV}")
-      set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ESMF_LINK_OPTS_ENV}")
-  endif()
-
-  if(ESMF_F90COMPILECPPFLAGS_ENV)
-      message(STATUS "Adding ESMF CPP definitions from ESMF_F90COMPILECPPFLAGS: ${ESMF_F90COMPILECPPFLAGS_ENV}")
-      # Parse -D options and add them as compile definitions
-      string(REGEX MATCHALL "-D[^ ]+" _esmf_defs "${ESMF_F90COMPILECPPFLAGS_ENV}")
-      foreach(_def ${_esmf_defs})
-          string(REPLACE "-D" "" _def_val "${_def}")
-          add_compile_definitions(${_def_val})
-          message(STATUS "Added ESMF compile definition: ${_def_val}")
-      endforeach()
-  endif()
-
-  if(ESMF_F90COMPILEFREECPP_ENV)
-      message(STATUS "Adding ESMF free/fixed form flags from ESMF_F90COMPILEFREECPP: ${ESMF_F90COMPILEFREECPP_ENV}")
-      add_compile_options(${ESMF_F90COMPILEFREECPP_ENV})
-  endif()
-
-  if(NOT ESMF_LIBS_ENV AND NOT ESMF_F90ESMFLINKLIBS_ENV AND NOT ESMF_INCLUDE_OPTS_ENV)
-    message(WARNING "Key ESMF environment variables (ESMF_LIBS, ESMF_F90ESMFLINKLIBS, ESMF_INCLUDE_OPTS) are missing. ESMF configuration may be incomplete.")
-  endif()
-
-endif()
-
-# Check CMAKE_Fortran_COMPILER, as ESMF usually expects an MPI-aware Fortran compiler.
-# Users should typically set CMAKE_Fortran_COMPILER to the ESMF compiler wrapper (e.g., esmpifort).
-if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
-  message(WARNING "CMAKE_Fortran_COMPILER is a standard compiler (${CMAKE_Fortran_COMPILER}). ESMF typically requires an MPI wrapper (e.g., esmpifort, mpif90). Ensure this compiler is MPI-aware or set CMAKE_Fortran_COMPILER to the appropriate ESMF wrapper.")
-else()
-  message(STATUS "CMAKE_Fortran_COMPILER is ${CMAKE_Fortran_COMPILER}. Assuming it is an MPI wrapper suitable for ESMF.")
-endif()
-
-# PDAF Dependency
-set(PDAF_LIB_DIR_ENV $ENV{PDAF_LIB_DIR})
-set(PDAF_INC_DIR_ENV $ENV{PDAF_INC_DIR}) # Often PDAF_LIB_DIR/../include or similar
-
-option(USE_PDAF "Enable PDAF features" OFF)
-
-if(PDAF_LIB_DIR_ENV)
-  # If PDAF_LIB_DIR is set, we likely want to use PDAF by default,
-  # but allow user to override with -DUSE_PDAF=OFF
-  if(NOT DEFINED CMAKE_USER_SET_USE_PDAF) # Check if user explicitly set USE_PDAF via -D
-    set(USE_PDAF ON CACHE BOOL "Enable PDAF features (auto-enabled due to PDAF_LIB_DIR)" FORCE)
-  endif()
-  message(STATUS "PDAF_LIB_DIR environment variable is set to: ${PDAF_LIB_DIR_ENV}")
-else()
-  if(USE_PDAF)
-    message(WARNING "USE_PDAF is ON but PDAF_LIB_DIR environment variable is not set. PDAF configuration might fail.")
-  endif()
-endif()
-
-if(USE_PDAF)
-  if(NOT PDAF_LIB_DIR_ENV)
-    message(FATAL_ERROR "USE_PDAF is ON but PDAF_LIB_DIR environment variable is not set. Please set it to point to your PDAF library directory.")
-  endif()
-
-  set(PDAF_INCLUDE_DIR ${PDAF_LIB_DIR_ENV}/../include) # Common pattern for PDAF
-  if(PDAF_INC_DIR_ENV)
-    set(PDAF_INCLUDE_DIR ${PDAF_INC_DIR_ENV}) # User-specified include dir takes precedence
-  endif()
-  
-  if(EXISTS "${PDAF_INCLUDE_DIR}")
-    include_directories(${PDAF_INCLUDE_DIR})
-    message(STATUS "PDAF include directory added: ${PDAF_INCLUDE_DIR}")
-  else()
-    message(WARNING "PDAF include directory not found: ${PDAF_INCLUDE_DIR}. This might cause compilation errors for PDAF features.")
-  endif()
-
-  # Find PDAF library (typically libpdaf-d)
-  # The Makefile uses -lpdaf-d, suggesting dynamic or static linking.
-  # We look for both .a and .so/.dylib
-  find_library(PDAF_LIBRARY NAMES pdaf-d NAMES_PER_DIR PATHS "${PDAF_LIB_DIR_ENV}" NO_DEFAULT_PATH)
-
-  if(PDAF_LIBRARY)
-    message(STATUS "PDAF library found: ${PDAF_LIBRARY}")
-    set(PDAF_LIBRARIES ${PDAF_LIBRARY})
-  else()
-    message(FATAL_ERROR "PDAF library 'pdaf-d' not found in ${PDAF_LIB_DIR_ENV}. Please ensure it exists (e.g., libpdaf-d.a or libpdaf-d.so).")
-  endif()
-
-  add_compile_definitions(USE_PDAF)
-  message(STATUS "PDAF is enabled. Compile definition USE_PDAF added.")
-else()
-  message(STATUS "PDAF is disabled.")
-endif()
-
-# Store CMAKE_USER_SET_USE_PDAF to respect user's -D option in subsequent runs
-if(DEFINED USE_PDAF_INIT)
-    # USE_PDAF_INIT is a temporary variable to capture the initial state provided by the user or default
-    if(NOT USE_PDAF STREQUAL USE_PDAF_INIT)
-        set(CMAKE_USER_SET_USE_PDAF ON CACHE INTERNAL "User has explicitly set USE_PDAF")
-    endif()
-else()
-    # Initialize USE_PDAF_INIT. This only happens on the very first configure.
-    set(USE_PDAF_INIT ${USE_PDAF} CACHE INTERNAL "Initial value of USE_PDAF for change detection")
-    if(USE_PDAF AND PDAF_LIB_DIR_ENV) # If default was ON due to ENV var
-        # Don't mark as user-set unless they explicitly set it
-    elseif(DEFINED CMAKE_CACHE_ARGS_USE_PDAF) # A way to check if -D was used, though not standard
-        set(CMAKE_USER_SET_USE_PDAF ON CACHE INTERNAL "User has explicitly set USE_PDAF")
-    endif()
-endif()
-
-# Handle FABM dependency
-include(cmake/fabm.cmake)
-
-# Add src subdirectory
-add_subdirectory(src)
-
-add_subdirectory(example)
-
-install(TARGETS main_esmf main_nuopc
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-)
+# install(TARGETS main_esmf main_nuopc
+#     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+# )
 
 # Install the configured schism.mk file
 set(SCHISM_MK_CONFIGURED_PATH "${CMAKE_BINARY_DIR}/schism.mk")
