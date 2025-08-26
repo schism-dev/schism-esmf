@@ -1477,26 +1477,20 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
     if (aice(i) > real(0.0)) then
       !>Ice ocean stress -------------------------------\
       !>Taux,Tauy are in units of [N/m/m]
-      !>Weighted by ice area on T-grid (CICE)
 
       tau_oi(1,i)=taux(i)
       tau_oi(2,i)=tauy(i)
 
 
       !> Salinity flux ---------------------------------\
-      !> This is the slainity flux to the ocean form ice 
+      !> This is the slainity flux to the ocean from ice 
       !> formaiton and melt. isalt has units [kg/s/m/m] 
-      !> to convert to [psu/s] divide by volume of fresh 
-      !> water in the top layer of the grid per unit area. 
-      !> In kg
       
       salinity_flux(i) = aice(i)*(isalt_flux(i))/real(1000)
 
       !>Fresh water flux -------------------------------\
       !> ifresh_flux is in units of [kg/s/m/m]
       !> Water is distributed across whole element
-      !> denisty of fresh 1000 [kg/m/m/m]
-
 
       fresh_wa_flux(i) = ifresh_flux(i)!*rho0
 
