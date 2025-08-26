@@ -383,7 +383,6 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
   call NUOPC_FieldDictionaryAddIfNeeded("sea_surface_slope_zonal", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("sea_surface_slope_merid", "1", localrc)
@@ -391,12 +390,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("mixed_layer_depth", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !================================================================================
-  !                      +-------------------------------+
-  !                      |  Adding CICE fields to ufs_fd |
-  !                      +-------------------------------+
-  !================================================================================
-
+  !  Adding CICE fields to ufs_fd
   !  Zonal ice velocity [m/s] --------------------------------------\
   call NUOPC_FieldDictionaryAddIfNeeded("Si_uvel", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -445,12 +439,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("Si_CdnIO", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !================================================================================
-  !                               +------------------------+
-  !                               | Advertizing CICE states|
-  !                               +------------------------+
-  !=================================================================================
-  
+  ! Advertizing CICE states
   ! Sea surface height--------------------------------------------------------------\ 
   call NUOPC_Advertise(importState, "sea_surface_height_above_sea_level", rc=localrc)
   
@@ -491,7 +480,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   !  ice thickness potential  -------------------------\ 
   call NUOPC_Advertise(importState, "Si_hi", rc=localrc)
- 
+  
   ! for coupling to ATM/DATM
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
@@ -625,12 +614,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
   localrc= ESMF_SUCCESS
 
-!<<<<<<< HEAD
-!=======
-  !> @todo move addSchismMesh back to schism_esmf_util to share with ESMF cap
-  !> call addSchismMesh(comp, ownedNodes=ownedNodes, foreignNodes=foreignNodes, rc=localrc)
-  !call addSchismMesh(comp, localrc)
-!>>>>>>> a9a0ce0 (Use MeshCreate instead off add Mesh)
   if (meshloc == ESMF_MESHLOC_NODE) then
     call SCHISM_MeshCreateNode(comp, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -734,12 +717,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="inst_prec_rate", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !=============================================================
-  !             +---------------------------------+
-  !             | Adding CICE vars to import state|
-  !             +---------------------------------+
-  !=============================================================
-  
+  !  Adding CICE vars to import state 
   !> Ice_velocity ---------------------------------------------\
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="Si_uvel", field=field, rc=localrc)
@@ -1286,7 +1264,6 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
                               aice,ifresh_flux,isalt_flux,iheat_flux, &
                               isw_pen,frzmlt,tau_oi,fresh_wa_flux, &
                               salinity_flux,net_heat_flux,srad_th_ice,CdnIO,znl, nvrt
-
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
@@ -1430,11 +1407,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   end if
   
 
-  !====================================================================
-  !                 +--------------------------------+
-  !                 | Importing CICE vars into schism|
-  !                 +--------------------------------+
-  !=====================================================================
+  !  Importing CICE vars into schism
   !> Zonal-direction ------------------------------------\
   call SCHISM_StateUpdate(importState, 'Si_uvel', uvice, &
     isPtr=isDataPtr, rc=localrc)
@@ -1498,10 +1471,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 
-
-  !               +---------------------+
-  !               | CICE Export to hydro|
-  !               +---------------------+
+  ! CICE Export to hydro
   i=0
   do i = 1,npa
     if (aice(i) > real(0.0)) then
