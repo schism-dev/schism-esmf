@@ -214,7 +214,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(13)%farrayPtr3 => tr_nd
 
   isPtr%wrap%ptrMap(14)%name = 'ocean_mask'
-  isPtr%wrap%ptrMap(14)%iarrayPtr1 = idry_e
+  isPtr%wrap%ptrMap(14)%iarrayPtr1 => idry_e
   
 end subroutine SCHISM_InitializePtrMap
 
