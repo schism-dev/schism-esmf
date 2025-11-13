@@ -148,3 +148,27 @@ pages:
           - mkdocs.yml
           
     allow_failure: true
+
+# Simple MkDocs Pages deployment (alternative to mike-based job above)
+mkdocs_pages:
+    image: python:3.11-slim
+    stage: deploy
+    needs: []
+    variables:
+        PIP_DISABLE_PIP_VERSION_CHECK: "1"
+        PIP_NO_CACHE_DIR: "1"
+    before_script:
+        - python -m pip install --upgrade pip
+        - pip install mkdocs mkdocs-material
+    script:
+        - mkdocs build --strict
+        - mv site public
+    artifacts:
+        paths:
+            - public
+    rules:
+        - changes:
+            - doc/**/*
+            - mkdocs.yml
+        - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "cmake"'
+    allow_failure: true
