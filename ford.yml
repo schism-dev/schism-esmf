@@ -5,17 +5,15 @@ author: Carsten Lemmen, Richard Hofmeister
 author_description: Helmholtz-Zentrum Hereon
 github: https://github.com/schism-dev/schism-esmf
 project_github: https://github.com/schism-dev/schism-esmf
-project_url: https://schism-esmf.readthedocs.io
 license: apache
 year: 2021-2025
 version: 0.2.0
 
 # Source code documentation
 src_dir: ./src
-output_dir: ./build/ford_docs
+output_dir: ./ford_docs
 exclude_dir: ./src/PDAF_bindings
 media_dir: ./doc
-page_dir: ./doc
 
 # Documentation style
 sort: alpha
@@ -35,12 +33,6 @@ display: public protected private
 # Project information
 md_extensions: markdown.extensions.toc
              markdown.extensions.smarty
-
-# Pages to include in API docs
-page: index.md
-      installation.md
-      running-examples.md
-      cmake-architecture.md
 
 # Preprocessor definitions
 preprocess: true

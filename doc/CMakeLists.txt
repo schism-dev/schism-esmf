@@ -76,8 +76,8 @@ endif()
 # Set documentation paths
 set(DOCS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(DOCS_BUILD_DIR "${CMAKE_BINARY_DIR}/docs")
-set(MKDOCS_CONFIG "${CMAKE_SOURCE_DIR}/mkdocs.yml")
-set(FORD_CONFIG "${CMAKE_SOURCE_DIR}/ford.yml")
+set(MKDOCS_CONFIG "${CMAKE_SOURCE_DIR}/doc/config/mkdocs.yml")
+set(FORD_CONFIG "${CMAKE_SOURCE_DIR}/doc/config/ford.yml")
 set(FORD_BUILD_DIR "${CMAKE_BINARY_DIR}/ford_docs")
 
 # Create build directory for docs

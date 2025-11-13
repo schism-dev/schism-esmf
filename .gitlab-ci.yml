@@ -136,16 +136,16 @@ pages:
         - git fetch origin $PAGES_BRANCH && git checkout -b $PAGES_BRANCH origin/$PAGES_BRANCH || echo "Pages branch not deployed yet."
         - git checkout $CI_COMMIT_SHA
     script:
-        - mike deploy --rebase --prefix public -r $HTTPS_REMOTE -p -b $PAGES_BRANCH -u $CI_COMMIT_TAG latest
+        - mike deploy --rebase --config-file doc/config/mkdocs.yml --prefix public -r $HTTPS_REMOTE -p -b $PAGES_BRANCH -u $CI_COMMIT_TAG latest
         - mike set-default --rebase --prefix public -r $HTTPS_REMOTE -p -b $PAGES_BRANCH latest
         - git checkout $PAGES_BRANCH -- public/
     artifacts:
         paths:
             - public/
-    only:
-        paths:
-          - doc/*.md'
-          - mkdocs.yml
+        only:
+                paths:
+                    - doc/*.md
+                    - doc/config/mkdocs.yml
           
     allow_failure: true
 
@@ -161,14 +161,14 @@ mkdocs_pages:
         - python -m pip install --upgrade pip
         - pip install mkdocs mkdocs-material
     script:
-        - mkdocs build --strict
+        - mkdocs build --strict --config-file doc/config/mkdocs.yml
         - mv site public
     artifacts:
         paths:
             - public
     rules:
         - changes:
-            - doc/**/*
-            - mkdocs.yml
+            - doc/***
+            - doc/config/mkdocs.yml
         - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "cmake"'
     allow_failure: true
