@@ -116,12 +116,6 @@ When in doubt
 
 If anything here is unclear or you'd like me to expand a section (build matrix, tests, or common failure modes), tell me which part and I'll iterate.
 
-### File naming style to consider
+### Style to consider
 
-Always use camelcase for naming the ReadMe.md files in each directory. Same with QuickStart.md in the main folder.  In the `./doc` subfolder, I prefer hyphenated lowercase for file names, e.g., `building-docs.md`, `running-examples.md`.
-
-### Code documentation with FORD
-Consider FORD as the documentation tool for Fortran source code.  Integrate it with mkdocs to produce API reference docs as part of the user documentation.  When annotating source files, do not document the obvious, rather focus on explaining the purpose of modules, procedures, and complex parameters.  See https://ford.readthedocs.io/en/latest/ for FORD usage and annotation guidelines.  Do not name authors at subroutine/module level, but only at the file level.
-
-### Toolchain
-Use mamba preferably for package management and the compute environment when developing this package.  All of the tools needed, like compiler wrappers, ESMF, FORD, mkdocs, etc should be present in the mamba environment. You can document this in an environment-dev.yml file, preferably in a ./config subdirectory (along with other configuration files that do not necessarily belong in the project root folder).
+Always use camelcase for naming the ReadMe.md files in each directory. Same with BuildTroubleshooting.md and TestReadMe.md and other markdown files.

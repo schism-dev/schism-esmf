@@ -5,7 +5,7 @@ version: 2
 
 # Build documentation with MkDocs
 mkdocs:
-  configuration: doc/config/mkdocs.yml
+  configuration: mkdocs.yml
   fail_on_warning: false
 
 # Python environment for building docs
@@ -17,4 +17,4 @@ build:
 # Python dependencies
 python:
   install:
-  - requirements: doc/config/requirements.txt
+    - requirements: doc/requirements.txt
