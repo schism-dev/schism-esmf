@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/index.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/BuildingDocs.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/build-troubleshooting.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/cmake-architecture.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/installation.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/legal.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/quickstart.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+    <url>
+         <loc>https://github.com/schism-dev/schism-esmf/running-examples.html</loc>
+         <lastmod>2025-11-13</lastmod>
+    </url>
+</urlset>
