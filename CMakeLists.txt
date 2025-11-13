@@ -5,8 +5,18 @@ enable_language(Fortran)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Include GNUInstallDirs for standard installation directories
+include(GNUInstallDirs)
+
 # Setup ESMF dependency
 include(cmake/ConfigureESMF.cmake)
+
+# Find MPI (required for ParMETIS and SCHISM)
+find_package(MPI REQUIRED COMPONENTS Fortran C)
+if(MPI_FOUND)
+  message(STATUS "MPI Fortran libraries: ${MPI_Fortran_LIBRARIES}")
+  message(STATUS "MPI C libraries: ${MPI_C_LIBRARIES}")
+endif()
 
 
 # SCHISM Dependency
@@ -15,52 +25,53 @@ include(cmake/ConfigureESMF.cmake)
 # If ESMF is not found or doesn't correctly export them, issues might arise.
 # Users might need to ensure their ESMF build correctly wraps these or install them separately
 # and adjust CMake configurations if direct linking becomes necessary.
-set(SCHISM_BUILD_DIR_ENV $ENV{SCHISM_BUILD_DIR})
+# Allow both environment variable and CMake variable override
+set(SCHISM_BUILD_DIR "$ENV{SCHISM_BUILD_DIR}" CACHE PATH "Path to pre-built SCHISM installation")
 
-if(NOT SCHISM_BUILD_DIR_ENV)
-  message(FATAL_ERROR "SCHISM_BUILD_DIR environment variable is not set. Please set it to point to your SCHISM build directory.")
-else()
-  message(STATUS "SCHISM_BUILD_DIR found: ${SCHISM_BUILD_DIR_ENV}")
+if(NOT SCHISM_BUILD_DIR OR NOT EXISTS "${SCHISM_BUILD_DIR}")
+  message(FATAL_ERROR
+    "SCHISM_BUILD_DIR must be set to a valid SCHISM build directory. "
+    "Set it via environment variable or CMake -DSCHISM_BUILD_DIR=/path/to/schism"
+  )
 endif()
 
-set(SCHISM_INCLUDE_DIR "${SCHISM_BUILD_DIR_ENV}/include")
-set(SCHISM_LIBRARY_DIR "${SCHISM_BUILD_DIR_ENV}/lib")
+message(STATUS "Using SCHISM build directory: ${SCHISM_BUILD_DIR}")
 
-# Check if include and lib directories exist
-if(NOT EXISTS "${SCHISM_INCLUDE_DIR}")
-  message(FATAL_ERROR "SCHISM include directory not found: ${SCHISM_INCLUDE_DIR}")
-endif()
-if(NOT EXISTS "${SCHISM_LIBRARY_DIR}")
-  message(FATAL_ERROR "SCHISM library directory not found: ${SCHISM_LIBRARY_DIR}")
-endif()
+# Define SCHISM components
+set(SCHISM_INCLUDE_DIR "${SCHISM_BUILD_DIR}/include")
+set(SCHISM_LIBRARY_DIR "${SCHISM_BUILD_DIR}/lib")
 
-include_directories(${SCHISM_INCLUDE_DIR})
+# Verify required directories exist
+foreach(DIR ${SCHISM_INCLUDE_DIR} ${SCHISM_LIBRARY_DIR})
+  if(NOT EXISTS "${DIR}")
+    message(FATAL_ERROR "Required SCHISM directory not found: ${DIR}")
+  endif()
+endforeach()
 
-# Define SCHISM libraries
-# Using find_library to confirm existence and get full path
-find_library(SCHISM_LIB_CORE_PATH NAMES core NAMES_PER_DIR PATHS "${SCHISM_LIBRARY_DIR}" NO_DEFAULT_PATH)
-find_library(SCHISM_LIB_HYDRO_PATH NAMES hydro NAMES_PER_DIR PATHS "${SCHISM_LIBRARY_DIR}" NO_DEFAULT_PATH)
-# ParMetis and Metis are often linked with SCHISM, but their presence might be conditional
-# We will handle these as separate dependencies if needed, or assume they are part of the SCHISM libs provided
-# For now, let's assume they are part of the general SCHISM linking process or handled by ESMF/NUOPC dependencies.
-# The Makefile does "AR x" for these from SCHISM_BUILD_DIR/lib into .objs/d, suggesting they are expected there.
+# Import SCHISM libraries
+# ===========================================================================
+# Core libraries
+set(SCHISM_LIBRARIES "")
+foreach(LIB core hydro turbulence parmetis metis util yaml)
+  find_library(SCHISM_${LIB}_PATH
+    NAMES ${LIB}
+    HINTS ${SCHISM_LIBRARY_DIR}
+    NO_DEFAULT_PATH
+  )
+  if(SCHISM_${LIB}_PATH)
+    list(APPEND SCHISM_LIBRARIES ${SCHISM_${LIB}_PATH})
+    message(STATUS "Found SCHISM library: ${SCHISM_${LIB}_PATH}")
+  else()
+    # Only core and hydro are mandatory
+    if(LIB STREQUAL "core" OR LIB STREQUAL "hydro")
+      message(FATAL_ERROR "SCHISM ${LIB} library not found in ${SCHISM_LIBRARY_DIR}")
+    else()
+      message(STATUS "SCHISM ${LIB} library not found (optional)")
+    endif()
+  endif()
+endforeach()
 
-if(NOT SCHISM_LIB_CORE_PATH)
-  message(FATAL_ERROR "SCHISM library 'core' not found in ${SCHISM_LIBRARY_DIR}")
-endif()
-if(NOT SCHISM_LIB_HYDRO_PATH)
-  message(FATAL_ERROR "SCHISM library 'hydro' not found in ${SCHISM_LIBRARY_DIR}")
-endif()
-
-add_library(SCHISM_core STATIC IMPORTED GLOBAL)
-set_target_properties(SCHISM_core PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_CORE_PATH}")
-
-add_library(SCHISM_hydro STATIC IMPORTED GLOBAL)
-set_target_properties(SCHISM_hydro PROPERTIES IMPORTED_LOCATION "${SCHISM_LIB_HYDRO_PATH}")
-
-# Group SCHISM libraries for easier linking
-set(SCHISM_LIBRARIES SCHISM_core SCHISM_hydro)
-message(STATUS "SCHISM libraries found: ${SCHISM_LIBRARIES}")
+message(STATUS "SCHISM libraries: ${SCHISM_LIBRARIES}")
 
 # # Handle FABM dependency
 # include(cmake/fabm.cmake)

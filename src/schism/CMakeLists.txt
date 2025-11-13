@@ -1,5 +1,11 @@
 include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
 
+# Ensure module output goes to centralized directory
+if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+endif()
+
 # Common source files for both ESMF and NUOPC interface variants
 set(SCHISM_INTERFACE_COMMON_SOURCES
     schism_bmi.F90
@@ -17,50 +23,68 @@ set(SCHISM_INTERFACE_NUOPC_SOURCES
     schism_nuopc_cap.F90
 )
 
+# --- schism_interface_common library (shared by both) ---
+add_library(schism_interface_common STATIC
+    ${SCHISM_INTERFACE_COMMON_SOURCES}
+)
+
+set_target_properties(schism_interface_common PROPERTIES
+    Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}
+)
+
+target_include_directories(schism_interface_common PUBLIC
+    ${CMAKE_Fortran_MODULE_DIRECTORY}
+    ${SCHISM_INCLUDE_DIR}
+)
+if(ESMF_FOUND AND TARGET ESMF::ESMF)
+    target_link_libraries(schism_interface_common PUBLIC ESMF::ESMF)
+elseif(ESMF_LIBRARIES)
+    target_link_libraries(schism_interface_common PUBLIC ${ESMF_LIBRARIES})
+endif()
+target_link_libraries(schism_interface_common PUBLIC ${SCHISM_LIBRARIES})
+if(USE_PDAF)
+    target_link_libraries(schism_interface_common PUBLIC pdaf_schism_bindings)
+    target_compile_definitions(schism_interface_common PRIVATE USE_PDAF)
+endif()
+
 # --- schism_esmf_interface library ---
 add_library(schism_esmf_interface STATIC
-    ${SCHISM_INTERFACE_COMMON_SOURCES}
     ${SCHISM_INTERFACE_ESMF_SOURCES}
 )
 
-target_include_directories(schism_esmf_interface PUBLIC
-    ${CMAKE_Fortran_MODULE_DIRECTORY} # For its own modules
-    ${SCHISM_INCLUDE_DIR}             # For SCHISM base modules
+set_target_properties(schism_esmf_interface PROPERTIES
+    Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}
 )
-if(ESMF_FOUND AND TARGET ESMF::ESMF)
-    target_link_libraries(schism_esmf_interface PUBLIC ESMF::ESMF) # ESMF modules might be needed
-elseif(ESMF_LIBRARIES)
-    target_link_libraries(schism_esmf_interface PUBLIC ${ESMF_LIBRARIES}) # Fallback
-endif()
 
-# Link common dependencies (SCHISM core, PDAF if enabled)
-target_link_libraries(schism_esmf_interface PUBLIC ${SCHISM_LIBRARIES})
-if(USE_PDAF)
-    # schism_esmf_interface depends on pdaf_schism_bindings, which links to actual PDAF libs
-    target_link_libraries(schism_esmf_interface PUBLIC pdaf_schism_bindings)
-    target_compile_definitions(schism_esmf_interface PRIVATE USE_PDAF)
+target_include_directories(schism_esmf_interface PUBLIC
+    ${CMAKE_Fortran_MODULE_DIRECTORY}
+    ${SCHISM_INCLUDE_DIR}
+)
+target_link_libraries(schism_esmf_interface PUBLIC schism_interface_common)
+if(ESMF_FOUND AND TARGET ESMF::ESMF)
+    target_link_libraries(schism_esmf_interface PUBLIC ESMF::ESMF)
+elseif(ESMF_LIBRARIES)
+    target_link_libraries(schism_esmf_interface PUBLIC ${ESMF_LIBRARIES})
 endif()
 
 # --- schism_nuopc_interface library ---
 add_library(schism_nuopc_interface STATIC
-    ${SCHISM_INTERFACE_COMMON_SOURCES}
     ${SCHISM_INTERFACE_NUOPC_SOURCES}
+)
+
+set_target_properties(schism_nuopc_interface PROPERTIES
+    Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}
 )
 
 target_include_directories(schism_nuopc_interface PUBLIC
     ${CMAKE_Fortran_MODULE_DIRECTORY}
     ${SCHISM_INCLUDE_DIR}
 )
-if(ESMF_FOUND AND TARGET ESMF::ESMF) # NUOPC also uses ESMF
+target_link_libraries(schism_nuopc_interface PUBLIC schism_interface_common)
+if(ESMF_FOUND AND TARGET ESMF::ESMF)
     target_link_libraries(schism_nuopc_interface PUBLIC ESMF::ESMF)
 elseif(ESMF_LIBRARIES)
     target_link_libraries(schism_nuopc_interface PUBLIC ${ESMF_LIBRARIES})
-endif()
-
-target_link_libraries(schism_nuopc_interface PUBLIC ${SCHISM_LIBRARIES})
-if(USE_PDAF)
-    target_link_libraries(schism_nuopc_interface PUBLIC pdaf_schism_bindings)
-    target_compile_definitions(schism_nuopc_interface PRIVATE USE_PDAF)
 endif()
 
 

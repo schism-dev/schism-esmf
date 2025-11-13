@@ -26,3 +26,11 @@ elseif(ESMF_LIBRARIES) # Fallback
     target_link_libraries(schism_model_libs PUBLIC ${ESMF_LIBRARIES})
 endif()
 
+# Link against schism interface libraries (for modules like schism_esmf_util)
+if(TARGET schism_esmf_interface)
+    target_link_libraries(schism_model_libs PUBLIC schism_esmf_interface)
+endif()
+
+if(TARGET schism_nuopc_interface)
+    target_link_libraries(schism_model_libs PUBLIC schism_nuopc_interface)
+endif()

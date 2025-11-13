@@ -154,7 +154,13 @@ if(EXISTS ${ESMFMKFILE})
   endif()
   set(ESMF_COMPILE_DEFINITIONS ${ESMF_COMPILE_DEFINITIONS} CACHE INTERNAL "ESMF Compile Definitions")
 
-  set(ESMF_COMPILE_OPTIONS "${ESMF_F90COMPILEOPTS} ${ESMF_F90COMPILEFREECPP}" CACHE INTERNAL "ESMF Compile Options")
+  # Properly separate compile options into a list
+  set(ESMF_COMPILE_OPTIONS "")
+  if(ESMF_F90COMPILEOPTS OR ESMF_F90COMPILEFREECPP)
+    string(STRIP "${ESMF_F90COMPILEOPTS} ${ESMF_F90COMPILEFREECPP}" _esmf_opts_string)
+    separate_arguments(_esmf_opts_list UNIX_COMMAND "${_esmf_opts_string}")
+    set(ESMF_COMPILE_OPTIONS ${_esmf_opts_list} CACHE INTERNAL "ESMF Compile Options")
+  endif()
   # Prefer ESMF_F90LINKOPTS for consistency with compilers.cmake, or choose one standard.
   set(ESMF_LINK_FLAGS "${ESMF_F90LINKOPTS}" CACHE INTERNAL "ESMF Link Flags")
 

@@ -5,6 +5,12 @@ include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
 # List all .F90 source files in the current directory
 file(GLOB DRIVER_SOURCES *.F90)
 
+# Exclude MOSSCO-dependent files if MOSSCO is not available
+if(NOT TARGET mossco_lib AND NOT MOSSCO_LIBRARIES)
+    list(FILTER DRIVER_SOURCES EXCLUDE REGEX "toplevel_schism_netcdf\\.F90$")
+    message(STATUS "Excluding toplevel_schism_netcdf.F90 (MOSSCO not available)")
+endif()
+
 if(NOT DRIVER_SOURCES)
     message(WARNING "No .F90 files found in src/driver. The schism_driver_libs library will be empty.")
 else()

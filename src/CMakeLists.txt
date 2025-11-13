@@ -37,6 +37,13 @@ endif()
 if(SCHISM_LIBRARIES)
     target_link_libraries(main_esmf PRIVATE ${SCHISM_LIBRARIES})
 endif()
+# Link MPI libraries (required for ParMETIS)
+if(MPI_Fortran_LIBRARIES)
+    target_link_libraries(main_esmf PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
+if(MPI_C_LIBRARIES)
+    target_link_libraries(main_esmf PRIVATE ${MPI_C_LIBRARIES})
+endif()
 
 
 # NUOPC executable
@@ -48,6 +55,13 @@ if(ESMF_LIBRARIES) # NUOPC also builds on ESMF
 endif()
 if(SCHISM_LIBRARIES)
     target_link_libraries(main_nuopc PRIVATE ${SCHISM_LIBRARIES})
+endif()
+# Link MPI libraries
+if(MPI_Fortran_LIBRARIES)
+    target_link_libraries(main_nuopc PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
+if(MPI_C_LIBRARIES)
+    target_link_libraries(main_nuopc PRIVATE ${MPI_C_LIBRARIES})
 endif()
 
 # The MOSSCO part from src/Makefile:
@@ -74,4 +88,31 @@ if(MOSSCO_DIR_ENV)
     endif()
 else()
     message(STATUS "MOSSCO_DIR environment variable not set. Skipping mossco subdirectory.")
+endif()
+
+# Now link the executables to the library targets created in subdirectories
+# main_esmf needs: schism_esmf_interface, schism_driver_libs, schism_model_libs
+if(TARGET schism_driver_libs)
+    target_link_libraries(main_esmf PRIVATE schism_driver_libs)
+endif()
+
+if(TARGET schism_model_libs)
+    target_link_libraries(main_esmf PRIVATE schism_model_libs)
+endif()
+
+if(TARGET schism_esmf_interface)
+    target_link_libraries(main_esmf PRIVATE schism_esmf_interface)
+endif()
+
+# main_nuopc needs: schism_nuopc_interface, schism_driver_libs, schism_model_libs
+if(TARGET schism_driver_libs)
+    target_link_libraries(main_nuopc PRIVATE schism_driver_libs)
+endif()
+
+if(TARGET schism_model_libs)
+    target_link_libraries(main_nuopc PRIVATE schism_model_libs)
+endif()
+
+if(TARGET schism_nuopc_interface)
+    target_link_libraries(main_nuopc PRIVATE schism_nuopc_interface)
 endif()
