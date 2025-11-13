@@ -101,6 +101,24 @@ else
             version=$(grep "ESMF_VERSION_STRING" "$ESMFMKFILE" | head -1 | cut -d= -f2 | tr -d ' ')
             print_test INFO "ESMF Version" "$version"
         fi
+        
+        # Check ESMF_COMM (critical for build success)
+        if grep -q "ESMF_COMM" "$ESMFMKFILE"; then
+            esmf_comm=$(grep "^ESMF_COMM=" "$ESMFMKFILE" | head -1 | cut -d= -f2 | tr -d ' ')
+            print_test INFO "ESMF MPI Implementation" "$esmf_comm"
+            
+            if [[ "$esmf_comm" == "mpiuni" ]] || [[ "$esmf_comm" =~ "nompi" ]]; then
+                print_test FAIL "ESMF has real MPI support" "ESMF_COMM=$esmf_comm (stub MPI, not compatible with SCHISM)"
+                print_test INFO "Fix (conda)" "mamba install -c conda-forge 'esmf=*=mpi_mpich*'"
+                print_test INFO "Fix (spack)" "spack install esmf+mpi"
+            elif [[ "$esmf_comm" == "mpich" ]] || [[ "$esmf_comm" == "openmpi" ]]; then
+                print_test PASS "ESMF has real MPI support" "$esmf_comm"
+            else
+                print_test WARN "ESMF MPI implementation unknown" "$esmf_comm"
+            fi
+        else
+            print_test FAIL "ESMF_COMM variable found" "Cannot determine MPI implementation"
+        fi
     else
         print_test FAIL "esmf.mk appears invalid" "Missing ESMF_VERSION_MAJOR"
     fi
@@ -144,9 +162,101 @@ else
     if [[ -f "$SCHISM_BUILD_DIR/lib/libcore.a" ]]; then
         print_test PASS "libcore.a exists"
     else
-        print_test WARN "libcore.a exists" "Optional library not found"
+        print_test FAIL "libcore.a exists" "Core library not found"
+    fi
+    
+    # Check for additional required dependencies
+    required_libs=("libturbulence.a" "libyaml.a")
+    optional_libs=("libparmetis.a" "libmetis.a")
+    
+    missing_required=()
+    for lib in "${required_libs[@]}"; do
+        if [[ -f "$SCHISM_BUILD_DIR/lib/$lib" ]]; then
+            print_test PASS "$lib exists"
+        else
+            print_test FAIL "$lib exists" "Required dependency not found"
+            missing_required+=("$lib")
+        fi
+    done
+    
+    missing_optional=()
+    for lib in "${optional_libs[@]}"; do
+        if [[ -f "$SCHISM_BUILD_DIR/lib/$lib" ]]; then
+            print_test PASS "$lib exists"
+        else
+            print_test WARN "$lib exists" "Optional library not found (may cause link errors)"
+            missing_optional+=("$lib")
+        fi
+    done
+    
+    if [[ ${#missing_required[@]} -gt 0 ]] || [[ ${#missing_optional[@]} -gt 0 ]]; then
+        print_test INFO "Available SCHISM libraries" "$(ls -1 $SCHISM_BUILD_DIR/lib/*.a 2>/dev/null | xargs -n1 basename || echo 'none')"
+        if [[ ${#missing_required[@]} -gt 0 ]]; then
+            print_test INFO "Fix" "Rebuild SCHISM with: cmake ../src && make"
+        fi
     fi
 fi
+echo ""
+
+# ========================================
+# Test 2.5: Check MPI Libraries
+# ========================================
+echo "Test 2.5: MPI Library Availability"
+echo "-----------------------------------"
+
+# Try to find MPI libraries
+mpi_found=false
+mpi_impl=""
+
+if command -v mpirun &> /dev/null || command -v mpiexec &> /dev/null; then
+    print_test PASS "MPI runtime found"
+    mpi_found=true
+    
+    # Detect MPI implementation
+    if command -v mpichversion &> /dev/null; then
+        mpi_impl="MPICH"
+        mpi_version=$(mpichversion 2>/dev/null || echo "unknown")
+        print_test INFO "MPI Implementation" "$mpi_impl $mpi_version"
+    elif command -v ompi_info &> /dev/null; then
+        mpi_impl="OpenMPI"
+        mpi_version=$(ompi_info --version 2>/dev/null | head -1 || echo "unknown")
+        print_test INFO "MPI Implementation" "$mpi_impl $mpi_version"
+    else
+        print_test INFO "MPI Implementation" "Unknown (mpirun found)"
+    fi
+else
+    print_test WARN "MPI runtime found" "mpirun/mpiexec not in PATH"
+fi
+
+# Check for MPI libraries in common locations
+mpi_lib_found=false
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+    if ls "$CONDA_PREFIX/lib"/libmpi*.dylib &>/dev/null || ls "$CONDA_PREFIX/lib"/libmpi*.so &>/dev/null; then
+        print_test PASS "MPI libraries found in conda environment"
+        mpi_lib_found=true
+        print_test INFO "MPI library path" "$CONDA_PREFIX/lib"
+    fi
+elif [[ -n "${SPACK_ROOT:-}" ]]; then
+    # Spack environment - MPI should be in PATH
+    print_test INFO "Spack environment detected" "MPI from spack load"
+    mpi_lib_found=true
+else
+    # Check system locations
+    for libdir in /usr/lib /usr/local/lib /opt/local/lib /opt/homebrew/lib; do
+        if [[ -d "$libdir" ]] && (ls "$libdir"/libmpi*.so &>/dev/null || ls "$libdir"/libmpi*.dylib &>/dev/null); then
+            print_test PASS "MPI libraries found" "$libdir"
+            mpi_lib_found=true
+            break
+        fi
+    done
+fi
+
+if ! $mpi_lib_found && ! $mpi_found; then
+    print_test FAIL "MPI libraries available" "No MPI installation detected"
+    print_test INFO "Fix (conda)" "mamba install -c conda-forge mpich or openmpi"
+    print_test INFO "Fix (system)" "Install OpenMPI or MPICH via package manager"
+fi
+
 echo ""
 
 # ========================================

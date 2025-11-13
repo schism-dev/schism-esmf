@@ -14,10 +14,13 @@ Quick orientation (big picture)
 
 What to assume when editing/building
 - SCHISM is expected to be pre-built. The build system requires `SCHISM_BUILD_DIR` to point
-  to a SCHISM build (contains `include/` and `lib/` with `libhydro.a` etc.). See `CMakeLists.txt`.
+  to a SCHISM build (contains `include/` and `lib/` with SCHISM libraries). See `CMakeLists.txt`.
+  Required SCHISM libraries: `libcore.a`, `libhydro.a`, `libturbulence.a`, `libyaml.a`, `libparmetis.a`, `libmetis.a`
 - ESMF is discovered via an `esmf.mk` file; provide it via the environment variable `ESMFMKFILE`
   (or let `cmake/FindESMF.cmake` locate it). The CMake helper `cmake/FindESMF.cmake` parses the
   ESMF makefile and exposes include/lib variables and an `ESMF::ESMF` target.
+- **CRITICAL**: ESMF must be built with real MPI support (`ESMF_COMM=mpich` or `openmpi`), NOT `mpiuni` (MPI stub).
+  Check with: `grep ESMF_COMM $ESMFMKFILE`
 
 Build and test commands (concrete)
 - Fast: set env vars, configure, build
@@ -28,8 +31,13 @@ Build and test commands (concrete)
   cmake ..
   cmake --build . -- -j$(nproc)
   ```
-- **macOS-specific**: use Homebrew-installed gfortran and explicitly set the Fortran compiler
+- **macOS-specific**: Install ESMF with MPI support, use Homebrew/conda gfortran
   ```bash
+  # Install ESMF with MPI (choose one MPI implementation)
+  mamba install -c conda-forge "esmf=8.9.0=mpi_mpich*"
+  # or
+  mamba install -c conda-forge "esmf=8.9.0=mpi_openmpi*"
+  
   export ESMFMKFILE=/path/to/esmf.mk
   export SCHISM_BUILD_DIR=/path/to/schism/build
   mkdir -p build && cd build
@@ -44,10 +52,17 @@ Build and test commands (concrete)
 
 CI-ready checklist (for automated builds)
 1. Ensure `ESMFMKFILE` points to a valid `esmf.mk` (check existence: `test -f "$ESMFMKFILE"`).
-2. Ensure `SCHISM_BUILD_DIR` points to a pre-built SCHISM (check lib: `test -f "$SCHISM_BUILD_DIR/lib/libhydro.a"`).
-3. Set `CMAKE_Fortran_COMPILER` to an MPI-aware wrapper (e.g., `mpif90`, `esmpifort`) — CMake will warn if you use a bare compiler.
-4. Run CMake configure with explicit compiler flags and capture stderr for "FATAL_ERROR" or "WARNING" messages.
-5. Run `cmake --build . -- VERBOSE=1` to see full compile/link commands and catch missing symbols early.
+2. **Verify ESMF has MPI support**: `grep ESMF_COMM "$ESMFMKFILE" | grep -v mpiuni` (must show `mpich` or `openmpi`).
+3. Ensure `SCHISM_BUILD_DIR` points to a pre-built SCHISM with all required libraries:
+   ```bash
+   test -f "$SCHISM_BUILD_DIR/lib/libhydro.a" && \
+   test -f "$SCHISM_BUILD_DIR/lib/libcore.a" && \
+   test -f "$SCHISM_BUILD_DIR/lib/libturbulence.a" && \
+   test -f "$SCHISM_BUILD_DIR/lib/libyaml.a"
+   ```
+4. Set `CMAKE_Fortran_COMPILER` to an MPI-aware wrapper (e.g., `mpif90`, `esmpifort`) — CMake will warn if you use a bare compiler.
+5. Run CMake configure with explicit compiler flags and capture stderr for "FATAL_ERROR" or "WARNING" messages.
+6. Run `cmake --build . -- VERBOSE=1` to see full compile/link commands and catch missing symbols early.
 6. Optional: run a quick smoke test by executing `./main_esmf --help` or similar (if applicable) to verify linkage.
 
 **Automated validation**: Run `.github/test-cmake-instructions.sh` to validate your environment against this checklist.
@@ -64,7 +79,13 @@ Important patterns & conventions
   modules directory (`CMAKE_Fortran_MODULE_DIRECTORY` configured to `build/modules`). When adding
   new modules, ensure consumers see the `target_include_directories(...)` or that targets are linked
   in the correct CMake subdirectory (see `src/CMakeLists.txt`).
-- SCHISM libraries expected in `${SCHISM_BUILD_DIR}/lib` with names found by `find_library` for `core` and `hydro`.
+- **Shared source pattern**: Common Fortran sources used by multiple targets (e.g., `schism_bmi.F90`, 
+  `schism_esmf_util.F90`) are compiled once in a separate library (`schism_interface_common`) to avoid 
+  parallel build race conditions. See `src/schism/CMakeLists.txt` for the pattern.
+- SCHISM dependency chain: CMake discovers and links in this order:
+  1. SCHISM core libraries: `libcore.a`, `libhydro.a`
+  2. SCHISM dependencies: `libturbulence.a`, `libyaml.a`, `libparmetis.a`, `libmetis.a`
+  3. MPI libraries: `find_package(MPI REQUIRED)` provides `${MPI_Fortran_LIBRARIES}`
 - Optional integrations: PDAF (data assimilation) and MOSSCO are optional — guard changes so they compile
   when absent. See `scripts/Readme.md` and `src/` subdirs referencing PDAF and MOSSCO.
 
@@ -97,4 +118,4 @@ If anything here is unclear or you'd like me to expand a section (build matrix, 
 
 ### Style to consider
 
-Always use camelcase for naming the ReadMe.md files in each directory.
+Always use camelcase for naming the ReadMe.md files in each directory. Same with BuildTroubleshooting.md and TestReadMe.md and other markdown files.

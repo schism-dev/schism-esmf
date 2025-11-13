@@ -5,18 +5,82 @@
 
 site_name: SCHISM-ESMF
 site_url: https://github.com/schism-dev/schism-esmf
+site_description: Earth System Modeling Framework (ESMF) and NUOPC caps for SCHISM
 docs_dir: ./doc
+site_dir: ./site
 use_directory_urls: false
+
 theme:
   name: material
   features:
     - toc.integrate
     - toc.follow
     - content.code.annotate
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
   icon:
     repo: fontawesome/brands/git-alt
   logo: logo.png
+  palette:
+    # Light mode
+    - scheme: default
+      primary: blue
+      accent: light-blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: blue
+      accent: light-blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+repo_name: schism-dev/schism-esmf
+repo_url: https://github.com/schism-dev/schism-esmf
+
 nav:
   - Home: index.md
-  - Installation: installation.md
+  - Getting Started:
+    - Quick Start: quickstart.md
+    - Installation: installation.md
+    - Build Troubleshooting: build-troubleshooting.md
+  - Technical Documentation:
+    - CMake Architecture: cmake-architecture.md
+    - Running Examples: running-examples.md
+    - Building Documentation: BuildingDocs.md
   - Legal: legal.md
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/schism-dev/schism-esmf
+      name: SCHISM-ESMF on GitHub
+  version:
+    provider: mike

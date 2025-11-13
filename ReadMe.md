@@ -6,11 +6,43 @@
 -->
 
 # schism-esmf
+
 Earth System Modeling Framework (ESMF) and National Unified Operational Prediction Capability (NUOPC) caps for SCHISM
+
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/schism-dev/schism-esmf)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue)](https://github.com/schism-dev/schism-esmf)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
+## Recent Successful Builds
+
+| Platform | Compiler | ESMF | MPI | Status | Date |
+|----------|----------|------|-----|--------|------|
+| macOS 15 (arm64) | gfortran 14.3.0 | 8.9.0 | MPICH 4.3.2 | ✅ Passing | Nov 2025 |
+| Linux (x86_64) | gfortran 11+ | 8.7+ | OpenMPI/MPICH | ✅ Passing | - |
+
+**Key Requirements**:
+- ESMF **must** use real MPI (`mpi_mpich` or `mpi_openmpi`), **not** `mpiuni` or `nompi`
+- SCHISM libraries: `libcore.a`, `libhydro.a`, `libturbulence.a`, `libyaml.a`, `libparmetis.a`, `libmetis.a`
+- MPI libraries must match between ESMF and SCHISM
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [QUICKSTART.md](./QUICKSTART.md) | **Detailed walkthrough** with platform-specific instructions |
+| [BUILD_TROUBLESHOOTING.md](.github/BUILD_TROUBLESHOOTING.md) | Solutions to all 9 known build issues |
+| [cmake-architecture.md](doc/cmake-architecture.md) | CMake build system internals and patterns |
+| [running-examples.md](doc/running-examples.md) | How to run executables and examples |
+| [test-cmake-instructions.sh](.github/test-cmake-instructions.sh) | Automated environment validation |
+| [BuildingDocs.md](doc/BuildingDocs.md) | How to build HTML documentation |
+
+**Build HTML Docs**: `cmake .. -DBUILD_DOCS=ON && make docs` (requires Python, MkDocs)
 
 -------------------------------------------------------
 
-# Using it
+# Quick Start
+
+Get SCHISM-ESMF building in under 30 minutes. Full details in [QUICKSTART.md](./QUICKSTART.md).
 
 ## Prerequisites
 
@@ -75,6 +107,3 @@ the primary application.
 
 Please report bugs to <carsten.lemmen@hereon.de>.  You are very welcome to contribute
 to improving this cap. Fork on github, make changes, and file a pull request.
-
----------------------------------------------------------------------------------
-Joseph's notes:
