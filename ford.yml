@@ -1,0 +1,58 @@
+---
+project: SCHISM-ESMF
+summary: Earth System Modeling Framework (ESMF) and NUOPC caps for SCHISM
+author: Carsten Lemmen, Richard Hofmeister
+author_description: Helmholtz-Zentrum Hereon
+github: https://github.com/schism-dev/schism-esmf
+project_github: https://github.com/schism-dev/schism-esmf
+project_url: https://schism-esmf.readthedocs.io
+license: apache
+year: 2021-2025
+version: 0.2.0
+
+# Source code documentation
+src_dir: ./src
+output_dir: ./build/ford_docs
+exclude_dir: ./src/PDAF_bindings
+media_dir: ./doc
+page_dir: ./doc
+
+# Documentation style
+sort: alpha
+graph: true
+search: true
+warn: true
+proc_internals: false
+extra_mods: iso_fortran_env:https://gcc.gnu.org/onlinedocs/gfortran/ISO_005fFORTRAN_005fENV.html
+
+# Theme and appearance
+css: ./doc/ford-custom.css
+favicon: ./doc/logo.png
+docmark: !
+predocmark: >
+display: public protected private
+
+# Project information
+md_extensions: markdown.extensions.toc
+             markdown.extensions.smarty
+
+# Pages to include in API docs
+page: index.md
+      installation.md
+      running-examples.md
+      cmake-architecture.md
+
+# Preprocessor definitions
+preprocess: true
+macro: ESMF_CONTEXT=1
+       ESMF_ERR_PASSTHRU=1
+       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_=1
+
+# External documentation links
+externals: ESMF:https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/
+         NetCDF:https://www.unidata.ucar.edu/software/netcdf/docs/
+
+# Module organization
+graph_maxnodes: 128
+graph_maxdepth: 4
+creation_date: %Y-%m-%d %H:%M %z

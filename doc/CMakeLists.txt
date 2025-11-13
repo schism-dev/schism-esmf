@@ -77,6 +77,8 @@ endif()
 set(DOCS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(DOCS_BUILD_DIR "${CMAKE_BINARY_DIR}/docs")
 set(MKDOCS_CONFIG "${CMAKE_SOURCE_DIR}/mkdocs.yml")
+set(FORD_CONFIG "${CMAKE_SOURCE_DIR}/ford.yml")
+set(FORD_BUILD_DIR "${CMAKE_BINARY_DIR}/ford_docs")
 
 # Create build directory for docs
 file(MAKE_DIRECTORY "${DOCS_BUILD_DIR}")
@@ -91,6 +93,40 @@ add_custom_target(docs
   COMMENT "Building HTML documentation with MkDocs..."
   VERBATIM
 )
+
+# Custom target: Build API reference with FORD
+execute_process(
+  COMMAND ${Python3_EXECUTABLE} -c "import ford; print(ford.__version__)"
+  RESULT_VARIABLE FORD_CHECK
+  OUTPUT_VARIABLE FORD_VERSION
+  ERROR_QUIET
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(FORD_CHECK EQUAL 0)
+  message(STATUS "✓ FORD found: version ${FORD_VERSION}")
+  
+  add_custom_target(docs-api
+    COMMAND ${Python3_EXECUTABLE} -m ford
+      "${FORD_CONFIG}"
+      -o "${FORD_BUILD_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Building API reference with FORD..."
+    VERBATIM
+  )
+  
+  add_custom_target(docs-all
+    DEPENDS docs docs-api
+    COMMENT "Building all documentation (user guide + API reference)"
+  )
+  
+  message(STATUS "✓ API documentation targets available:")
+  message(STATUS "    make docs-api   - Build Fortran API reference")
+  message(STATUS "    make docs-all   - Build user guide + API reference")
+else()
+  message(STATUS "○ FORD not found (API reference generation not available)")
+  message(STATUS "    Install with: pip install ford")
+endif()
 
 # Custom target: Serve documentation locally for development
 add_custom_target(docs-serve

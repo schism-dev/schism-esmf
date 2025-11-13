@@ -18,6 +18,15 @@ The cap is meant to be used in the context of ESMF-based coupling frameworks, wh
 2. Build the cap's ESMF and NUOPC libraries following [Installation](installation.md)
 3. Include the SCHISM-ESMF cap in your application's build system by linking to `-libschism_esmf`, see below
 
+## Documentation
+
+This documentation provides:
+
+- **User Guide**: Installation, build instructions, examples, and troubleshooting (you're reading it now)
+- **API Reference**: Detailed Fortran source code documentation with call graphs and module dependencies
+
+For developers working with the source code, see the [API Documentation Guide](ford-setup-summary.md) to learn how to build and contribute to the API reference.
+
 ## Coupling frameworks
 
 ### NUOPC

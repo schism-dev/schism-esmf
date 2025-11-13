@@ -54,6 +54,10 @@ nav:
     - CMake Architecture: cmake-architecture.md
     - Running Examples: running-examples.md
     - Building Documentation: BuildingDocs.md
+    - API Documentation:
+      - Setup Summary: ford-setup-summary.md
+      - Documentation Guide: api-documentation-guide.md
+      - Example: ford-example.md
   - Legal: legal.md
 
 markdown_extensions:

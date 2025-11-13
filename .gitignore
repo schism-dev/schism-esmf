@@ -1,5 +1,6 @@
 site
 lib
+build
 
 # Temporary dirs
 .objs/

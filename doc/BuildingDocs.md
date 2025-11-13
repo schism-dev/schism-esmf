@@ -135,14 +135,26 @@ If your Fortran/MPI toolchain isn't available, you can configure a documentation
 ```bash
 mkdir -p build && cd build
 cmake .. -DDOCS_ONLY=ON  # Implicitly sets -DBUILD_DOCS=ON
+
+# Build user guide (MkDocs)
 cmake --build . --target docs
+
+# Build API reference (FORD - requires ford installed)
+cmake --build . --target docs-api
+
+# Build both
+cmake --build . --target docs-all
 ```
+
+For details on writing FORD-style documentation in the Fortran source code, see the [API Documentation Guide](api-documentation-guide.md).
 
 ### CMake Targets
 
 | Target | Description |
 |--------|-------------|
-| `docs` | Build HTML documentation |
+| `docs` | Build HTML user guide (MkDocs) |
+| `docs-api` | Build API reference from Fortran source (FORD) |
+| `docs-all` | Build both user guide and API reference |
 | `docs-serve` | Start local documentation server |
 | `docs-clean` | Remove built documentation |
 
