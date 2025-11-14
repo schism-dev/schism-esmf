@@ -1,0 +1,161 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "SCHISM-ESMF",
+  "description": "Earth System Modeling Framework (ESMF) and NUOPC caps for SCHISM hydrodynamics model, enabling coupling with other Earth system components",
+  "identifier": "https://github.com/schism-dev/schism-esmf",
+  "codeRepository": "https://github.com/schism-dev/schism-esmf",
+  "issueTracker": "https://github.com/schism-dev/schism-esmf/issues",
+  "license": [
+    "https://spdx.org/licenses/Apache-2.0",
+    "https://spdx.org/licenses/GPL-3.0-or-later"
+  ],
+  "version": "0.3.0",
+  "dateCreated": "2019-09-11",
+  "dateModified": "2025-11-14",
+  "datePublished": "2020-02-12",
+  "programmingLanguage": [
+    "Fortran",
+    "Python",
+    "CMake"
+  ],
+  "runtimePlatform": [
+    "Linux",
+    "macOS",
+    "HPC clusters"
+  ],
+  "operatingSystem": [
+    "Linux",
+    "macOS"
+  ],
+  "applicationCategory": "Scientific Software",
+  "keywords": [
+    "ESMF",
+    "NUOPC",
+    "SCHISM",
+    "hydrodynamics",
+    "ocean modeling",
+    "Earth system modeling",
+    "coastal modeling",
+    "model coupling",
+    "numerical modeling"
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Carsten",
+      "familyName": "Lemmen",
+      "email": "carsten.lemmen@hereon.de",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Helmholtz-Zentrum Hereon"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Richard",
+      "familyName": "Hofmeister",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Helmholtz-Zentrum Hereon"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Joseph",
+      "familyName": "Zhang",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Virginia Institute of Marine Science"
+      }
+    }
+  ],
+  "contributor": [
+    {
+      "@type": "Person",
+      "givenName": "Zhengui",
+      "familyName": "Wang"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Fei",
+      "familyName": "Ye"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Nicole",
+      "familyName": "Cai"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Dan",
+      "familyName": "Yu"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Wei",
+      "familyName": "Huang"
+    },
+    {
+      "@type": "Person",
+      "givenName": "Ufuk",
+      "familyName": "Turuncoglu"
+    }
+  ],
+  "maintainer": [
+    {
+      "@type": "Person",
+      "givenName": "Carsten",
+      "familyName": "Lemmen",
+      "email": "carsten.lemmen@hereon.de",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Helmholtz-Zentrum Hereon"
+      }
+    }
+  ],
+  "copyrightHolder": [
+    {
+      "@type": "Organization",
+      "name": "Helmholtz-Zentrum Hereon",
+      "url": "https://www.hereon.de"
+    }
+  ],
+  "copyrightYear": 2019,
+  "funder": [
+    {
+      "@type": "Organization",
+      "name": "Helmholtz Association"
+    }
+  ],
+  "softwareRequirements": [
+    "ESMF >= 8.0.0",
+    "SCHISM",
+    "MPI (MPICH or OpenMPI)",
+    "CMake >= 3.16",
+    "Fortran compiler (gfortran, ifort, ifx)",
+    "NetCDF-Fortran",
+    "ParMETIS (optional)",
+    "PDAF (optional)",
+    "MOSSCO (optional)"
+  ],
+  "buildInstructions": "https://schism-esmf.readthedocs.io/en/latest/installation.html",
+  "readme": "https://github.com/schism-dev/schism-esmf/blob/main/ReadMe.md",
+  "softwareHelp": "https://schism-esmf.readthedocs.io",
+  "developmentStatus": "active",
+  "funding": "Helmholtz Association",
+  "isPartOf": {
+    "@type": "SoftwareApplication",
+    "name": "SCHISM",
+    "url": "https://schism-dev.github.io/schism/"
+  },
+  "relatedLink": [
+    "https://schism-esmf.readthedocs.io",
+    "https://earthsystemmodeling.org",
+    "https://schism-dev.github.io/schism/"
+  ],
+  "referencePublication": {
+    "@type": "ScholarlyArticle",
+    "name": "ESMF and NUOPC caps for SCHISM"
+  }
+}

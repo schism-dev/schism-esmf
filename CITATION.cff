@@ -1,0 +1,122 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "SCHISM-ESMF: Earth System Modeling Framework caps for SCHISM"
+version: 0.3.0
+date-released: 2020-02-12
+doi: 10.5194/egusphere-2022-114
+url: https://github.com/schism-dev/schism-esmf
+repository-code: https://github.com/schism-dev/schism-esmf
+type: software
+license:
+  - Apache-2.0
+  - GPL-3.0-or-later
+
+authors:
+  - family-names: Lemmen
+    given-names: Carsten
+    email: carsten.lemmen@hereon.de
+    affiliation: Helmholtz-Zentrum Hereon
+    orcid: https://orcid.org/0000-0003-3483-6036
+
+  - family-names: Hofmeister
+    given-names: Richard
+    affiliation: Helmholtz-Zentrum Hereon
+
+  - family-names: Zhang
+    given-names: Joseph
+    affiliation: Virginia Institute of Marine Science
+
+  - family-names: Wang
+    given-names: Zhengui
+
+  - family-names: Ye
+    given-names: Fei
+
+  - family-names: Cai
+    given-names: Nicole
+
+  - family-names: Yu
+    given-names: Dan
+
+  - family-names: Huang
+    given-names: Wei
+
+  - family-names: Turuncoglu
+    given-names: Ufuk
+
+abstract: >
+  SCHISM-ESMF provides Earth System Modeling Framework (ESMF) and 
+  NUOPC (National Unified Operational Prediction Capability) caps 
+  for the SCHISM (Semi-implicit Cross-scale Hydroscience Integrated 
+  System Model) hydrodynamics model. These caps enable SCHISM to be 
+  coupled with other Earth system components such as atmospheric 
+  models, wave models, sea ice models, and biogeochemical models 
+  within standardized coupling frameworks. The package includes both 
+  ESMF and NUOPC interfaces, CMake-based build system, example 
+  configurations, and comprehensive documentation.
+
+keywords:
+  - ESMF
+  - NUOPC
+  - SCHISM
+  - hydrodynamics
+  - ocean modeling
+  - Earth system modeling
+  - coastal modeling
+  - model coupling
+  - numerical modeling
+  - Fortran
+  - HPC
+
+references:
+  - type: article
+    authors:
+      - family-names: Lemmen
+        given-names: Carsten
+      - family-names: Hofmeister
+        given-names: Richard
+    title: "Modular System for Shelves and Coasts (MOSSCO v1.0) – a flexible and multi-component framework for coupled coastal ocean ecosystem modelling"
+    journal: Geoscientific Model Development
+    year: 2016
+    volume: 9
+    issue: 4
+    pages: 1523-1551
+    doi: 10.5194/gmd-9-1523-2016
+
+  - type: article
+    authors:
+      - family-names: Zhang
+        given-names: Yinglong J.
+      - family-names: Ye
+        given-names: Fei
+      - family-names: Stanev
+        given-names: Emil V.
+      - family-names: Grashorn
+        given-names: Sebastian
+    title: "Seamless cross-scale modeling with SCHISM"
+    journal: Ocean Modelling
+    year: 2016
+    volume: 102
+    pages: 64-81
+    doi: 10.1016/j.ocemod.2016.05.002
+
+  - type: software
+    title: SCHISM
+    url: https://schism-dev.github.io/schism/
+    repository-code: https://github.com/schism-dev/schism
+
+  - type: software
+    title: "Earth System Modeling Framework (ESMF)"
+    url: https://earthsystemmodeling.org
+    repository-code: https://github.com/esmf-org/esmf
+
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Lemmen
+      given-names: Carsten
+    - family-names: Hofmeister
+      given-names: Richard
+    - family-names: Zhang
+      given-names: Joseph
+  title: "ESMF and NUOPC caps for SCHISM"

@@ -1,0 +1,128 @@
+{
+  "title": "SCHISM-ESMF: Earth System Modeling Framework caps for SCHISM",
+  "description": "SCHISM-ESMF provides Earth System Modeling Framework (ESMF) and NUOPC (National Unified Operational Prediction Capability) caps for the SCHISM (Semi-implicit Cross-scale Hydroscience Integrated System Model) hydrodynamics model. These caps enable SCHISM to be coupled with other Earth system components such as atmospheric models, wave models, sea ice models, and biogeochemical models within standardized coupling frameworks. The package includes both ESMF and NUOPC interfaces, CMake-based build system, example configurations, and comprehensive documentation.",
+  "creators": [
+    {
+      "name": "Lemmen, Carsten",
+      "affiliation": "Helmholtz-Zentrum Hereon",
+      "orcid": "0000-0003-3483-6036"
+    },
+    {
+      "name": "Hofmeister, Richard",
+      "affiliation": "Helmholtz-Zentrum Hereon"
+    },
+    {
+      "name": "Zhang, Joseph",
+      "affiliation": "Virginia Institute of Marine Science"
+    },
+    {
+      "name": "Wang, Zhengui"
+    },
+    {
+      "name": "Ye, Fei"
+    },
+    {
+      "name": "Cai, Nicole"
+    },
+    {
+      "name": "Yu, Dan"
+    },
+    {
+      "name": "Huang, Wei"
+    },
+    {
+      "name": "Turuncoglu, Ufuk"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Velissariou, Panagiotis",
+      "type": "Other"
+    },
+    {
+      "name": "Calzada, J.R.",
+      "type": "Other"
+    },
+    {
+      "name": "Mentaschi, Lorenzo",
+      "type": "Other"
+    },
+    {
+      "name": "Khan, Jamal Uddin",
+      "type": "Other"
+    }
+  ],
+  "license": {
+    "id": "Apache-2.0"
+  },
+  "upload_type": "software",
+  "access_right": "open",
+  "keywords": [
+    "ESMF",
+    "NUOPC",
+    "SCHISM",
+    "hydrodynamics",
+    "ocean modeling",
+    "Earth system modeling",
+    "coastal modeling",
+    "model coupling",
+    "numerical modeling",
+    "Fortran",
+    "HPC",
+    "climate modeling",
+    "coastal oceanography"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5194/egusphere-2022-114",
+      "relation": "isDocumentedBy",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5194/gmd-9-1523-2016",
+      "relation": "references",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/j.ocemod.2016.05.002",
+      "relation": "references",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/schism-dev/schism",
+      "relation": "isPartOf",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://github.com/esmf-org/esmf",
+      "relation": "references",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://schism-esmf.readthedocs.io",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    }
+  ],
+  "communities": [
+    {
+      "identifier": "helmholtz"
+    },
+    {
+      "identifier": "earth-system-science"
+    }
+  ],
+  "grants": [
+    {
+      "id": "helmholtz-association::helmholtz-zentrum-hereon"
+    }
+  ],
+  "language": "eng",
+  "notes": "This software is part of the SCHISM modeling system and provides standardized interfaces for coupling SCHISM with other Earth system model components. The package supports both ESMF and NUOPC coupling protocols and includes a CMake-based build system for easy integration into different modeling frameworks.",
+  "references": [
+    "Zhang, Y. J., Ye, F., Stanev, E. V., & Grashorn, S. (2016). Seamless cross-scale modeling with SCHISM. Ocean Modelling, 102, 64-81. https://doi.org/10.1016/j.ocemod.2016.05.002",
+    "Lemmen, C., & Hofmeister, R. (2016). Modular System for Shelves and Coasts (MOSSCO v1.0) – a flexible and multi-component framework for coupled coastal ocean ecosystem modelling. Geoscientific Model Development, 9(4), 1523-1551. https://doi.org/10.5194/gmd-9-1523-2016",
+    "Earth System Modeling Framework (ESMF). https://earthsystemmodeling.org",
+    "SCHISM model documentation. https://schism-dev.github.io/schism/"
+  ]
+}
