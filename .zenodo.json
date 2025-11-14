@@ -112,11 +112,6 @@
       "identifier": "earth-system-science"
     }
   ],
-  "grants": [
-    {
-      "id": "helmholtz-association::helmholtz-zentrum-hereon"
-    }
-  ],
   "language": "eng",
   "notes": "This software is part of the SCHISM modeling system and provides standardized interfaces for coupling SCHISM with other Earth system model components. The package supports both ESMF and NUOPC coupling protocols and includes a CMake-based build system for easy integration into different modeling frameworks.",
   "references": [
