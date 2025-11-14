@@ -5,9 +5,9 @@ option(DOCS_ONLY "Configure to build documentation only (skip Fortran/C targets)
 
 if(DOCS_ONLY)
   # Avoid enabling compiled languages in docs-only mode
-  project(SCHISM_ESMF_Interface LANGUAGES NONE)
+  project(SCHISM_ESMF_Interface VERSION 0.3.0 LANGUAGES NONE)
 else()
-  project(SCHISM_ESMF_Interface LANGUAGES Fortran C)
+  project(SCHISM_ESMF_Interface VERSION 0.3.0 LANGUAGES Fortran C)
   enable_language(Fortran)
 endif()
 

@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "SCHISM-ESMF cap"
-version = "0.2.0"
+version = "0.3.0"
 description = "A SCHISM cap for the Earth System Modeling Framework"
 authors = ["Carsten Lemmen <carsten.lemmen@hereon.de>"]
 license = "CC0-1.0"

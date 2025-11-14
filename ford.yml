@@ -8,7 +8,7 @@ project_github: https://github.com/schism-dev/schism-esmf
 project_url: https://schism-esmf.readthedocs.io
 license: apache
 year: 2021-2025
-version: 0.2.0
+version: 0.3.0
 
 # Source code documentation
 src_dir: ./src
