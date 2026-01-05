@@ -614,13 +614,12 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
   localrc= ESMF_SUCCESS
 
-  if (meshloc == ESMF_MESHLOC_NODE) then
-    call SCHISM_MeshCreateNode(comp, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  else
-    call SCHISM_MeshCreateElement(comp, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  end if
+  ! Create mesh on both node and element
+  call SCHISM_MeshCreateNode(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_MeshCreateElement(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1133,6 +1132,7 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
 
   use schism_glbl,      only: nvrt, eta2, dav, uu2, vv2, tr_nd, idry_e, npa, deta1_dxy_elem, dp, znl, nvrt
   use schism_esmf_util, only: SCHISM_StateUpdate
+  use schism_esmf_util, only: fieldNode, fieldElem, routeHandleN2E
 
   implicit none
 
@@ -1151,6 +1151,8 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   real(ESMF_KIND_R8), allocatable, save, target :: sst_K(:)
   real(ESMF_KIND_R8), allocatable, save, target :: hmix(:)
   character(len=ESMF_MAXSTR) :: timeStr
+  integer :: itemCount, srcTermProcessing_Value = 0
+  logical, save :: firstTime = .true.
   character(len=*), parameter :: subname = '(SCHISM_Export): '
   !--------------------------------
 
@@ -1166,13 +1168,32 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Check if we need transfer fields from node to element. If so, create routehandle
+  if (meshloc == ESMF_MESHLOC_ELEMENT) then
+     !> Check this is initial call or not
+     if (firstTime) then
+        !> Create routehandle node -> element
+        call ESMF_FieldRegridStore(fieldNode, fieldElem, &
+               routehandle=routeHandleN2E, &
+               regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+               srcTermProcessing=srcTermProcessing_Value, &
+               ignoreDegenerate=.true., &
+               unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+               rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        !> Set flag
+        firstTime = .false.
+     end if
+  end if
+
   !> Update fields on export state
   !> sea surface height
   call SCHISM_StateUpdate(exportState, 'sea_surface_height_above_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> Sea surface graidend (for cice coupling) 
+  !> Sea surface graidend (for cice coupling)
   call SCHISM_StateUpdate(exportState, 'sea_surface_slope_zonal', deta1_dxy_elem(:,1), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -1267,6 +1288,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
+  use schism_esmf_util, only: fieldNode, fieldElem, routeHandleE2N
 
   implicit none
 
@@ -1282,6 +1304,8 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
   integer(ESMF_KIND_I4) :: localrc
+  integer :: itemCount, srcTermProcessing_Value = 0
+  logical :: firstTime = .true.
   character(len=ESMF_MAXSTR) :: timeStr
   character(len=*), parameter :: subname = '(SCHISM_Import): '
   !--------------------------------
@@ -1297,6 +1321,28 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
 
   if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Check if we need transfer fields from element to node. If so, create routehandle
+  if (meshloc == ESMF_MESHLOC_ELEMENT) then
+     !> Check this is initial call or not
+     if (firstTime) then
+        !> Create routehandle element -> node
+        call ESMF_FieldRegridStore(fieldElem, fieldNode, &
+               routehandle=routeHandleE2N, &
+               regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+               extrapMethod=ESMF_EXTRAPMETHOD_NEAREST_IDAVG, &
+               extrapNumLevels=3, &
+               extrapNumSrcPnts=16, &
+               srcTermProcessing=srcTermProcessing_Value, &
+               ignoreDegenerate=.true., &
+               unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+               rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        !> Set flag
+        firstTime = .false.
+     end if
+  end if
 
   !> Update fields on import state
   if (RADFLAG == 'VOR') then
