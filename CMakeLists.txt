@@ -17,8 +17,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(USE_PDAF "Enable PDAF data assimilation support" OFF)
 option(USE_MOSSCO "Enable MOSSCO coupling framework support" OFF)
 option(SCHISM_REQUIRE_PARMETIS "Require ParMETIS library (fail if not found)" OFF)
-option(SCHISM_REQUIRE_TURBULENCE "Require turbulence library (fail if not found)" ON)
-option(SCHISM_REQUIRE_YAML "Require YAML library (fail if not found)" ON)
+option(SCHISM_REQUIRE_TURBULENCE "Require turbulence library (fail if not found)" OFF)
+option(SCHISM_REQUIRE_YAML "Require YAML library (fail if not found)" OFF)
 option(BUILD_DOCS "Build HTML documentation with MkDocs (requires Python, mkdocs, mkdocs-material)" OFF)
 
 # Force docs build in DOCS_ONLY mode
@@ -102,14 +102,14 @@ endif()
 # Configure required/recommended based on options
 if(NOT DOCS_ONLY AND SCHISM_REQUIRE_TURBULENCE)
   list(APPEND SCHISM_REQUIRED_LIBS turbulence)
-elseif(NOT DOCS_ONLY)
-  list(APPEND SCHISM_RECOMMENDED_LIBS turbulence)
+#elseif(NOT DOCS_ONLY)
+#  list(APPEND SCHISM_RECOMMENDED_LIBS turbulence)
 endif()
 
 if(NOT DOCS_ONLY AND SCHISM_REQUIRE_YAML)
   list(APPEND SCHISM_REQUIRED_LIBS yaml)
-elseif(NOT DOCS_ONLY)
-  list(APPEND SCHISM_RECOMMENDED_LIBS yaml)
+#elseif(NOT DOCS_ONLY)
+#  list(APPEND SCHISM_RECOMMENDED_LIBS yaml)
 endif()
 
 if(NOT DOCS_ONLY AND SCHISM_REQUIRE_PARMETIS)
@@ -159,7 +159,7 @@ if(NOT DOCS_ONLY)
     list(APPEND SCHISM_LIBRARIES ${MPI_Fortran_LIBRARIES})
     message(STATUS "  ✓ MPI Fortran libraries: ${MPI_Fortran_LIBRARIES}")
     message(STATUS "  ✓ MPI include directories: ${MPI_Fortran_INCLUDE_DIRS}")
-    
+
     # Try to detect MPI implementation
     if(MPI_Fortran_LIBRARIES MATCHES "mpich")
       message(STATUS "  → MPI implementation: MPICH")

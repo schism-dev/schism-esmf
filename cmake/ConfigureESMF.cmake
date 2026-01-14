@@ -54,9 +54,13 @@ endif()
 # For example: target_link_libraries(my_target PRIVATE ESMF::ESMF)
 
 # Check CMAKE_Fortran_COMPILER, as ESMF usually expects an MPI-aware Fortran compiler.
-# Users should typically set CMAKE_Fortran_COMPILER to the ESMF compiler wrapper (e.g., esmpifort).
-if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
-  message(WARNING "CMAKE_Fortran_COMPILER is a standard compiler (${CMAKE_Fortran_COMPILER}). ESMF typically requires an MPI wrapper (e.g., esmpifort, mpif90). Ensure this compiler is MPI-aware or set CMAKE_Fortran_COMPILER to the appropriate ESMF wrapper.")
+# Users should typically set CMAKE_Fortran_COMPILER to the ESMF compiler wrapper (e.g., esmpifort, mpifort, mpif90).
+# Check if the compiler name contains common MPI wrapper patterns.
+get_filename_component(COMPILER_NAME "${CMAKE_Fortran_COMPILER}" NAME)
+if(COMPILER_NAME MATCHES "^(mpi|esmpi|sxmpi)")
+  message(STATUS "CMAKE_Fortran_COMPILER is ${CMAKE_Fortran_COMPILER}. Detected as an MPI wrapper.")
+elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" OR CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" OR CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
+  message(WARNING "CMAKE_Fortran_COMPILER is a standard compiler (${CMAKE_Fortran_COMPILER}). ESMF typically requires an MPI wrapper (e.g., esmpifort, mpifort, mpif90). Ensure this compiler is MPI-aware or set CMAKE_Fortran_COMPILER to the appropriate ESMF wrapper.")
 else()
   message(STATUS "CMAKE_Fortran_COMPILER is ${CMAKE_Fortran_COMPILER}. Assuming it is an MPI wrapper suitable for ESMF.")
 endif()

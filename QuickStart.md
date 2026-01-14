@@ -2,7 +2,7 @@
 
 **Complete walkthrough**: Get SCHISM-ESMF building and running in under 30 minutes.
 
-> **Quick Reference**: See [Readme.md](./Readme.md) for build summary. This guide provides **detailed explanations** and **platform-specific tips**.
+> **Quick Reference**: See [ReadMe.md](./ReadMe.md) for build summary. This guide provides **detailed explanations** and **platform-specific tips**.
 
 ---
 
@@ -32,20 +32,29 @@
 ### Using Conda/Mamba (Recommended)
 
 ```bash
-# Create environment
-mamba create -n esmf-env
-
-# Activate environment
-conda activate esmf-env
-
-# Install ESMF with MPI (choose one)
-mamba install -c conda-forge "esmf=8.9.0=mpi_mpich*"
-# OR
-mamba install -c conda-forge "esmf=8.9.0=mpi_openmpi*"
+# Create  and activate environment
+mamba create -n esmf "esmf=8.9.1=mpi_mpich*"
+mamba activate esmf
 
 # Verify MPI support (should NOT show "mpiuni")
 grep ESMF_COMM $CONDA_PREFIX/lib/esmf.mk
 ```
+
+You may also use the `mpi_openmpi*` variant if preferred.
+
+### Using Homebrew
+
+```bash
+brew install gcc open-mpi esmf
+
+# Point to the installed esmf.mk
+export ESMFMKFILE=$(brew --prefix esmf)/lib/esmf.mk
+
+# Verify MPI support (should NOT show "mpiuni")
+grep ESMF_COMM $ESMFMKFILE
+```
+
+If you prefer MPICH, swap `open-mpi` for `mpich` in the install step.
 
 ### Using Spack
 
@@ -54,71 +63,79 @@ spack install esmf+mpi
 spack load esmf
 ```
 
+
 ### From Source
 
+You need to manually install in your operating system the dependencies of ESMF, typically `netcdf`, `xerces` and `mpi`; how these are installed, depends heavily on your package manager.
+
 ```bash
-export ESMF_DIR=/path/to/esmf
-export ESMF_COMM=mpich  # or openmpi
+export ESMF_DIR=/devel/esmf/esmf # or any other
+export ESMF_COMM=mpich           # or openmpi
 cd $ESMF_DIR
 make
 make install
 ```
 
-## Step 2: Build SCHISM
-
-SCHISM must be built with CMake (not the legacy Makefile).
+Then set an environment variable to point to the `esmf.mk` file:
 
 ```bash
-# Clone SCHISM
-git clone https://github.com/schism-dev/schism.git
-cd schism
+export ESMFMKFILE=$ESMF_DIR/lib/esmf.mk
+```
+
+## Step 2: Build SCHISM
+
+From the installation before, set the environment variables for the C and Fortran compiler, for a `mamba` system they would be:
+
+```bash
+export FC=$CONDA_PREFIX/bin/gfortran CC=$CONDA_PREFIX/bin/clang
+```
+
+Choose a directory where your sources reside and reference them with environment variables; you may choose different ones than those suggested here.
+
+```bash
+export SCHISM_BASE=$HOME/devel/schism/schism
+export SCHISM_BUILD_DIR=$SCHISM_BASE/build
+export SCHISM_ESMF_BASE=$SCHISM_BASE/../schism-esmf
+export SCHISM_ESMF_BUILD_DIR=$SCHISM_ESMF_BASE/build
+````
+
+Then, clone and build SCHISM with CMake (not the legacy Makefile).
+
+```bash
+mkdir -p $SCHISM_BASE/.. # make sure the parent directory exists
+git clone --recurse-submodules --depth=1 https://github.com/schism-dev/schism.git $SCHISM_BASE
+
+mkdir -p $SCHISM_BUILD_DIR # make sure the build directory exists
+cd $SCHISM_BUILD_DIR
 
 # Configure with CMake
-mkdir -p build && cd build
-cmake ../src \
-  -DCMAKE_Fortran_COMPILER=$(which gfortran) \
-  -DUSE_PARMETIS=ON \
+cmake -S $SCHISM_BASE/src -B $SCHISM_BUILD_DIR \
+  -DCMAKE_Fortran_COMPILER=$FC \
+  -DCMAKE_C_COMPILER=$CC \
+  -DUSE_PARMETIS=ON -DBLD_STANDALONE=ON \
   -DUSE_WWM=OFF
 
 # Build (adjust -j for your CPU count)
-make -j8
-
-# Note the build directory path
-export SCHISM_BUILD_DIR=$(pwd)
-echo "SCHISM built in: $SCHISM_BUILD_DIR"
+cmake --build $SCHISM_BUILD_DIR --parallel 8 --target pschism
 ```
 
 **Verify SCHISM libraries**:
 ```bash
 ls -lh $SCHISM_BUILD_DIR/lib/
-# Should see: libcore.a, libhydro.a, libturbulence.a, libyaml.a, libparmetis.a, libmetis.a
+# Should see: libcore.a, libhydro.a, libparmetis.a, libmetis.a
 ```
 
 ## Step 3: Build SCHISM-ESMF
 
 ```bash
 # Clone this repository
-git clone https://github.com/schism-dev/schism-esmf.git
-cd schism-esmf
+git clone --depth=1 --recurse-submodules https://github.com/schism-dev/schism-esmf.git $SCHISM_ESMF_BASE
+cd $SCHISM_ESMF_BASE
 
-# Set environment variables
-export ESMFMKFILE=/path/to/esmf.mk  # e.g., $CONDA_PREFIX/lib/esmf.mk
-export SCHISM_BUILD_DIR=/path/to/schism/build
-
-# Configure
-mkdir -p build && cd build
-cmake .. -DCMAKE_Fortran_COMPILER=$(which gfortran)
-
-# Build
-cmake --build . -- -j8
-```
-
-**macOS specific**:
-```bash
-cmake .. \
-  -DCMAKE_Fortran_COMPILER=$(which gfortran) \
-  -DCMAKE_C_COMPILER=$(which gcc)
-cmake --build . -- -j$(sysctl -n hw.ncpu)
+# Build the cap
+mkdir -p $SCHISM_ESMF_BUILD_DIR
+cmake -S $SCHISM_ESMF_BASE -B $SCHISM_ESMF_BUILD_DIR -DCMAKE_Fortran_COMPILER=mpifort -DSCHISM_REQUIRE_turbulence=OFF
+cmake --build $SCHISM_ESMF_BUILD_DIR -- -j8
 ```
 
 **Expected output**:
@@ -269,6 +286,6 @@ gfortran --version  # Should be 11+
 
 ---
 
-**Build time**: ~10 minutes (after dependencies installed)  
-**Skill level**: Intermediate (Fortran/MPI experience helpful)  
+**Build time**: ~10 minutes (after dependencies installed)
+**Skill level**: Intermediate (Fortran/MPI experience helpful)
 **Last updated**: November 2025
