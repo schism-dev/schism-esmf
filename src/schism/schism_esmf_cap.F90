@@ -21,6 +21,8 @@
 ! This version accounts for halo(ghost) zone, because ESMF by default
 ! partitions among nodes instead of elements
 
+! Notes for PDAF: driver is schism_pdaf.F90 (top dir)
+
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
@@ -522,7 +524,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      &nea,nsa,id_out_var,iof_hydro,idry_e,idry_s,znl,pr,ww2,prho,airt1,shum1,srad,fluxsu,fluxlu,&
      &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
   use schism_msgp, only: myrank,nproc
-  use schism_io, only: writeout_nc,fill_nc_header!ncid
+  use schism_io, only: writeout_nc,fill_nc_header !ncid
 #ifdef USE_PDAF
   use mod_assimilation, only: outf !PDAF module
 #endif
@@ -698,7 +700,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! Output
+    ! PDAF output here to avoid freq open/close under flex mode that caused prob on nc?
     if(it==num_schism_steps) then
       write(message,*) 'starting output...'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)

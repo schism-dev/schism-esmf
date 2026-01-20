@@ -1,5 +1,5 @@
 ! This code is a main driver for a coupled SCHISM and PDAF
-! program for running multiple schism components concurrently in flexible mode
+! program for running multiple schism components concurrently in full parallel or flexible mode
 ! (i.e. multiple tasks can share same PET list). The coupling model interface is
 ! schism_esmf_cap.F90 (and interfaces are defined in schism_bmi.F90)
 !
