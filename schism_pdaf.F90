@@ -171,8 +171,13 @@ program main
   !> concurrent runs. As an example, we assume
   !> petCount=48, schismCount=14, concurrentCount=5
   !> We integer divide petCount by concurrentCount
-  !> and obtain the petLists {0..8} {9..17} {18..26}
-  !> {27..35} {36..44}, i.e. 9 cores for concurrnt tasks (1,4,7,10,13 etc).
+  !> and obtain the petLists (cores) {0..8} {9..17} {18..26}
+  !> {27..35} {36..44}.
+  !> The corhorts (members) are arranged in column major as:
+  !> 1 4 7 10 13   <-- corhort 0
+  !> 2 5 8 11 14   <-- corhort 1
+  !> 3 6 9 12      <-- corhort 2
+  !> So tasks (1 4 7 10 13) share same 9 cores etc
   !> NOTE that # of cores must be
   !> equal as we do not want to repartition the grid etc.
 
@@ -189,15 +194,11 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end if
 
-  !> Thus, we obtain the sets of instances that run concurrently: {1 4 7 10 13}
-  !etc folowing column major
-
   !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, ncohort
   do i = 1, schismCount
 
-    ! Determine the sequence  and concurrent index of each
-    ! instance
-!    sequenceIndex = mod(i-1, concurrentCount) !local index in a cohort (0- based); task ID-1 in PDAF
+    ! Determine the sequence  and concurrent index of each instance
+    ! local index in a cohort (0- based); task ID-1 in PDAF
     sequenceIndex = (i - 1) / ncohort
 
     allocate (petlist(petCountLocal), stat=localrc)
@@ -230,7 +231,7 @@ program main
     !call ESMF_ConfigSetAttribute(configList(i), value=i, &
     !  label='schismInstance:', rc=localrc)
 
-    !Put input dir name into attribute to pass onto init P1 etc
+    !Put input dir name schism_XXX into attribute to pass onto init P1 etc
     call ESMF_AttributeSet(schism_components(i), name='input_directory', value=trim(message2), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
