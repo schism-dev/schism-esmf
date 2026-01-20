@@ -37,7 +37,7 @@ program main
 
   use esmf
   use schism_esmf_cap, only: schismSetServices => SetServices
-! use schism_msgp, only: parallel_abort,myrank
+  use schism_msgp, only: nscribes !parallel_abort,myrank
 ! use schism_glbl, only: errmsg,tr_el
 ! USE mod_assimilation, &      ! Variables for assimilation
 !      ONLY: filtertype
@@ -57,7 +57,7 @@ program main
   type(ESMF_Vm) :: vm
   type(ESMF_Log) :: log
 
-  integer(ESMF_KIND_I4) :: petCountLocal, schismCount = 8
+  integer(ESMF_KIND_I4) :: petCountLocal, full_para, schismCount = 8
   integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc, ii
   integer(ESMF_KIND_I4), allocatable :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
@@ -127,6 +127,11 @@ program main
     call ESMF_ConfigGetAttribute(config, value=concurrentCount, label='concurrent_count:', &
                                  default=max(petCount / schismCount, 1), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    !# of scribes for full para mode (const across all PETs); passed onto schism_msgp
+    call ESMF_ConfigGetAttribute(config, value=nscribes, label='scribe_count:', &
+                                 default=0, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   else
     write (message, *) 'Please supply .cfg'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
@@ -159,6 +164,21 @@ program main
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   end if
 
+  !Define mode (full_para o flex)
+  if(concurrentCount==schismCount) then
+    full_para=1
+    if(nscribes<=0) then
+      write (message, '(A,I4)') 'Use scribe IO for full para mode:',nscribes
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+  else !flex mode
+    full_para=0
+    if(nscribes/=0) then
+      write (message, '(A,I4)') 'Use OLDIO for flex mode:',nscribes
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+  endif
+
   ! Create all components on their respective parallel
   ! environment provided by each petList
   allocate (schism_components(schismCount), stat=localrc)
@@ -168,22 +188,23 @@ program main
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Here, we partition the schismCount on the concurrentCount
-  !> concurrent runs. As an example, we assume
+  !> concurrent runs. As an example, we assume a flex mode case:
   !> petCount=48, schismCount=14, concurrentCount=5
   !> We integer divide petCount by concurrentCount
   !> and obtain the petLists (cores) {0..8} {9..17} {18..26}
   !> {27..35} {36..44}.
   !> The corhorts (members) are arranged in column major as:
-  !> 1 4 7 10 13   <-- corhort 0
-  !> 2 5 8 11 14   <-- corhort 1
-  !> 3 6 9 12      <-- corhort 2
+  !> 1 4 7 10 13   <-- cohort 0
+  !> 2 5 8 11 14   <-- cohort 1
+  !> 3 6 9 12      <-- cohort 2
   !> So tasks (1 4 7 10 13) share same 9 cores etc
   !> NOTE that # of cores must be
   !> equal as we do not want to repartition the grid etc.
-
   !> We distribute the schismCount instances on the concurrentCount
   !> to obtain the number of cohorts that run sequentially,
   !> and obtain ncohort=3 in our example
+
+  !> For full parallel mode, the 9 cores include scribes
   ncohort = ceiling(real(schismCount) / concurrentCount)
   petCountLocal = petCount / concurrentCount
 
@@ -333,6 +354,9 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_AttributeSet(schism_components(i), name='schism_dt2', value=schism_dt, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='full_para', value=full_para, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   end do init0_loop
