@@ -37,7 +37,7 @@ program main
 
   use esmf
   use schism_esmf_cap, only: schismSetServices => SetServices
-  use schism_msgp, only: nscribes !parallel_abort,myrank
+  use schism_msgp, only: nscribes,task_id !parallel_abort,myrank
 ! use schism_glbl, only: errmsg,tr_el
 ! USE mod_assimilation, &      ! Variables for assimilation
 !      ONLY: filtertype
@@ -167,13 +167,14 @@ program main
   !Define mode (full_para o flex)
   if(concurrentCount==schismCount) then
     full_para=1
-    if(nscribes<=0) then
+    if(nscribes>=0) then
       write (message, '(A,I4)') 'Use scribe IO for full para mode:',nscribes
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
     endif
   else !flex mode
     full_para=0
     if(nscribes/=0) then
+       nscribes=0 !Force to reset 0
       write (message, '(A,I4)') 'Use OLDIO for flex mode:',nscribes
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
     endif
@@ -401,11 +402,17 @@ program main
 ! write(0, *) 'Before init_parelle_pdaf'
   call init_parallel_pdaf(0, 1, schismCount, petCountLocal, concurrentCount)
 ! write(0, *) 'Before init_pdaf'
-  call init_pdaf(schismCount, j)
+  if (task_id==1) then
+     call init_pdaf(schismCount, j) !Only on compute cores
+    ! write(0, *) 'After init_pdaf'
+  end if
+  !j=0 !test for multi-schism, turn off PDAF
 #endif
-  if (j /= 0) then
-    localrc = ESMF_RC_VAL_OUTOFRANGE
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (task_id==1) then !Only on compute cores
+    if (j /= 0) then
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    end if
   end if
 
   ! Loop over coupling timesteps until stopTime
@@ -537,7 +544,7 @@ program main
 
 #ifdef USE_PDAF
 ! PDAF finalize
-  call finalize_pdaf()
+  if (task_id==1) call finalize_pdaf() !Only on compute cores
 #endif
 
   do i = 1, schismCount

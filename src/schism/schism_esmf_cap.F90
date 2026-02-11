@@ -385,6 +385,12 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 ! CWB2021-1 end
 #endif /*USE_PDAF*/
 
+  !feed from global.nml, for scribe cores
+  !This is necessary for scribe cores to do the stepping 
+  if (task_id/=1) then 
+     rnday=real(runhours)/24. 
+     dt=real(schism_dt2)
+  end if
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
     !write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday*24,schism_dt2,dt
@@ -404,6 +410,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+! The following "schism_dt" & "schismClock" are required for scribe cores
+! otherwise, scribe cores won't do the stepping.
 
   ! Use schism time interval
   call ESMF_TimeIntervalSet(schism_dt, s_r8=dt, rc=localrc)
@@ -691,7 +700,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 
 #ifdef USE_PDAF
 ! Put PDAF_get_state here
-  call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
+  if (task_id==1) call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
 #endif
 
   !Rewind clock for forcing
@@ -822,7 +831,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      write(message,*)trim(compName)//' entering PDAF assimilate, ',it
      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 !    Using assimilate PDAF interface
-     call assimilate_pdaf() !
+     if (task_id==1) call assimilate_pdaf() !
 !    call assimilate_pdaf(pdaf_stat)
 !    localrc=pdaf_stat !pdaf_stat is using i2, localrc is i4
      write(message,*)'Done PDAF assimilate'
