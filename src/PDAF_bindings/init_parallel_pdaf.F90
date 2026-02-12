@@ -364,8 +364,8 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
 
   END IF
 
-  deallocate(group_ranks) !scribeIO
-  deallocate(group_ranks_final) !scribeIO
+  if (allocated(group_ranks)) deallocate(group_ranks) !scribeIO
+  if (allocated(group_ranks_final)) deallocate(group_ranks_final) !scribeIO
 
   !write(*,*) 'In init_parallel_pdaf chk, myrank=',mype_world,mype_world2
   CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
