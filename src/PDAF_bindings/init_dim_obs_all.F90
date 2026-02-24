@@ -48,7 +48,7 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
   real(rkind), allocatable :: rmsval(:)
   integer nobs,i,l,itmp,ifl,iobs,istat,j,nd,nobs2,ic
   real(rkind) tmp,xtmp,ytmp,xobsl,yobsl,zcomp
-  real(rkind) xndmax,xndmin,yndmax,yndmin
+  real(rkind) xndmax,xndmin,yndmax,yndmin 
   logical fexist
   integer max_index_obstype,id_type(6) !counter for each type obs
 
@@ -118,14 +118,16 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
 !    yndmin=minval(ylat(:))
 !    yndmax=maxval(ylat(:))
 ! else
-     xndmin=minval(xnd(:))
+     xndmin=minval(xnd(:)) 
      xndmax=maxval(xnd(:))
-     yndmin=minval(ynd(:))
-     yndmax=maxval(ynd(:))
+     yndmin=minval(ynd(:)) 
+     yndmax=maxval(ynd(:)) 
+     !if (mype_world.eq.10) write(*,*) 'Check domain limit in obs_init:', xndmin,xndmax,yndmin,yndmax
 ! end if
   nobs2=0
   idx_select=0
   do i=1,nobs
+     !if (mype_world.eq.10) write(*,*) 'Check z obs x,y:',i,xobs(i),yobs(i)
      if ((xobs(i).gt.xndmin).and.(xobs(i).lt.xndmax).and.(yobs(i).gt.yndmin).and.(yobs(i).lt.yndmax)) then
         nobs2=nobs2+1
         idx_select(i)=1
@@ -147,7 +149,7 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
       end if
   end do
   !Swap to original vars
-!  write(*,*) 'Check obs dim,',mype_world,nobs,nobs2
+  ! write(*,*) 'Check obs dim in readin,',mype_world,nobs,nobs2
    nobs=nobs2
    xobs(1:nobs)=xobs2(:)
    yobs(1:nobs)=yobs2(:)
@@ -185,8 +187,9 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
      
 ! Find parent elements in argumented
   iep_obs=0 !flag for no-parent
-  do i=1,ne ! search in resident domain to avoid overlap use of observations
-     if(idry_e(i)==1) cycle ! skip dry points 
+  do i=1,nea ! search in aug domain to avoid missing observations
+     !Modify this one
+     !if(idry_e(i)==1) cycle ! skip dry points ! this one has to remove for elev
      do l=1,nobs
           if(iep_obs(l)/=0) cycle
 !         if(iep_obs(l)==0) cycle ! skip to speedup searching
@@ -214,16 +217,19 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
                  end if
                  do j=1,i34(i)
                     nd=elnode(j,i)
-                    if (zcomp.gt.dp(nd)) iep_obs(l)=0
+                    !if (zcomp.gt.dp(nd)) iep_obs(l)=0 !comment out for stofs-3d
                  end do
                 !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on shelf)
-                 if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
-                    &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+                 !if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+                  !  &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+                  if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
                     do j=1,i34(i)
                        nd=elnode(j,i)
                        if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
                     end do
                  end if         
+                 !Debug
+                 !if ((step.eq.1152).and.(l.eq.120)) write(*,*) 'In init_dim_obs_all, iep_obs(120)=',iep_obs(l)
              endif
           else !quad
              call quad_shape(0,0,i,xobsl,yobsl,itmp,arco_obs(l,1:4)) !arco_sta are 4 shape functions
@@ -236,16 +242,19 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
                end if
                do j=1,i34(i)
                   nd=elnode(j,i)
-                  if (zcomp.gt.dp(nd)) iep_obs(l)=0
+                  !if (zcomp.gt.dp(nd)) iep_obs(l)=0 !comment out for stofs-3d-atl, station might be above dp 
                end do
                !skip SSH & SSH-A data if it locates in depth < Zdepth_limit (on shelf)
-               if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
-                  &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+               !if ((obstype(l).eq.'a').or.(obstype(l).eq.'A').or. &
+               !   &(obstype(l).eq.'z').or.(obstype(l).eq.'Z')) then
+               if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
                   do j=1,i34(i)
                      nd=elnode(j,i)
                      if (dp(nd).lt.Zdepth_limit) iep_obs(l)=0
                   end do
                end if         
+               !Debug
+               !if ((step.eq.1152).and.(l.eq.120)) write(*,*) 'In init_dim_obs_all, iep_obs(120)=',iep_obs(l)
           endif !i34
           !Check nsteps_from_cold for SSH-A, skip if nsteps_from_cold too small
           if ((obstype(l).eq.'a').or.(obstype(l).eq.'A')) then
@@ -281,6 +290,8 @@ SUBROUTINE init_dim_obs_all(step, dim_obs_p)
          if ((obstype(l).eq.'v').or.(obstype(l).eq.'V')) dim_obstype_mod(6)=dim_obstype_mod(6)+1
       end if
    end do
+   !Debug
+   !if (dim_obstype_mod(2).ne.0) write(*,*) 'Check obs-Z dim in readin,',mype_world,dim_obstype_mod(2)
    dim_obs_p=iobs
 !  allocate obstype_index_mod
    if (allocated(obstype_index_mod)) deallocate(obstype_index_mod)

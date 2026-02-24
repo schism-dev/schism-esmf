@@ -43,6 +43,7 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
   USE obs_U_pdafomi, ONLY: assim_U, init_dim_obs_U
   USE obs_V_pdafomi, ONLY: assim_V, init_dim_obs_V
   use mod_parallel_pdaf, only: mype_world !Debug
+  use PDAF, only: PDAFomi_check_error
 
   IMPLICIT NONE
 
@@ -53,6 +54,7 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
 ! *** Local variables ***
   INTEGER :: dim_obs_p_all ! dimensions for all types of observation
   INTEGER :: dim_obs_A,dim_obs_Z,dim_obs_S,dim_obs_T,dim_obs_U,dim_obs_V
+  integer :: ierr
 
 
 ! *********************************************
@@ -90,6 +92,8 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
   ! in which order they are called
   IF (assim_A) CALL init_dim_obs_A(step, dim_obs_A)
   IF (assim_Z) CALL init_dim_obs_Z(step, dim_obs_Z)
+  call PDAFomi_check_error(ierr)
+  if (ierr.ne.0) write(*,*) 'omi-init_dim_obs has error'
   IF (assim_S) CALL init_dim_obs_S(step, dim_obs_S)
   IF (assim_T) CALL init_dim_obs_T(step, dim_obs_T)
   IF (assim_U) CALL init_dim_obs_U(step, dim_obs_U)
@@ -122,6 +126,7 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
   USE obs_U_pdafomi, ONLY: obs_op_U
   USE obs_V_pdafomi, ONLY: obs_op_V
 ! use mod_assimilation, only: dim_obs_A,dim_obs_Z,dim_obs_S,dim_obs_T,dim_obs_U,dim_obs_V
+  use PDAF, only: PDAFomi_check_error
 
   IMPLICIT NONE
 
@@ -134,6 +139,7 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
 
 ! Local vars
 ! integer :: ic1,ic2 ! counter
+  integer :: ierr
 
 
 ! ******************************************************
@@ -153,6 +159,8 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
 ! end if
   CALL obs_op_A(dim_p, dim_obs, state_p, ostate)
   CALL obs_op_Z(dim_p, dim_obs, state_p, ostate)
+  call PDAFomi_check_error(ierr)
+  if (ierr.ne.0) write(*,*) 'omi-op has error'
   CALL obs_op_S(dim_p, dim_obs, state_p, ostate)
   CALL obs_op_T(dim_p, dim_obs, state_p, ostate)
   CALL obs_op_U(dim_p, dim_obs, state_p, ostate)
@@ -177,6 +185,7 @@ SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
   USE obs_T_pdafomi, ONLY: init_dim_obs_l_T
   USE obs_U_pdafomi, ONLY: init_dim_obs_l_U
   USE obs_V_pdafomi, ONLY: init_dim_obs_l_V
+  use PDAF, only: PDAFomi_check_error
 
   IMPLICIT NONE
 
@@ -188,6 +197,7 @@ SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
 
 ! Local vars
 ! integer :: dim_local_sum
+  integer :: ierr
 
 
 ! **********************************************
@@ -199,6 +209,8 @@ SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
   ! Call init_dim_obs_l specific for each observation
   CALL init_dim_obs_l_A(domain_p, step, dim_obs, dim_obs_l)
   CALL init_dim_obs_l_Z(domain_p, step, dim_obs, dim_obs_l)
+  call PDAFomi_check_error(ierr)
+  if (ierr.ne.0) write(*,*) 'omi-init_dim_obs_l has error'
   CALL init_dim_obs_l_S(domain_p, step, dim_obs, dim_obs_l)
   CALL init_dim_obs_l_T(domain_p, step, dim_obs, dim_obs_l)
   CALL init_dim_obs_l_U(domain_p, step, dim_obs, dim_obs_l)
@@ -224,8 +236,9 @@ SUBROUTINE localize_covar_pdafomi(dim_p, dim_obs, HP_p, HPH)
   USE obs_T_pdafomi, ONLY: localize_covar_T
   USE obs_U_pdafomi, ONLY: localize_covar_U
   USE obs_V_pdafomi, ONLY: localize_covar_V
-  use schism_glbl,only : xnd,ynd,xlon,ylat,ics,pi,npa,nvrt,ntracers,errmsg
+  use schism_glbl,only : xnd,ynd,xlon,ylat,ics,pi,npa,nvrt,ntracers,errmsg,znl
   use schism_msgp, only: parallel_abort
+  use mod_parallel_pdaf, only: mype_model
 
   IMPLICIT NONE
 
@@ -253,16 +266,18 @@ SUBROUTINE localize_covar_pdafomi(dim_p, dim_obs, HP_p, HPH)
   ! the information for one element. The array can be initialized here using
   ! information on the model grid.
 
-  ALLOCATE(coords_p(2, dim_p))
+  ALLOCATE(coords_p(3, dim_p)) !Set to 2D+1D for non-isotropic
   ic=0
   do i=1,npa
      ic=ic+1
      if (ics==2) then
          coords_p(1,ic)=xlon(i)/pi*180.d0
          coords_p(2,ic)=ylat(i)/pi*180.d0
+         coords_p(3,ic)=0.d0
      else
          coords_p(1,ic)=xnd(i)
          coords_p(2,ic)=ynd(i)
+         coords_p(3,ic)=0.d0
      end if
   end do
 
@@ -273,13 +288,18 @@ SUBROUTINE localize_covar_pdafomi(dim_p, dim_obs, HP_p, HPH)
            if (ics==2) then
               coords_p(1,ic)=xlon(i)/pi*180.d0
               coords_p(2,ic)=ylat(i)/pi*180.d0
+              coords_p(3,ic)=znl(k,i)
            else
               coords_p(1,ic)=xnd(i)
               coords_p(2,ic)=ynd(i)
+              coords_p(3,ic)=znl(k,i)
            end if
         end do
      end do
   end do
+  !Debug
+  !if (mype_model.eq.0) write(*,'(a,80f8.2)') 'In callback_omi, znl: ',znl(:,10)
+
  
   if (ic.ne.dim_p) then
      WRITE (errmsg,*)'localize_covar dim_p not match, ', dim_p, ic

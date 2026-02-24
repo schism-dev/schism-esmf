@@ -403,7 +403,7 @@ program main
   call init_parallel_pdaf(0, 1, schismCount, petCountLocal, concurrentCount)
 ! write(0, *) 'Before init_pdaf'
   if (task_id==1) then
-     call init_pdaf(schismCount, j) !Only on compute cores
+     call init_pdaf(schismCount, concurrentCount, j) !Only on compute cores
     ! write(0, *) 'After init_pdaf'
   end if
   !j=0 !test for multi-schism, turn off PDAF

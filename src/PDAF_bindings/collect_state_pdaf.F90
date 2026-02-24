@@ -68,11 +68,11 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
      do i=1,npa
        do k=1,nvrt
          itot=itot+1
-         if (k.lt.kbp(i)) then
-            state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
-         else
+         !if (k.lt.kbp(i)) then
+         !   state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+         !else
             state_p(itot)=tr_nd(j,k,i)
-         end if
+         !end if
        enddo !k
      enddo !i
    enddo !j
@@ -80,33 +80,33 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
    do i=1,npa
      do k=1,nvrt
         itot=itot+1
-        if (k.lt.kbp(i)) then
-           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
-        else
+        !if (k.lt.kbp(i)) then
+        !   state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        !else
            state_p(itot)=uu2(k,i)
-        end if
+        !end if
      enddo !k
    enddo !i
    ! V
    do i=1,npa
      do k=1,nvrt
         itot=itot+1
-        if (k.lt.kbp(i)) then
-           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
-        else
+        !if (k.lt.kbp(i)) then
+        !   state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        !else
            state_p(itot)=vv2(k,i)
-        end if
+        !end if
      enddo !k
    enddo !i
    ! W
    do i=1,npa
      do k=1,nvrt
         itot=itot+1
-        if (k.lt.kbp(i)) then
-           state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
-        else
+        !if (k.lt.kbp(i)) then
+        !   state_p(itot)= -9999.d0 ! try fill -9999 at below bottom 
+        !else
            state_p(itot)=ww2(k,i)
-        end if
+        !end if
      enddo !k
    enddo !i
  

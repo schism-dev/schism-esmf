@@ -544,13 +544,19 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp,idry,uu2,vv2,eta2,&
      &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy,ifile,ihfskip,nspool,&
      &nea,nsa,id_out_var,iof_hydro,idry_e,idry_s,znl,pr,ww2,prho,airt1,shum1,srad,fluxsu,fluxlu,&
-     &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
+     &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main, &
+     &nhot,nhot_write,ne,ns,ntracers,cumsum_eta,nsteps_from_cold,&
+     &tr_nd0,dfq1,dfq2
   use schism_msgp, only: myrank,nproc,task_id
   use schism_io, only: writeout_nc,fill_nc_header !ncid
   use scribe_io
 
 #ifdef USE_PDAF
-  use mod_assimilation, only: outf !PDAF module
+  use mod_assimilation, only: outf,delt_obs,iau_step_ZUV,iau_step_TS,iau,it_shift !PDAF module
+  use pdaf
+  use PDAF_iau, only: iau_now,state_iau,step_cnt_iau
+  USE PDAF_mod_core, only: use_PDAF_assim,step
+  use netcdf
 #endif
 !  USE PDAF_interfaces_module
 
@@ -585,18 +591,29 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   type(ESMF_Config)           :: config
 
   INTEGER :: doexit, steps,status_pdaf
-  REAL    :: timenow
+  REAL*8    :: timenow
   character(len=72) :: fdb
   integer :: lfdb
 
 #ifdef USE_PDAF
+  real*8,allocatable :: iau_weightcus(:) ! for IAU init
+  real :: rset_iau
+  !For hotstart
+  character(len=6),save :: a_6
+  character(len=150) :: it_char
+  integer :: lit,j,ncid_hot,node_dim,elem_dim,side_dim,&
+       &nvrt_dim,ntracers_dim,three_dim,two_dim,one_dim, &
+       &four_dim,five_dim,six_dim,seven_dim,eight_dim,nine_dim,&
+       &nvars_hot,var1d_dim(1),var2d_dim(2),var3d_dim(3),&
+       &nwild(nea+300)
+  real*8 :: time
 ! External subroutines
 ! comment out --> into generic interface (assimilate_pdaf)
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
        distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-       prepoststep_pdaf !, &            ! User supplied pre/poststep routine
-!      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+       prepoststep_pdaf , &            ! User supplied pre/poststep routine
+       collect_state_pdaf !, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
 #endif
 
@@ -699,6 +716,18 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call schism_get_state(cohortIndex)
 
 #ifdef USE_PDAF
+  !Shift it for ihot=2
+  it=it+it_shift !For flex mode
+! Put PDAF_get_state here
+  !call PDAF_set_debug_flag(1)
+  if (task_id==1) then
+   if ((iau.ne.0).and.(step.ge.delt_obs)) then
+     !Force to be true to avoid "double count" for IAU after 1st DA
+     iau_now=.TRUE.
+     use_PDAF_assim=.TRUE.
+   end if
+  end if
+
 ! Put PDAF_get_state here
   if (task_id==1) call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
 #endif
@@ -716,6 +745,40 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     !> @todo change type of it to I8 inside SCHISM
+#if defined USE_PDAF
+    if(task_id==1) then
+     if ((iau.ne.0).and.(step.gt.delt_obs)) then
+      if (mod(it,iau_step_ZUV).eq.0) then !Update ZUV
+         iau_now=.TRUE.
+         !Allocate iau_weightcus
+         if (allocated(iau_weightcus)) deallocate(iau_weightcus)
+         allocate(iau_weightcus(delt_obs))
+         rset_iau=1./real(delt_obs)*real(iau_step_ZUV)
+         if (rset_iau.ge.1.d0) rset_iau=1.d0 !limit <=1 for large iau_step_ZUV, skip update
+         iau_weightcus=rset_iau
+         !if (myrank.eq.0) write(*,*) 'Set iau_weight = ',iau_weightcus(1), ' at ', it, step_cnt_iau
+         call PDAF_iau_set_weights(delt_obs,iau_weightcus)
+         deallocate(iau_weightcus)
+      elseif (mod(it,iau_step_TS).eq.1) then !Update TS after
+         iau_now=.TRUE.
+         !Allocate iau_weightcus
+         if (allocated(iau_weightcus)) deallocate(iau_weightcus)
+         allocate(iau_weightcus(delt_obs))
+         rset_iau=1./real(delt_obs)*real(iau_step_TS)
+         if (rset_iau.ge.1.d0) rset_iau=1.d0 !limit <=1 for large iau_step_TS, skip update
+         iau_weightcus=rset_iau
+         !if (myrank.eq.0) write(*,*) 'Set iau_weight = ',iau_weightcus(1), ' at ', it, step_cnt_iau
+         call PDAF_iau_set_weights(delt_obs,iau_weightcus)
+         deallocate(iau_weightcus)
+      else
+         iau_now=.FALSE.
+         step_cnt_iau=step_cnt_iau+1
+      end if
+     end if !iau.ne.0
+    call PDAF_iau_add_inc(collect_state_pdaf, distribute_state_pdaf) ! this only works with PDAF3
+   end if !taskid=1
+#endif
+
 !    call schism_step(it)
     if(task_id==1) then !compute (always do this under flex mode)
       call schism_step(it)
@@ -762,7 +825,9 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 #ifdef USE_PDAF
 !CWB2021-1 start
 !   Writeout nc (Hydro only) under flex mode
-    if(full_para==0.and.(outf==2.or.outf==3)) then ! control output
+    !if(full_para==0.and.(outf==2.or.outf==3)) then ! control output
+    if(outf==2.or.outf==3) then ! control output
+     if(full_para==0) then !only for flex
      if(mod(it,nspool)==0) then
         write(message,*) 'writeout nc at it = ',it,', elapsed ',it*dt,'s' !,' it_main=',it_main
         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -803,15 +868,117 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
 !       if(iof_hydro(30)==1) call writeout_nc(id_out_var(34),'pressure_gradient',7,1,nsa,bpgr(:,1),bpgr(:,2))
 !       bpgr is not in schism_glbl, skip it 
       end if !mod
+      end if !full_para=0
 
+     if(task_id==1) then !only on compute cores
 !     Close nc files
       if(mod(it,ihfskip)==0) then
         ifile=ifile+1  !output file #
-        call fill_nc_header(1)
+        if(full_para==0) call fill_nc_header(1)
       endif !it==ifile*ihfskip
 !    debug
 !    write(message,*) 'Run: ifile=',ifile
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+!   Output hotstart for EnOI
+     if(nhot==1.and.mod(it,nhot_write)==0) then
+        a_6='000000'
+        write(a_6,'(i6.6)') myrank
+        write(it_char,'(i150)')it
+        it_char=adjustl(it_char)
+        lit=len_trim(it_char)
+        it_char=out_dir(1:len_out_dir)//'hotstart_'//a_6//'_'//it_char(1:lit)//'.nc'
+        !if (myrank.eq.0) write(*,'(a,a150)') "hotout-fn",trim(adjustl(it_char)) !Check
+        j=nf90_create(trim(adjustl(it_char)),OR(NF90_NETCDF4,NF90_CLOBBER),ncid_hot)
+        j=nf90_def_dim(ncid_hot,'nResident_node',np,node_dim)
+        j=nf90_def_dim(ncid_hot,'nResident_elem',ne,elem_dim)
+        j=nf90_def_dim(ncid_hot,'nResident_side',ns,side_dim)
+        j=nf90_def_dim(ncid_hot,'nVert',nvrt,nvrt_dim)
+        j=nf90_def_dim(ncid_hot,'ntracers',ntracers,ntracers_dim)
+        j=nf90_def_dim(ncid_hot,'one',1,one_dim)
+        j=nf90_def_dim(ncid_hot,'three',3,three_dim)
+        j=nf90_def_dim(ncid_hot,'two',2,two_dim)
+        j=nf90_def_dim(ncid_hot,'four',4,four_dim)
+        j=nf90_def_dim(ncid_hot,'five',5,five_dim)
+        j=nf90_def_dim(ncid_hot,'six',6,six_dim)
+        j=nf90_def_dim(ncid_hot,'seven',7,seven_dim)
+        j=nf90_def_dim(ncid_hot,'eight',8,eight_dim)
+        j=nf90_def_dim(ncid_hot,'nine',9,nine_dim)
+
+        var1d_dim(1)=one_dim
+        j=nf90_def_var(ncid_hot,'time',NF90_DOUBLE,var1d_dim,nwild(1))
+        j=nf90_def_var(ncid_hot,'it',NF90_INT,var1d_dim,nwild(2))
+        j=nf90_def_var(ncid_hot,'ifile',NF90_INT,var1d_dim,nwild(3))
+        j=nf90_def_var(ncid_hot,'nsteps_from_cold',NF90_INT,var1d_dim,nwild(20))
+
+        var1d_dim(1)=elem_dim
+        j=nf90_def_var(ncid_hot,'idry_e',NF90_INT,var1d_dim,nwild(4))
+        var1d_dim(1)=side_dim
+        j=nf90_def_var(ncid_hot,'idry_s',NF90_INT,var1d_dim,nwild(5))
+        var1d_dim(1)=node_dim
+        j=nf90_def_var(ncid_hot,'idry',NF90_INT,var1d_dim,nwild(6))
+        j=nf90_def_var(ncid_hot,'eta2',NF90_DOUBLE,var1d_dim,nwild(7))
+        j=nf90_def_var(ncid_hot,'cumsum_eta',NF90_DOUBLE,var1d_dim,nwild(21))
+
+        !Note the order of multi-dim arrays not reversed here!
+        !As long as the write is consistent with def it's fine
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=elem_dim
+        j=nf90_def_var(ncid_hot,'we',NF90_DOUBLE,var2d_dim,nwild(8))
+        var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=elem_dim
+        j=nf90_def_var(ncid_hot,'tr_el',NF90_DOUBLE,var3d_dim,nwild(9))
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=side_dim
+        j=nf90_def_var(ncid_hot,'su2',NF90_DOUBLE,var2d_dim,nwild(10))
+        j=nf90_def_var(ncid_hot,'sv2',NF90_DOUBLE,var2d_dim,nwild(11))
+        var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=node_dim
+        j=nf90_def_var(ncid_hot,'tr_nd',NF90_DOUBLE,var3d_dim,nwild(12))
+        j=nf90_def_var(ncid_hot,'tr_nd0',NF90_DOUBLE,var3d_dim,nwild(13))
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=node_dim
+        j=nf90_def_var(ncid_hot,'q2',NF90_DOUBLE,var2d_dim,nwild(14))
+        j=nf90_def_var(ncid_hot,'xl',NF90_DOUBLE,var2d_dim,nwild(15))
+        j=nf90_def_var(ncid_hot,'dfv',NF90_DOUBLE,var2d_dim,nwild(16))
+        j=nf90_def_var(ncid_hot,'dfh',NF90_DOUBLE,var2d_dim,nwild(17))
+        j=nf90_def_var(ncid_hot,'dfq1',NF90_DOUBLE,var2d_dim,nwild(18))
+        j=nf90_def_var(ncid_hot,'dfq2',NF90_DOUBLE,var2d_dim,nwild(19))
+
+        !Deflate some vars
+        do i=4,21
+          if(i==20) cycle !skip 20
+          j=nf90_def_var_deflate(ncid_hot,nwild(i),0,1,4)
+        enddo !i
+
+        j=nf90_enddef(ncid_hot)
+
+        !Write
+        j=nf90_put_var(ncid_hot,nwild(1),time)
+        j=nf90_put_var(ncid_hot,nwild(2),it)
+        j=nf90_put_var(ncid_hot,nwild(3),ifile)
+        j=nf90_put_var(ncid_hot,nwild(20),nsteps_from_cold)
+        j=nf90_put_var(ncid_hot,nwild(4),idry_e,(/1/),(/ne/))
+        j=nf90_put_var(ncid_hot,nwild(5),idry_s,(/1/),(/ns/))
+        j=nf90_put_var(ncid_hot,nwild(6),idry,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(7),eta2,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(21),cumsum_eta,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(8),we(:,1:ne),(/1,1/),(/nvrt,ne/))
+        j=nf90_put_var(ncid_hot,nwild(9),tr_el(:,:,1:ne),(/1,1,1/),(/ntracers,nvrt,ne/))
+        j=nf90_put_var(ncid_hot,nwild(10),su2(:,1:ns),(/1,1/),(/nvrt,ns/))
+        j=nf90_put_var(ncid_hot,nwild(11),sv2(:,1:ns),(/1,1/),(/nvrt,ns/))
+        j=nf90_put_var(ncid_hot,nwild(12),tr_nd(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(13),tr_nd0(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(14),q2(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(15),xl(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(16),dfv(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(17),dfh(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(18),dfq1(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(19),dfq2(:,1:np),(/1,1/),(/nvrt,np/))
+
+        nvars_hot=21 !record # of vars in nwild so far
+
+        j=nf90_close(ncid_hot)
+
+        !if(myrank==0) write(*,*) 'hot start written in schism_001 ',it,time,ifile,nvars_hot
+      end if !nhot output
+     end if !taskid=1
+
     endif ! outf
     
 !CWB2021-1 end

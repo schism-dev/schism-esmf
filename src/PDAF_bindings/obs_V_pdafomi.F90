@@ -1,4 +1,4 @@
-!$Id: obs_S_pdafomi.F90 912 2021-12-01 18:04:51Z lnerger $
+!$Id: obs_V_pdafomi.F90 912 2021-12-01 18:04:51Z lnerger $
 !> PDAF-OMI template observation module 
 !!
 !! This module handles operations for one data type (called 'module-type' below).
@@ -176,7 +176,7 @@ CONTAINS
     USE PDAFomi, &
          ONLY: PDAFomi_gather_obs
     USE mod_assimilation, &
-         ONLY: filtertype, local_range,use_global_obs
+         ONLY: filtertype, local_range,use_global_obs,Vlocal_opt
 
     IMPLICIT NONE
 
@@ -207,12 +207,17 @@ CONTAINS
     ! Store whether to assimilate this observation type (used in routines below)
     IF (assim_V) thisobs%doassim = 1
 
-    ! Specify type of distance computation
-    thisobs%disttype = 0   ! 0=Cartesian ! Consider to use 1 for global
+    if (Vlocal_opt.eq.1) then
+       ! Specify type of distance computation
+       thisobs%disttype = 10   ! 0=Cartesian ! Consider to use 1 for global
 
-    ! Number of coordinates used for distance computation
-    ! The distance compution starts from the first row
-    thisobs%ncoord = 2
+       ! Number of coordinates used for distance computation
+       ! The distance compution starts from the first row
+       thisobs%ncoord = 3
+    else
+       thisobs%disttype = 0   ! 0=Cartesian ! Consider to use 1 for global
+       thisobs%ncoord = 2
+    end if
 
     ! Initialize flag for type of full observations
     thisobs%use_global_obs = use_global_obs
@@ -256,9 +261,11 @@ CONTAINS
              call compute_ll(obs_coords_p(1,idx),obs_coords_p(2,idx),obs_coords_p(3,idx),x_obs,y_obs)
              x_obs=x_obs/pi*180.d0
              y_obs=y_obs/pi*180.d0
+             if (Vlocal_opt.eq.1) ocoord_p2(3,i) = obs_coords_p(5,idx) !zzobs
           else
              x_obs=obs_coords_p(1,idx)
              y_obs=obs_coords_p(2,idx)
+             if (Vlocal_opt.eq.1) ocoord_p2(3,i) = obs_coords_p(3,idx)
           end if
           ocoord_p2(1,i) = x_obs
           ocoord_p2(2,i) = y_obs
@@ -293,8 +300,13 @@ CONTAINS
     ! This routine is generic for the case that only the observations, 
     ! inverse variances and observation coordinates are gathered
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p2, ivar_obs_p2, ocoord_p2, &
-         thisobs%ncoord, local_range, dim_obs)
+    if (Vlocal_opt.eq.1) then
+       CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p2, ivar_obs_p2, ocoord_p2, &
+         thisobs%ncoord, maxval(local_range), dim_obs)
+    else
+       CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p2, ivar_obs_p2, ocoord_p2, &
+         thisobs%ncoord, local_range(1), dim_obs)
+    end if
 
 ! ********************
 ! *** Finishing up ***
@@ -384,7 +396,7 @@ CONTAINS
     ! Include localization radius and local coordinates
     ! one can also set observation-specific values for the localization.
     USE mod_assimilation, &   
-         ONLY: coords_l, local_range, locweight, srange
+         ONLY: coords_l, local_range, locweight, srange,Vlocal_opt
 
     IMPLICIT NONE
 
@@ -408,8 +420,13 @@ CONTAINS
     ! coords_l should be set in the call-back routine init_dim_l.
 
     IF (thisobs%doassim==1) THEN
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       if (Vlocal_opt.eq.1) then     
+          CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, local_range, srange, dim_obs_l)
+       else
+          CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+            locweight(1), local_range(1), srange(1), dim_obs_l)
+       end if
     END IF
 
   END SUBROUTINE init_dim_obs_l_V

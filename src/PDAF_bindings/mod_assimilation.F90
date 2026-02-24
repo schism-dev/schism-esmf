@@ -37,7 +37,9 @@ MODULE mod_assimilation
   integer, allocatable :: obstype_index_mod(:,:) ! index of each obstype(z/s/t/u/v) in obs_p For OMI
   real, allocatable :: arco_obs_mod(:,:)    ! weighting for process-local observations
   REAL, ALLOCATABLE :: obs_coords_p(:,:)  ! Array for process-local observation coordinates
-  REAL, ALLOCATABLE :: obs_coords_f(:,:)  ! Array for full observation coordinates
+  REAL, ALLOCATABLE :: mdl_coords_p(:,:)  ! Array for process-local coordinates
+  INTEGER, ALLOCATABLE :: idx_domain_p(:,:)  ! Array for process-local idx to check domain_p is activate or not (to minimize n_domain usage for 2D+1D localization)
+  INTEGER, ALLOCATABLE :: vidx_domain_p(:) ! Array for process-local idx for 2D localization, specify bottom vertical layer to localize
   INTEGER, ALLOCATABLE :: obs_index_l(:)  ! Vector holding local state-vector indices of observations
   REAL, ALLOCATABLE    :: distance_l(:)   ! Vector holding distances of local observations
   INTEGER, ALLOCATABLE :: offset_field_p(:) ! state_p offset for local analysis
@@ -145,14 +147,14 @@ MODULE mod_assimilation
                            ! (0) use random orthonormal transformation orthogonal to (1,...,1)^T
                            ! (1) use identity transformation
 !    ! LSEIK/LETKF/LESTKF
-  REAL    :: local_range   ! Range for local observation domain
-  INTEGER :: locweight     ! Type of localizing weighting of observations
+  REAL    :: local_range(3)   ! Range for local observation domain
+  INTEGER :: locweight(2)    ! Type of localizing weighting of observations
                     !   (0) constant weight of 1
                     !   (1) exponentially decreasing with SRANGE
                     !   (2) use 5th-order polynomial
                     !   (3) regulated localization of R with mean error variance
                     !   (4) regulated localization of R with single-point error variance
-  REAL    :: srange        ! Support range for 5th order polynomial
+  REAL    :: srange(3)        ! Support range for 5th order polynomial
                            !   or radius for 1/e for exponential weighting
   REAL    :: varscale      ! Init Ensemble variance
   integer :: ihfskip_PDAF       ! skip handle for f/a files 
@@ -165,8 +167,15 @@ MODULE mod_assimilation
   real :: Zdepth_limit ! Control SSH/SSH-A obs data, skip if data locate at depth < Zdepth_limit
   real :: min_MSL_acDay ! Control minimum accumalation MSL day to derived SSH-A, unit: Days
   integer :: ens_init  ! ens init option
-  real :: coords_l(2) ! Coordinates of local analysis domain, OMI necessary
+  real :: coords_l(3) ! Coordinates of local analysis domain, OMI necessary
   integer :: use_global_obs ! Domain searching option
+  integer :: iau ! iau control option
+  integer :: iau_step_ZUV !extra iau control for elev/UV update
+  integer :: iau_step_TS !extra iau control for T/S update
+  real :: domain_limit_depth !extra control to minimize domain_p
+  integer :: Vlocal_opt ! Control Vertical localize option
+  integer :: it_shift !For ESMF it originl step, used for ihot=2
+  integer :: eof_split !eofs.bin read option
 ! INTEGER :: dim_obs_A,dim_obs_Z,dim_obs_S,dim_obs_T,dim_obs_U,dim_obs_V ! For OMI 
 
 ! REAL, ALLOCATABLE    :: rms_obs3(:) ! type3 rms_obs
