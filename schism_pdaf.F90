@@ -58,7 +58,7 @@ program main
   type(ESMF_Log) :: log
 
   integer(ESMF_KIND_I4) :: petCountLocal, full_para, schismCount = 8
-  integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc, ii
+  integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc, ii, ics_set
   integer(ESMF_KIND_I4), allocatable :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
   logical :: isPresent
@@ -131,6 +131,10 @@ program main
     !# of scribes for full para mode (const across all PETs); passed onto schism_msgp
     call ESMF_ConfigGetAttribute(config, value=nscribes, label='scribe_count:', &
                                  default=0, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    !ics setting for scribe cores
+    call ESMF_ConfigGetAttribute(config, value=ics_set, label='ics_set:', &
+                                 default=2, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   else
     write (message, *) 'Please supply .cfg'
@@ -358,6 +362,9 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_AttributeSet(schism_components(i), name='full_para', value=full_para, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='ics_set', value=ics_set, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   end do init0_loop

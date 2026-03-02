@@ -188,7 +188,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort,runhours,schism_dt2,full_para
+  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort,runhours,schism_dt2,full_para,ics_set
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -298,6 +298,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_AttributeGet(comp, name='runhours', value=runhours, defaultValue=1, rc=localrc)
   call ESMF_AttributeGet(comp, name='schism_dt2', value=schism_dt2, defaultValue=1, rc=localrc)
   call ESMF_AttributeGet(comp, name='full_para', value=full_para, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='ics_set', value=ics_set, defaultValue=2, rc=localrc)
 
 !Debug
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
@@ -390,6 +391,13 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   if (task_id/=1) then 
      rnday=real(runhours)/24. 
      dt=real(schism_dt2)
+     ics=ics_set !For ESMF_mesh gen (ESMF_MeshAddElements) in scribe cores, avoid inconsistency with compute cores to cause MPI hanging
+  else
+     if (ics.ne.ics_set) then
+         write(message,*) 'Change ics_set in schism_pdaf.cfg to ', ics
+         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+     end if
   end if
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
