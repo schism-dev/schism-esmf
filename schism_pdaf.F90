@@ -294,43 +294,43 @@ program main
   !Get info on simulation period
 !  filename = './global.nml'
 !  clock = clockCreateFrmParam(filename, localrc)
-  call clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps)
+  call clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours) !, num_obs_steps)
 
   !Read in obs times
-  allocate (list_obs_steps(num_obs_steps), list_obs_times(num_obs_steps))
-  call ESMF_UtilIOUnitGet(unit, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  open (unit, file='global.nml', iostat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  read (unit, nml=obs_info, iostat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  close (unit)
+  !allocate (list_obs_steps(num_obs_steps), list_obs_times(num_obs_steps))
+  !call ESMF_UtilIOUnitGet(unit, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !open (unit, file='global.nml', iostat=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !read (unit, nml=obs_info, iostat=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !close (unit)
 
   !Make sure the list is ascending
-  do i = 1, num_obs_steps - 1
-    if (list_obs_times(i + 1) <= list_obs_times(i) .or. list_obs_times(i) <= 0) then
-      write (message, *) 'Check obs times:', i, list_obs_times
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-      localrc = ESMF_RC_VAL_OUTOFRANGE
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    end if
-  end do !i
+  !do i = 1, num_obs_steps - 1
+  !  if (list_obs_times(i + 1) <= list_obs_times(i) .or. list_obs_times(i) <= 0) then
+  !    write (message, *) 'Check obs times:', i, list_obs_times
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  !    localrc = ESMF_RC_VAL_OUTOFRANGE
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  end if
+  !end do !i
   !Calculate SCHISM time steps for DA
-  list_obs_steps = nint(list_obs_times / schism_dt)
-  where (list_obs_steps < 1) list_obs_steps = 1
+  !list_obs_steps = nint(list_obs_times / schism_dt)
+  !where (list_obs_steps < 1) list_obs_steps = 1
 
   !Make sure obs steps are multiples of num_schism_dt_in_couple
-  do i = 1, num_obs_steps
-    if (mod(list_obs_steps(i), num_schism_dt_in_couple) /= 0) then
-      write (message, *) 'Obs steps must be divisible by num_schism_dt_in_couple:', i, list_obs_steps(i)
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-      localrc = ESMF_RC_VAL_OUTOFRANGE
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    end if
-  end do !i
+  !do i = 1, num_obs_steps
+  !  if (mod(list_obs_steps(i), num_schism_dt_in_couple) /= 0) then
+  !    write (message, *) 'Obs steps must be divisible by num_schism_dt_in_couple:', i, list_obs_steps(i)
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  !    localrc = ESMF_RC_VAL_OUTOFRANGE
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  end if
+  !end do !i
 
-  write (message, *) 'List of obs steps:', list_obs_steps
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  !write (message, *) 'List of obs steps:', list_obs_steps
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Initialize phase 0 and set attribute for calling init
 ! write(0, *) 'Before init0_loop, ESMF_GridCompInitialize'
@@ -436,16 +436,16 @@ program main
     do i = 1, schismCount
 
       !Check if it's analysis step in PDAF
-      if (it == list_obs_steps(next_obs_step)) then !DA step
+      !if (it == list_obs_steps(next_obs_step)) then !DA step
         !Let Run know it's analysis step
-        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-                               value=1, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-      else
-        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-                               value=0, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-      end if !DA step
+      !  call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+      !                         value=1, rc=localrc)
+      !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      !else
+      !  call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+      !                         value=0, rc=localrc)
+      !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      !end if !DA step
 
       call ESMF_GridCompRun(schism_components(i), importState=importStateList(i), &
                             exportState=exportStateList(i), clock=clock, rc=localrc)
@@ -453,7 +453,7 @@ program main
 
     end do !i
 
-    if (it == list_obs_steps(next_obs_step)) next_obs_step = min(num_obs_steps, next_obs_step + 1)
+    !if (it == list_obs_steps(next_obs_step)) next_obs_step = min(num_obs_steps, next_obs_step + 1)
 
     call MPI_barrier(MPI_COMM_WORLD, ii)
     if (ii /= MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD, 0, j)
@@ -581,7 +581,7 @@ program main
 
 end program main
 
-subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps)
+subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours) !, num_obs_steps)
   use esmf
   implicit none
 
@@ -589,7 +589,7 @@ subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhou
 !  integer(ESMF_KIND_I4), intent(out)     :: rc
   type(ESMF_Clock), intent(out) :: clock
   !SCHISM dt (sec) must be int
-  integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps
+  integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple, runhours !, num_obs_steps
 
   logical :: isPresent
   integer(ESMF_KIND_I4) :: unit, localrc, rc
@@ -599,7 +599,7 @@ subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhou
   integer(ESMF_KIND_I4) :: start_year = 2000, start_month = 1, start_day = 1
   integer(ESMF_KIND_I4) :: start_hour = 0, itmp
   namelist /sim_time/ start_year, start_month, start_day, start_hour, runhours, &
- &schism_dt, num_schism_dt_in_couple, num_obs_steps
+ &schism_dt, num_schism_dt_in_couple !, num_obs_steps
 
 !  inquire(file='global.nml', exist=isPresent)
 !  if (isPresent) then

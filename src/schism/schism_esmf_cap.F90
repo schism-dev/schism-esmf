@@ -675,8 +675,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call ESMF_AttributeGet(comp, name='cohort_index', &
     value=cohortIndex, defaultValue=0, rc=localrc)
 
-  call ESMF_AttributeGet(comp, name='analysis_step', &
-    value=analysis_step, defaultValue=0, rc=localrc)
+  !call ESMF_AttributeGet(comp, name='analysis_step', &
+  !  value=analysis_step, defaultValue=0, rc=localrc)
 
   call ESMF_AttributeGet(comp, name='full_para', &
     value=full_para, defaultValue=1, rc=localrc)
