@@ -335,11 +335,11 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
        CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
     end if
      IF (mype_world == 0) THEN
-        WRITE (*, '(/18x, a)') 'PE configuration:'
-        WRITE (*, '(2x, a6, a9, a10, a14, a13, /2x, a5, a9, a7, a7, a7, a7, a7, /2x, a)') &
+        WRITE (*, '(/25x, a)') 'PE configuration:'
+        WRITE (*, '(2x, a7, a9, a13, a18, a14, /2x, a6, a9, a9, a9, a9, a9, a8, /2x, a)') &
              'world', 'filter', 'model', 'couple', 'filterPE', &
              'rank', 'rank', 'task', 'rank', 'task', 'rank', 'T/F', &
-             '----------------------------------------------------------'
+             '------------------------------------------------------------'
      END IF
     if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
        if (comm_pdaf /= MPI_COMM_NULL) CALL MPI_Barrier(comm_pdaf, MPIerr)
@@ -347,12 +347,12 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
        CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
     end if
      IF (task_id == 1) THEN
-        WRITE (*, '(2x, i4, 4x, i4, 4x, i3, 4x, i3, 4x, i3, 4x, i3, 5x, l3)') &
+        WRITE (*, '(2x, i5, 4x, i5, 4x, i5, 4x, i5, 4x, i5, 4x, i5, 5x, l3)') &
              mype_world, mype_filter, task_id, mype_model, color_couple, &
              mype_couple, filterpe
      ENDIF
      IF (task_id > 1) THEN
-        WRITE (*,'(2x, i4, 12x, i3, 4x, i3, 4x, i3, 4x, i3, 5x, l3)') &
+        WRITE (*,'(2x, i5, 13x, i5, 4x, i5, 4x, i5, 4x, i5, 5x, l3)') &
          mype_world, task_id, mype_model, color_couple, mype_couple, filterpe
      END IF
     if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
