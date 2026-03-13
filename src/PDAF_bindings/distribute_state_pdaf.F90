@@ -30,10 +30,13 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
   use schism_glbl, only: nea,nsa,npa,nvrt,ntracers,idry_e,we,tr_el, &
     & idry_s,su2,sv2,idry,eta2,tr_nd,uu2,vv2,ww2, &
     & elnode,i34,rkind,kbe,kbs,isidenode,kbp, &
-    & tempmin,tempmax,saltmin,saltmax,trnd_nu2,inu_tr
+    & tempmin,tempmax,saltmin,saltmax,trnd_nu2,inu_tr,dp,h0,idry, &
+    & inunfl,iths_main,it_main,prho,erho,znl,ze,iplg,ielg !,ihot
 ! Check only
   use mod_parallel_pdaf, only: mype_model,task_id,filterpe
-  use mod_assimilation, only: offset_field_p
+  use mod_assimilation, only: offset_field_p,iau_step_ZUV,iau_step_TS,iau,dim_state_p
+  use PDAF_iau, only: step_cnt_iau
+  !USE PDAF_mod_core, only: step
 
   IMPLICIT NONE
   
@@ -41,9 +44,10 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
   INTEGER, INTENT(in) :: dim_p           ! PE-local state dimension
   REAL, INTENT(inout) :: state_p(dim_p)  ! PE-local state vector
 
-  integer :: i,j,k,itot,ifill,ifill2
+  integer :: i,j,k,itot,ifill,ifill2,k2
   real :: nu_weight ! Put to mod_assimilation later
 
+  real(rkind) :: eqstate
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_get_state      (as U_dist_state)
 ! Called by: PDAF_assimilate_X   (as U_dist_state)
@@ -54,6 +58,11 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 ! *** Initialize model fields from state  ***
 ! *** Each model PE knows his sub-state   ***
 !********************************************
+
+  !if ((ihot.eq.2).and.(step.eq.0)) then
+  !     if (mype_model.eq.0) write(*,*) 'ihot=2, skip update model, only works for EnOI!'
+  !     return !For ihot=2, to avoid change model state  
+  !end if
 
   ! Template reminder - delete when implementing functionality
   !WRITE (*,*) 'TEMPLATE distribute_state_pdaf.F90: Implement initialization of model fields here!'
@@ -73,15 +82,48 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
    itot=0
    !node-base
    ! Elev
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_ZUV).eq.0).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
+      itot=offset_field_p(1) !Change counter for correct idx
    do i=1,npa
      itot=itot+1
      eta2(i)=state_p(itot)
+     if ((idry(i).eq.0).and.(dp(i)+eta2(i)<=h0)) then
+        !write(*,*) "Adjust eta2 to make sure wet, at ", i, dp(i), eta2(i)
+        eta2(i)=h0-dp(i)+0.02 ! set 2 cm as minimum, we keep origin idry
+     end if
    enddo !i
+   ! Update z-level and wet/dry
+!...  Recompute vgrid and calculate rewetted pts, 
+!     move to last section after prho & erho update
+   !if(inunfl==0) then
+   !   call levels0(iths_main,it_main)
+   !else
+   !   call levels1(iths_main,it_main)
+   !endif
+   !Assign const to prho & erho at dry in avoid "Impossible dry 5"
+   !This is not working due to update new idry already 
+    do i=1,npa
+       if (idry(i)>0) prho(1,i)=1024.
+       if (dp(i)+eta2(i)>h0) then !wet
+          call zcoor(0,i,kbp(i),znl(:,i)) !Derive new znl to avoid error "Dist<0 in MY-G"    
+       end if
+    end do
+   end if !iau check
+   !do i=1,nea
+   !   if (idry_e(i)>0) erho(1,i)=1024.
+   !end do
+   
+
    ! Tracer
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_TS).eq.1).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
+      itot=offset_field_p(2) !Change counter for correct idx
    do j=1,ntracers
      do i=1,npa
        do k=1,nvrt
          itot=itot+1
+         if (state_p(itot).lt.-99.) then
+            if (mype_model.eq.0) write(*,'(a,i,f10.3,3i)') 'In distribute tracer state:',step_cnt_iau,state_p(itot),j,i,k 
+         end if
          tr_nd(j,k,i)=state_p(itot)
          ! Add limiter to avoid weird analysis
          if (j==1) then
@@ -99,12 +141,36 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        end if
      enddo !i
    enddo !j
+      !if (mype_model.eq.0) write(*,'(a,i,50f10.3)') 'In distribute tracer T: ', step_cnt_iau, tr_nd(1,:,10)
+      !if (mype_model.eq.0) write(*,'(a,i,50f10.3)') 'In distribute tracer S: ', step_cnt_iau, tr_nd(2,:,10)
+   end if !iau check
+   !Update znl/idry after update tr_nd
+!  if(inunfl==0) then
+!     call levels0(iths_main,it_main)
+!  else
+!     call levels1(iths_main,it_main)
+!  endif
+   !Update prho density with new idry
+!  prho=-99.d0
+!  do i=1,npa
+!     if(idry(i)==1) cycle
+!     do k=1,nvrt
+!        k2=max(k,kbp(i))
+!        prho(k,i)=eqstate(3,iplg(i),tr_nd(1,k,i),tr_nd(2,k,i),znl(k2,i))
+!     end do !k
+!  end do !i
 !  Updating nudge with analysis result to increase ens-spread with weighting, limit T/S only
 !  For 1st time step, tr_nd is pertubed already, therefore ens-spread is garanteed!
-   nu_weight=0.5
-   do k=1,2
-      if(inu_tr(k)==2) trnd_nu2(k,:,:)=(1.0d0-nu_weight)*trnd_nu2(k,:,:)+nu_weight*tr_nd(k,:,:)
-   end do
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_TS).eq.1).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
+     nu_weight=0.5
+      do k=1,2
+        if(inu_tr(k)==2) trnd_nu2(k,:,:)=(1.0d0-nu_weight)*trnd_nu2(k,:,:)+nu_weight*tr_nd(k,:,:)
+      end do
+   end if !iau check
+
+   !IAU update for UVW
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_ZUV).eq.0).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
+      itot=offset_field_p(3) !Change counter for correct idx
    ! U
    do i=1,npa
      do k=1,nvrt
@@ -147,11 +213,17 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
      end do
      end if
    enddo !i
+   end if !iau check UVW
+
+   if ((mod(step_cnt_iau,iau_step_TS).eq.1).and.(iau.ne.0)) itot=itot+3*npa*nvrt ! Only apply to DA-TS
+
+   if (itot.ne.dim_state_p) write(*,*) 'Counter in distribute is not right in PE: ', mype_model
 
 !  new28!!
 !  Here we need to update tr_el, su2,sv2,we by node-base vars
    if (ifill2.eq.1) then
 !  Update tr_el
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_TS).eq.1).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
    do i=1,nea    
       if (idry_e(i).eq.1) cycle !dry
 
@@ -161,16 +233,24 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 !           tr_el(j,k,i)=sum(tr_nd(j,k,elnode(1:i34(i),i)))/real(i34(i),rkind)
 !        end do !j  
 !     end do !k
+
       do k=kbe(i)+1,nvrt
+      !do k=2,nvrt !Test for IAU
          do j=1,ntracers
+         !do j=ntracers,ntracers !Only applied to Salt to check
             tr_el(j,k,i)=sum(tr_nd(j,k,elnode(1:i34(i),i))+tr_nd(j,k-1,elnode(1:i34(i),i)))/2.d0/real(i34(i),rkind)
          end do !j  
       end do !k
+      ! Test for IAU
+      !do j=1,ntracers
+      !   tr_el(j,1,i)=tr_el(j,2,i)
+      !end do
 
 !     Specify 1st index tr_el
 !     do j=1,ntracers
 !        tr_el(j,1,i)=tr_el(j,2,i)
 !     end do !j
+
 !     Do extrapolation
       do k=1,kbe(i)!-1
          do j=1,ntracers
@@ -178,6 +258,18 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
          end do !j
       end do !k
    end do !i
+   end if !iau check for tr_el
+
+   !Update erho density with new idry_e
+!  erho=-99.d0
+!  do i=1,nea
+!     if(idry_e(i)==1) cycle
+!     do k=1,nvrt
+!        k2=max(k,kbp(i))
+!        erho(k,i)=eqstate(4,ielg(i),tr_el(1,k,i),tr_el(2,k,i),ze(k2,i))
+!     end do !k
+!  end do !i
+   if ((iau.eq.0).or.((mod(step_cnt_iau,iau_step_ZUV).eq.0).and.(iau.ne.0)).or.(step_cnt_iau.eq.0)) then
 !  Update su2,sv2
    do j=1,nsa
       if(idry_s(j)==1) cycle
@@ -204,9 +296,15 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
          we(k,i)=0.d0  !zero-out
       end do
    end do
+   end if !iau check for su2/sv2/we
    
    end if !ifill2
-
+!  Update wet/dry here
+!  if(inunfl==0) then
+!     call levels0(iths_main,it_main)
+!   else
+!     call levels1(iths_main,it_main)
+!  endif
 !  Adding some limiters to avoid weird analysis result
 
 END SUBROUTINE distribute_state_pdaf

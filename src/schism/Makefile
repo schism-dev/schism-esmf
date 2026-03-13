@@ -25,7 +25,7 @@ endif
 LIBS+= -lhydro -lcore $(METIS_LDFLAGS) -lparmetis -lmetis
 F90FLAGS+= -I $(SCHISM_BUILD_DIR)/include
 ifdef USE_PDAF
-F90FLAGS +=  -I ../PDAF_bindings #-g -traceback -mcmodel=medium #-shared-intel
+F90FLAGS +=  -I ../PDAF_bindings -I ${PDAF_LIB_DIR}/../include #-g -traceback -mcmodel=medium #-shared-intel
 endif
 LDFLAGS+= -L $(SCHISM_BUILD_DIR)/lib
 

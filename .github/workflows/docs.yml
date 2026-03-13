@@ -1,0 +1,74 @@
+name: Docs
+
+on:
+  push:
+    branches: [ main, cmake ]
+  pull_request:
+    branches: [ main, cmake ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-docs-cmake:
+    name: "CMake docs build (DOCS_ONLY)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install doc dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+
+      - name: Configure (DOCS_ONLY)
+        run: |
+          cmake -S . -B build -DDOCS_ONLY=ON -DBUILD_DOCS=ON
+
+      - name: Build docs target
+        run: |
+          cmake --build build --target docs -- -j2
+
+      - name: Archive built site (from CMake)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmake-docs-site
+          path: build/docs
+
+  deploy-docs:
+    name: "Deploy MkDocs site to GitHub Pages"
+    needs: build-docs-cmake
+    if: github.event_name == 'push' && contains('refs/heads/main refs/heads/cmake', github.ref)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install doc dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+
+      - name: Build MkDocs site
+        run: mkdocs build --strict
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true

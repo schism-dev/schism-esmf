@@ -1,5 +1,5 @@
 ! This code is a main driver for a coupled SCHISM and PDAF
-! program for running multiple schism components concurrently in flexible mode
+! program for running multiple schism components concurrently in full parallel or flexible mode
 ! (i.e. multiple tasks can share same PET list). The coupling model interface is
 ! schism_esmf_cap.F90 (and interfaces are defined in schism_bmi.F90)
 !
@@ -37,7 +37,7 @@ program main
 
   use esmf
   use schism_esmf_cap, only: schismSetServices => SetServices
-! use schism_msgp, only: parallel_abort,myrank
+  use schism_msgp, only: nscribes,task_id !parallel_abort,myrank
 ! use schism_glbl, only: errmsg,tr_el
 ! USE mod_assimilation, &      ! Variables for assimilation
 !      ONLY: filtertype
@@ -57,8 +57,8 @@ program main
   type(ESMF_Vm) :: vm
   type(ESMF_Log) :: log
 
-  integer(ESMF_KIND_I4) :: petCountLocal, schismCount = 8
-  integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc, ii
+  integer(ESMF_KIND_I4) :: petCountLocal, full_para, schismCount = 8
+  integer(ESMF_KIND_I4) :: rc, petCount, i, j, inum, localrc, ii, ics_set
   integer(ESMF_KIND_I4), allocatable :: petlist(:)
   real(ESMF_KIND_R8), pointer :: ptr1d(:)
   logical :: isPresent
@@ -127,6 +127,15 @@ program main
     call ESMF_ConfigGetAttribute(config, value=concurrentCount, label='concurrent_count:', &
                                  default=max(petCount / schismCount, 1), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    !# of scribes for full para mode (const across all PETs); passed onto schism_msgp
+    call ESMF_ConfigGetAttribute(config, value=nscribes, label='scribe_count:', &
+                                 default=0, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    !ics setting for scribe cores
+    call ESMF_ConfigGetAttribute(config, value=ics_set, label='ics_set:', &
+                                 default=2, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   else
     write (message, *) 'Please supply .cfg'
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
@@ -159,6 +168,22 @@ program main
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
   end if
 
+  !Define mode (full_para o flex)
+  if(concurrentCount==schismCount) then
+    full_para=1
+    if(nscribes>=0) then
+      write (message, '(A,I4)') 'Use scribe IO for full para mode:',nscribes
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+  else !flex mode
+    full_para=0
+    if(nscribes/=0) then
+       nscribes=0 !Force to reset 0
+      write (message, '(A,I4)') 'Use OLDIO for flex mode:',nscribes
+      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+    endif
+  endif
+
   ! Create all components on their respective parallel
   ! environment provided by each petList
   allocate (schism_components(schismCount), stat=localrc)
@@ -168,17 +193,23 @@ program main
 !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Here, we partition the schismCount on the concurrentCount
-  !> concurrent runs. As an example, we assume
+  !> concurrent runs. As an example, we assume a flex mode case:
   !> petCount=48, schismCount=14, concurrentCount=5
   !> We integer divide petCount by concurrentCount
-  !> and obtain the petLists {0..8} {9..17} {18..26}
-  !> {27..35} {36..44}, i.e. 9 cores for concurrnt tasks (1,4,7,10,13 etc).
+  !> and obtain the petLists (cores) {0..8} {9..17} {18..26}
+  !> {27..35} {36..44}.
+  !> The corhorts (members) are arranged in column major as:
+  !> 1 4 7 10 13   <-- cohort 0
+  !> 2 5 8 11 14   <-- cohort 1
+  !> 3 6 9 12      <-- cohort 2
+  !> So tasks (1 4 7 10 13) share same 9 cores etc
   !> NOTE that # of cores must be
   !> equal as we do not want to repartition the grid etc.
-
   !> We distribute the schismCount instances on the concurrentCount
   !> to obtain the number of cohorts that run sequentially,
   !> and obtain ncohort=3 in our example
+
+  !> For full parallel mode, the 9 cores include scribes
   ncohort = ceiling(real(schismCount) / concurrentCount)
   petCountLocal = petCount / concurrentCount
 
@@ -189,15 +220,11 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   end if
 
-  !> Thus, we obtain the sets of instances that run concurrently: {1 4 7 10 13}
-  !etc folowing column major
-
   !write(0,*) 'schism count, cohort count, maxpercohort ', schismCount, concurrentCount, ncohort
   do i = 1, schismCount
 
-    ! Determine the sequence  and concurrent index of each
-    ! instance
-!    sequenceIndex = mod(i-1, concurrentCount) !local index in a cohort (0- based); task ID-1 in PDAF
+    ! Determine the sequence  and concurrent index of each instance
+    ! local index in a cohort (0- based); task ID-1 in PDAF
     sequenceIndex = (i - 1) / ncohort
 
     allocate (petlist(petCountLocal), stat=localrc)
@@ -230,7 +257,7 @@ program main
     !call ESMF_ConfigSetAttribute(configList(i), value=i, &
     !  label='schismInstance:', rc=localrc)
 
-    !Put input dir name into attribute to pass onto init P1 etc
+    !Put input dir name schism_XXX into attribute to pass onto init P1 etc
     call ESMF_AttributeSet(schism_components(i), name='input_directory', value=trim(message2), rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -267,43 +294,43 @@ program main
   !Get info on simulation period
 !  filename = './global.nml'
 !  clock = clockCreateFrmParam(filename, localrc)
-  call clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps)
+  call clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours) !, num_obs_steps)
 
   !Read in obs times
-  allocate (list_obs_steps(num_obs_steps), list_obs_times(num_obs_steps))
-  call ESMF_UtilIOUnitGet(unit, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  open (unit, file='global.nml', iostat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  read (unit, nml=obs_info, iostat=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  close (unit)
+  !allocate (list_obs_steps(num_obs_steps), list_obs_times(num_obs_steps))
+  !call ESMF_UtilIOUnitGet(unit, rc=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !open (unit, file='global.nml', iostat=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !read (unit, nml=obs_info, iostat=localrc)
+  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !close (unit)
 
   !Make sure the list is ascending
-  do i = 1, num_obs_steps - 1
-    if (list_obs_times(i + 1) <= list_obs_times(i) .or. list_obs_times(i) <= 0) then
-      write (message, *) 'Check obs times:', i, list_obs_times
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-      localrc = ESMF_RC_VAL_OUTOFRANGE
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    end if
-  end do !i
+  !do i = 1, num_obs_steps - 1
+  !  if (list_obs_times(i + 1) <= list_obs_times(i) .or. list_obs_times(i) <= 0) then
+  !    write (message, *) 'Check obs times:', i, list_obs_times
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  !    localrc = ESMF_RC_VAL_OUTOFRANGE
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  end if
+  !end do !i
   !Calculate SCHISM time steps for DA
-  list_obs_steps = nint(list_obs_times / schism_dt)
-  where (list_obs_steps < 1) list_obs_steps = 1
+  !list_obs_steps = nint(list_obs_times / schism_dt)
+  !where (list_obs_steps < 1) list_obs_steps = 1
 
   !Make sure obs steps are multiples of num_schism_dt_in_couple
-  do i = 1, num_obs_steps
-    if (mod(list_obs_steps(i), num_schism_dt_in_couple) /= 0) then
-      write (message, *) 'Obs steps must be divisible by num_schism_dt_in_couple:', i, list_obs_steps(i)
-      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
-      localrc = ESMF_RC_VAL_OUTOFRANGE
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    end if
-  end do !i
+  !do i = 1, num_obs_steps
+  !  if (mod(list_obs_steps(i), num_schism_dt_in_couple) /= 0) then
+  !    write (message, *) 'Obs steps must be divisible by num_schism_dt_in_couple:', i, list_obs_steps(i)
+  !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+  !    localrc = ESMF_RC_VAL_OUTOFRANGE
+  !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  !  end if
+  !end do !i
 
-  write (message, *) 'List of obs steps:', list_obs_steps
-  call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  !write (message, *) 'List of obs steps:', list_obs_steps
+  !call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   ! Initialize phase 0 and set attribute for calling init
 ! write(0, *) 'Before init0_loop, ESMF_GridCompInitialize'
@@ -332,6 +359,12 @@ program main
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
     call ESMF_AttributeSet(schism_components(i), name='schism_dt2', value=schism_dt, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='full_para', value=full_para, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+    call ESMF_AttributeSet(schism_components(i), name='ics_set', value=ics_set, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   end do init0_loop
@@ -376,11 +409,17 @@ program main
 ! write(0, *) 'Before init_parelle_pdaf'
   call init_parallel_pdaf(0, 1, schismCount, petCountLocal, concurrentCount)
 ! write(0, *) 'Before init_pdaf'
-  call init_pdaf(schismCount, j)
+  if (task_id==1) then
+     call init_pdaf(schismCount, concurrentCount, j) !Only on compute cores
+    ! write(0, *) 'After init_pdaf'
+  end if
+  !j=0 !test for multi-schism, turn off PDAF
 #endif
-  if (j /= 0) then
-    localrc = ESMF_RC_VAL_OUTOFRANGE
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (task_id==1) then !Only on compute cores
+    if (j /= 0) then
+      localrc = ESMF_RC_VAL_OUTOFRANGE
+      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    end if
   end if
 
   ! Loop over coupling timesteps until stopTime
@@ -397,16 +436,16 @@ program main
     do i = 1, schismCount
 
       !Check if it's analysis step in PDAF
-      if (it == list_obs_steps(next_obs_step)) then !DA step
+      !if (it == list_obs_steps(next_obs_step)) then !DA step
         !Let Run know it's analysis step
-        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-                               value=1, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-      else
-        call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
-                               value=0, rc=localrc)
-        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-      end if !DA step
+      !  call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+      !                         value=1, rc=localrc)
+      !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      !else
+      !  call ESMF_AttributeSet(schism_components(i), name='analysis_step', &
+      !                         value=0, rc=localrc)
+      !  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+      !end if !DA step
 
       call ESMF_GridCompRun(schism_components(i), importState=importStateList(i), &
                             exportState=exportStateList(i), clock=clock, rc=localrc)
@@ -414,7 +453,7 @@ program main
 
     end do !i
 
-    if (it == list_obs_steps(next_obs_step)) next_obs_step = min(num_obs_steps, next_obs_step + 1)
+    !if (it == list_obs_steps(next_obs_step)) next_obs_step = min(num_obs_steps, next_obs_step + 1)
 
     call MPI_barrier(MPI_COMM_WORLD, ii)
     if (ii /= MPI_SUCCESS) call MPI_abort(MPI_COMM_WORLD, 0, j)
@@ -512,7 +551,7 @@ program main
 
 #ifdef USE_PDAF
 ! PDAF finalize
-  call finalize_pdaf()
+  if (task_id==1) call finalize_pdaf() !Only on compute cores
 #endif
 
   do i = 1, schismCount
@@ -542,7 +581,7 @@ program main
 
 end program main
 
-subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps)
+subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhours) !, num_obs_steps)
   use esmf
   implicit none
 
@@ -550,7 +589,7 @@ subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhou
 !  integer(ESMF_KIND_I4), intent(out)     :: rc
   type(ESMF_Clock), intent(out) :: clock
   !SCHISM dt (sec) must be int
-  integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple, runhours, num_obs_steps
+  integer(ESMF_KIND_I4), intent(out) :: schism_dt, num_schism_dt_in_couple, runhours !, num_obs_steps
 
   logical :: isPresent
   integer(ESMF_KIND_I4) :: unit, localrc, rc
@@ -560,7 +599,7 @@ subroutine clockCreateFrmParam(clock, schism_dt, num_schism_dt_in_couple, runhou
   integer(ESMF_KIND_I4) :: start_year = 2000, start_month = 1, start_day = 1
   integer(ESMF_KIND_I4) :: start_hour = 0, itmp
   namelist /sim_time/ start_year, start_month, start_day, start_hour, runhours, &
- &schism_dt, num_schism_dt_in_couple, num_obs_steps
+ &schism_dt, num_schism_dt_in_couple !, num_obs_steps
 
 !  inquire(file='global.nml', exist=isPresent)
 !  if (isPresent) then

@@ -30,8 +30,8 @@
 program main
 
   use esmf
-  !use toplevel_schism_atm, only: toplevelSetServices => SetServices
-  use toplevel_schism_netcdf, only: toplevelSetServices => SetServices
+  use toplevel_schism_atm, only: toplevelSetServices => SetServices
+  !use toplevel_schism_netcdf, only: toplevelSetServices => SetServices
   use schism_esmf_util, only: clockCreateFrmParam
 
   implicit none

@@ -24,7 +24,7 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE mod_assimilation, ONLY: offset_field_p
+  USE mod_assimilation, ONLY: offset_field_p,idx_domain_p,Vlocal_opt,vidx_domain_p
   use schism_glbl,only : nvrt,ntracers,npa
   IMPLICIT NONE
 
@@ -38,6 +38,7 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 
 ! Local vars
   integer iid,cnt,nfield,k,ii,ic,offset_p(6)
+  integer i,id
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update    (as U_g2l_state)
 ! Called by: PDAF_letkf_update    (as U_g2l_state)
@@ -53,39 +54,44 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 ! WRITE (*,*) 'TEMPLATE g2l_state_pdaf.F90: Initialize local state vector here!'
 
 !   state_l = ??
+  if (Vlocal_opt.eq.1) then !2D+1D
+
+     id=idx_domain_p(2,domain_p)
+     state_l(dim_l)=state_p(id)
+  else !2D
 
 ! field, start with z/tracer(t/s)/u/v/w
 ! local offset, because we only have 5 fields in offset_field_p
-  offset_p(1) = offset_field_p(1) !elev
-  offset_p(2) = offset_field_p(2) !tr_nd(1),temp
-  offset_p(3) = offset_field_p(2)+npa*nvrt !tr_nd(2), salt
-  offset_p(4) = offset_field_p(3) !uu
-  offset_p(5) = offset_field_p(4) !vv
-  offset_p(6) = offset_field_p(5) !ww
+     offset_p(1) = offset_field_p(1) !elev
+     offset_p(2) = offset_field_p(2) !tr_nd(1),temp
+     offset_p(3) = offset_field_p(2)+npa*nvrt !tr_nd(2), salt
+     offset_p(4) = offset_field_p(3) !uu
+     offset_p(5) = offset_field_p(4) !vv
+     offset_p(6) = offset_field_p(5) !ww
 
+     nfield=5 ! z+tracer(t/s)+u+v+w
 
-  nfield=5 ! z+tracer(t/s)+u+v+w
-
-! elev
-  state_l(1)=state_p(domain_p)
-! 3D field
-  cnt=2
-  do iid=2,nfield+1
-      do k=1,nvrt
-         state_l(cnt)= state_p( (domain_p-1)*nvrt + offset_p(iid) + k  )
-         cnt=cnt+1
-      end do !k
-  end do !iid
-! do iid=2,nfield
-!    ic=1 !iid=3~5
-!    if (iid.eq.2) ic=ntracers
-!       do ii=1,ic
-!          do k=1,nvrt
-!            state_l(cnt)= state_p(domain_p + offset_field_p(iid) + (k-1)*npa + nvrt*npa*(ii-1))
-!            cnt=cnt+1
-!          end do !k
-!       end do !ii
-! end do !iid
-! write(*,'(a, i,106f10.3)') 'g2l_state:', ntracers,state_l
+     ! elev
+     state_l(1)=state_p(domain_p)
+     ! 3D field
+     cnt=2
+     do iid=2,nfield+1
+       if (vidx_domain_p(domain_p).ne.1) then
+         do k=1,vidx_domain_p(domain_p)-1 !only specified  bottom to surface
+           state_l(cnt)= state_p( (domain_p-1)*nvrt + offset_p(iid) + vidx_domain_p(domain_p) )
+           cnt=cnt+1
+         end do !k
+         do k=vidx_domain_p(domain_p),nvrt !only specified  bottom to surface
+           state_l(cnt)= state_p( (domain_p-1)*nvrt + offset_p(iid) + k  )
+           cnt=cnt+1
+         end do !k
+       else
+         do k=1,nvrt
+           state_l(cnt)= state_p( (domain_p-1)*nvrt + offset_p(iid) + k  )
+           cnt=cnt+1
+         end do !k
+       end if
+     end do !iid
+  end if !Vlocal_opt
 
 END SUBROUTINE g2l_state_pdaf

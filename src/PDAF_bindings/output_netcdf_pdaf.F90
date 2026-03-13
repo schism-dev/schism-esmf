@@ -30,7 +30,7 @@
                    & nsteps_from_cold,cumsum_eta,windx,windy
     use schism_msgp, only: myrank,parallel_abort,nproc
     use netcdf
-    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf,nhot_PDAF,nhot_write_PDAF
+    use mod_assimilation, only: ihfskip_PDAF,nspool_PDAF,outf,nhot_PDAF,nhot_write_PDAF,it_shift
     implicit none
 !    include 'netcdf.inc'
     private
@@ -179,7 +179,7 @@
       if (step<0) typestr='f'
 
 !     Specify it_main from step to avoid weird error
-      it_main_PDAF=abs(step)
+      it_main_PDAF=abs(step)+it_shift !for ihot=2
       
 !     Define out_dir,len_out_dir,ifile_PDAF
       out_dir=adjustl('./DA_output/'//typestr//'/')
@@ -272,9 +272,10 @@
        end if !step
       end if !outf
 
-!     Output rank hotstart file, here we only output analysis (after DA)
+!     Output rank hotstart file, here we output both analysis (after DA) & fcst (before DA, for IAU) 
       if (step==0) ifile_hot=1
-      if ((typestr=='a').and.(nhot_PDAF==1)) then
+      !if ((typestr=='a').and.(nhot_PDAF==1)) then
+      if (nhot_PDAF==1) then
          if (mod(it_main_PDAF,nhot_write_PDAF)==0) then
             a_4='000000'
             write(a_4,'(i6.6)') myrank

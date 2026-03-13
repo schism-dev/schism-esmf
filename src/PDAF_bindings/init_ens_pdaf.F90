@@ -30,9 +30,10 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   use mod_parallel_pdaf, only: mype_filter,COMM_filter,mype_model!,task_id,filterpe
 ! new28
 ! The following is only use for lock-exchange experiment, delete them after done
-  use mod_assimilation, only: offset_field_p,varscale,ens_init
+  use mod_assimilation, only: offset_field_p,varscale,ens_init,eof_split
   use schism_glbl, only: npa,nvrt,np_global,ipgl,errmsg
-  use schism_msgp, only: myrank,rtype,ierr,parallel_abort
+  use schism_msgp, only: myrank,rtype,ierr,parallel_abort,itype
+  use PDAF
   IMPLICIT NONE
 
 ! include 'mpif.h' ! for MPI
@@ -54,6 +55,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   real,allocatable :: svals(:),meanstate(:)
   real,allocatable :: eof(:),eof_p(:,:),omega(:,:),state_p2(:),ens(:)
   real :: fac
+  character*30 :: eof_fn
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_init       (as U_init_ens)
@@ -84,21 +86,34 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Do following with ens_init = 1 or 2
   if (ens_init<3) then
 
-  open(10,file='eofs.dat')
-  read(10,*) rank
-  close(10)
+  IF (mype_filter==0) THEN
+     open(10,file='eofs.dat')
+     read(10,*) rank
+     close(10)
+  end if
+  CALL MPI_Bcast(rank,1, itype, 0, COMM_filter, ierr)
+  
   allocate(svals(rank),eof(dim_state)) !,rank))
   allocate(eof_p(dim_p,rank),omega(dim_ens, dim_ens-1))
   if (ens_init==2) allocate(state_p2(dim_p),meanstate(dim_state))
+  IF (mype_filter==0) THEN
+     WRITE (*,'(a,8x,a)') 'SCHISM-PDAF','--- Done allocate eof and other vars in init_ens'
+  end if
 ! open analysis binary file
 ! do this read file in all filter rank
-! IF (mype_filter==0) THEN
-     open(12,file='eofs.bin',form='unformatted')
+   IF (mype_filter==0) THEN
+     if (eof_split==0) open(12,file='eofs.bin',form='unformatted')
      open(13,file='svd.bin',form='unformatted')
+  !IF (mype_filter==0) THEN
+     WRITE (*,'(a,8x,a)') 'SCHISM-PDAF','--- Done open svd.bin in init_ens'
      read(13) rcheck
      if (rcheck.ne.rank) call parallel_abort('Please check svd & eofs binary inputs! ') ! check rank
      read(13) svals
      close(13)
+   end if
+   CALL MPI_Bcast(rcheck,1, itype, 0, COMM_filter, ierr)
+   CALL MPI_Bcast(svals, rank, rtype, 0, COMM_filter, ierr)
+
      if (ens_init==2) then
         open(11,file='meanstate.bin',form='unformatted')
         read(11) meanstate
@@ -122,7 +137,21 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Start to assign local from global values for each filter rank     
 ! ic=0 !check ipgl
   do ir=1,rank ! read eof for each rank to reduce memory usage
-     read(12) eof
+     !Read at filter
+     IF (mype_filter==0) THEN
+      if (eof_split==1) then
+        write(eof_fn,'(a,i3.3,a)') "./eof_split/eof_",ir,".bin"
+        open(12,file=trim(eof_fn),form='unformatted')
+        WRITE (*,'(a,8x,a,i)') 'SCHISM-PDAF','--- Start reading eofs, rank ',ir
+        read(12) eof
+        close(12)
+      else !eof_split=0
+        WRITE (*,'(a,8x,a,i)') 'SCHISM-PDAF','--- Start reading eofs, rank ',ir
+        read(12) eof
+      end if
+     end if
+     !Distribute
+     CALL MPI_Bcast(eof, dim_state, rtype, 0, COMM_filter, ierr)
      do j=1,6 !nfields
         do i=1,np_global
            if(ipgl(i)%rank==myrank) then
@@ -161,7 +190,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
         end do!i
      end do !j
   end do !ir
-  close(12)
+  if (eof_split==0) close(12)
   IF (mype_filter==0) THEN
      WRITE (*,'(a,8x,a)') 'SCHISM-PDAF','--- Done reading eofs and svd'
 !        write(*,*) 'state T1410=',state_p2(npa+1409*nvrt+1:npa+1410*nvrt)

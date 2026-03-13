@@ -21,6 +21,8 @@
 ! This version accounts for halo(ghost) zone, because ESMF by default
 ! partitions among nodes instead of elements
 
+! Notes for PDAF: driver is schism_pdaf.F90 (top dir)
+
 #define ESMF_CONTEXT  line=__LINE__,file=ESMF_FILENAME,method=ESMF_METHOD
 #define ESMF_ERR_PASSTHRU msg="SCHISM subroutine call returned error"
 #undef ESMF_FILENAME
@@ -133,9 +135,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   use schism_glbl, only: windx2, windy2, pr2, airt2, shum2
   use schism_glbl, only: srad, fluxevp, fluxprc, tr_nd, uu2
   use schism_glbl, only: dt, rnday, vv2, nvrt,ifile,nc_out, eta2
-!  use schism_msgp, only: schism_mpi_comm=>comm
-  use schism_msgp, only: parallel_init
-  use schism_io, only: fill_nc_header!ncid
+  use schism_msgp, only: parallel_init, task_id
+  use schism_io, only: fill_nc_header !ncid
+  use scribe_io
 ! use mod_assimilation, only: outf !PDAF module
 
   use schism_esmf_util, only: SCHISM_MeshCreateNode
@@ -186,7 +188,7 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   integer(ESMF_KIND_I4), pointer, dimension(:,:):: farrayPtrI42 => null()
 
   character(len=ESMF_MAXSTR)  :: message, name, compName, fieldName
-  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort,runhours,schism_dt2
+  integer(ESMF_KIND_I4)       :: localrc, petCount,localPet,cohortIndex,ncohort,runhours,schism_dt2,full_para,ics_set
   logical                     :: isPresent
   character(len=ESMF_MAXSTR)  :: configFileName, simulationDirectory
   character(len=ESMF_MAXSTR)  :: currentDirectory
@@ -295,17 +297,22 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_AttributeGet(comp, name='ncohort', value=ncohort, defaultValue=1, rc=localrc)
   call ESMF_AttributeGet(comp, name='runhours', value=runhours, defaultValue=1, rc=localrc)
   call ESMF_AttributeGet(comp, name='schism_dt2', value=schism_dt2, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='full_para', value=full_para, defaultValue=1, rc=localrc)
+  call ESMF_AttributeGet(comp, name='ics_set', value=ics_set, defaultValue=2, rc=localrc)
 
 !Debug
 !    write(message,*) trim(compName)//' cohort_index=',cohortIndex
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
 #ifndef ESMF_MPIUNI
+! ESMF_MPIUNI=Single CPU case?
   if (cohortIndex == 0) then
     ! Not serial mode; initialize schism's MPI
 !    call MPI_Comm_dup(mpi_comm, schism_mpi_comm, rc)
 !    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+    !task_id returned from this call, and then shared with Run via schism_msgp 
+    !(no mix-up as Run is immediately done after this)
     call parallel_init(communicator=mpi_comm)
   endif !cohortIndex
 #endif
@@ -344,11 +351,20 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
   if (cohortIndex == 0) then !First task in the sequence that uses same PETs; init
-    call schism_init(0, trim(simulationDirectory), iths, ntime)
-  else !not first task
+    if(full_para==0) then !flex
+      call schism_init(0, trim(simulationDirectory), iths, ntime)
+    else !full para mode
+      if(task_id==1) then !compute
+        call schism_init(0,trim(simulationDirectory),iths,ntime)
+      else !I/O scribes
+        call scribe_init(trim(simulationDirectory),iths,ntime)
+      endif !task_id
+    endif !full_para
+  else !not first task under flex mode ONLY
     !Bypass alloc and decomp
     call schism_init(1, trim(simulationDirectory), iths, ntime)
   endif
+
 #ifdef USE_PDAF
 ! CWB2021-1 start
 ! ADDing PDAF C-pre, same for other changes
@@ -356,20 +372,33 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
   write(message,*) 'init_P1: ifile=',ifile
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 ! Check
-  if (nc_out>0) then
-      write(message,*) 'Change nc_out to 0 in param.nml'
+  if(full_para==0.and.nc_out>0) then
+      write(message,*) 'Change nc_out to 0 in param.nml for flex mode'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  end if
+  endif
 ! write(*,*) 'outf=',outf
 ! if ((outf==2).or.(outf==3)) then ! control output
   ! outf is initialized (in init_pdaf) after this routine, so this if statement
   ! has to be removed!
-     call fill_nc_header(0) !ncfile output init
+   if(full_para==0) call fill_nc_header(0) !ncfile output init
 ! end if
 ! CWB2021-1 end
-#endif
+#endif /*USE_PDAF*/
 
+  !feed from global.nml, for scribe cores
+  !This is necessary for scribe cores to do the stepping 
+  if (task_id/=1) then 
+     rnday=real(runhours)/24. 
+     dt=real(schism_dt2)
+     ics=ics_set !For ESMF_mesh gen (ESMF_MeshAddElements) in scribe cores, avoid inconsistency with compute cores to cause MPI hanging
+  else
+     if (ics.ne.ics_set) then
+         write(message,*) 'Change ics_set in schism_pdaf.cfg to ', ics
+         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_ERROR)
+         _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+     end if
+  end if
   !Check consistency in inputs
   if(abs(runhours-rnday*24)>1.e-5.or.abs(schism_dt2-dt)>1.e-5) then
     !write(message,*) 'init_P1: Check rnday, dt;',runhours,rnday*24,schism_dt2,dt
@@ -389,6 +418,9 @@ subroutine InitializeP1(comp, importState, exportState, clock, rc)
 
   write(message, '(A)') trim(compName)//' initialized science model'
   call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+
+! The following "schism_dt" & "schismClock" are required for scribe cores
+! otherwise, scribe cores won't do the stepping.
 
   ! Use schism time interval
   call ESMF_TimeIntervalSet(schism_dt, s_r8=dt, rc=localrc)
@@ -520,11 +552,19 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   use schism_glbl, only: rnday,dt, tr_nd, nvrt, npa, np, kbp,idry,uu2,vv2,eta2,&
      &in_dir,out_dir,len_in_dir,len_out_dir,iplg,ynd,xnd,windx,windy,ifile,ihfskip,nspool,&
      &nea,nsa,id_out_var,iof_hydro,idry_e,idry_s,znl,pr,ww2,prho,airt1,shum1,srad,fluxsu,fluxlu,&
-     &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main
-  use schism_msgp, only: myrank,nproc
-  use schism_io, only: writeout_nc,fill_nc_header!ncid
+     &hradu,hradd,sflux,fluxevp,fluxprc,tau_bot_node,tau,dav,dfh,dfv,q2,xl,su2,sv2,we,tr_el,it_main, &
+     &nhot,nhot_write,ne,ns,ntracers,cumsum_eta,nsteps_from_cold,&
+     &tr_nd0,dfq1,dfq2
+  use schism_msgp, only: myrank,nproc,task_id
+  use schism_io, only: writeout_nc,fill_nc_header !ncid
+  use scribe_io
+
 #ifdef USE_PDAF
-  use mod_assimilation, only: outf !PDAF module
+  use mod_assimilation, only: outf,delt_obs,iau_step_ZUV,iau_step_TS,iau,it_shift !PDAF module
+  use pdaf
+  use PDAF_iau, only: iau_now,state_iau,step_cnt_iau
+  USE PDAF_mod_core, only: use_PDAF_assim,step
+  use netcdf
 #endif
 !  USE PDAF_interfaces_module
 
@@ -553,24 +593,35 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   type(ESMF_Field)        :: field
   real(ESMF_KIND_R8), pointer :: ptr2d(:)
   character(len=ESMF_MAXSTR)  :: message,name,compName,simulationDirectory,currentDirectory
-  integer(ESMF_KIND_I4)   :: localrc,cohortIndex,analysis_step
+  integer(ESMF_KIND_I4)   :: localrc,cohortIndex,analysis_step,full_para
   integer(ESMF_KIND_I8)   :: advanceCount
   real(ESMF_KIND_R8)      :: dt_coupling
   type(ESMF_Config)           :: config
 
   INTEGER :: doexit, steps,status_pdaf
-  REAL    :: timenow
+  REAL*8    :: timenow
   character(len=72) :: fdb
   integer :: lfdb
 
 #ifdef USE_PDAF
+  real*8,allocatable :: iau_weightcus(:) ! for IAU init
+  real :: rset_iau
+  !For hotstart
+  character(len=6),save :: a_6
+  character(len=150) :: it_char
+  integer :: lit,j,ncid_hot,node_dim,elem_dim,side_dim,&
+       &nvrt_dim,ntracers_dim,three_dim,two_dim,one_dim, &
+       &four_dim,five_dim,six_dim,seven_dim,eight_dim,nine_dim,&
+       &nvars_hot,var1d_dim(1),var2d_dim(2),var3d_dim(3),&
+       &nwild(nea+300)
+  real*8 :: time
 ! External subroutines
 ! comment out --> into generic interface (assimilate_pdaf)
   EXTERNAL :: next_observation_pdaf, & ! Provide time step, model time,
                                        ! and dimension of next observation
        distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-       prepoststep_pdaf !, &            ! User supplied pre/poststep routine
-!      collect_state_pdaf, init_dim_obs_pdaf, obs_op_pdaf, &
+       prepoststep_pdaf , &            ! User supplied pre/poststep routine
+       collect_state_pdaf !, init_dim_obs_pdaf, obs_op_pdaf, &
 !      init_obs_pdaf,prodRinvA_pdaf,init_obsvar_pdaf
 #endif
 
@@ -624,8 +675,11 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call ESMF_AttributeGet(comp, name='cohort_index', &
     value=cohortIndex, defaultValue=0, rc=localrc)
 
-  call ESMF_AttributeGet(comp, name='analysis_step', &
-    value=analysis_step, defaultValue=0, rc=localrc)
+  !call ESMF_AttributeGet(comp, name='analysis_step', &
+  !  value=analysis_step, defaultValue=0, rc=localrc)
+
+  call ESMF_AttributeGet(comp, name='full_para', &
+    value=full_para, defaultValue=1, rc=localrc)
 
   !Reinit input dir in case same PETs are doing a different run
   call ESMF_AttributeGet(comp, name='input_directory', &
@@ -670,15 +724,27 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
   call schism_get_state(cohortIndex)
 
 #ifdef USE_PDAF
+  !Shift it for ihot=2
+  it=it+it_shift !For flex mode
 ! Put PDAF_get_state here
-  call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
+  !call PDAF_set_debug_flag(1)
+  if (task_id==1) then
+   if ((iau.ne.0).and.(step.ge.delt_obs)) then
+     !Force to be true to avoid "double count" for IAU after 1st DA
+     iau_now=.TRUE.
+     use_PDAF_assim=.TRUE.
+   end if
+  end if
+
+! Put PDAF_get_state here
+  if (task_id==1) call PDAF_get_state(steps,timenow, doexit, next_observation_pdaf, distribute_state_pdaf, prepoststep_pdaf, status_pdaf)
 #endif
 
   !Rewind clock for forcing
   call other_hot_init(dble(it-1)*dt)
 
   !Reset stack #
-  ifile=istack(cohortIndex)
+  if(full_para==0) ifile=istack(cohortIndex)
 
   do while (.not. ESMF_ClockIsStopTime(schismClock, rc=localrc))
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -687,7 +753,46 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
     !> @todo change type of it to I8 inside SCHISM
-    call schism_step(it)
+#if defined USE_PDAF
+    if(task_id==1) then
+     if ((iau.ne.0).and.(step.gt.delt_obs)) then
+      if (mod(it,iau_step_ZUV).eq.0) then !Update ZUV
+         iau_now=.TRUE.
+         !Allocate iau_weightcus
+         if (allocated(iau_weightcus)) deallocate(iau_weightcus)
+         allocate(iau_weightcus(delt_obs))
+         rset_iau=1./real(delt_obs)*real(iau_step_ZUV)
+         if (rset_iau.ge.1.d0) rset_iau=1.d0 !limit <=1 for large iau_step_ZUV, skip update
+         iau_weightcus=rset_iau
+         !if (myrank.eq.0) write(*,*) 'Set iau_weight = ',iau_weightcus(1), ' at ', it, step_cnt_iau
+         call PDAF_iau_set_weights(delt_obs,iau_weightcus)
+         deallocate(iau_weightcus)
+      elseif (mod(it,iau_step_TS).eq.1) then !Update TS after
+         iau_now=.TRUE.
+         !Allocate iau_weightcus
+         if (allocated(iau_weightcus)) deallocate(iau_weightcus)
+         allocate(iau_weightcus(delt_obs))
+         rset_iau=1./real(delt_obs)*real(iau_step_TS)
+         if (rset_iau.ge.1.d0) rset_iau=1.d0 !limit <=1 for large iau_step_TS, skip update
+         iau_weightcus=rset_iau
+         !if (myrank.eq.0) write(*,*) 'Set iau_weight = ',iau_weightcus(1), ' at ', it, step_cnt_iau
+         call PDAF_iau_set_weights(delt_obs,iau_weightcus)
+         deallocate(iau_weightcus)
+      else
+         iau_now=.FALSE.
+         step_cnt_iau=step_cnt_iau+1
+      end if
+     end if !iau.ne.0
+    call PDAF_iau_add_inc(collect_state_pdaf, distribute_state_pdaf) ! this only works with PDAF3
+   end if !taskid=1
+#endif
+
+!    call schism_step(it)
+    if(task_id==1) then !compute (always do this under flex mode)
+      call schism_step(it)
+    else !I/O scribes
+      call scribe_step(it)
+    endif !task_id
 
 !Debug
 !    if(it==advanceCount+1) then
@@ -698,8 +803,8 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
     call ESMF_ClockAdvance(schismClock, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-    ! Output
-    if(it==num_schism_steps) then
+    !Debug output
+    if(task_id==1.and.it==num_schism_steps) then
       write(message,*) 'starting output...'
       call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 
@@ -724,10 +829,13 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
       close(10)
     endif !it==
 
+    ! PDAF output here to avoid freq open/close under flex mode that caused prob on nc
 #ifdef USE_PDAF
 !CWB2021-1 start
-!   Writeout nc (Hydro only)
-    if ((outf==2).or.(outf==3)) then ! control output
+!   Writeout nc (Hydro only) under flex mode
+    !if(full_para==0.and.(outf==2.or.outf==3)) then ! control output
+    if(outf==2.or.outf==3) then ! control output
+     if(full_para==0) then !only for flex
      if(mod(it,nspool)==0) then
         write(message,*) 'writeout nc at it = ',it,', elapsed ',it*dt,'s' !,' it_main=',it_main
         call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
@@ -767,20 +875,122 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
         if(iof_hydro(29)==1) call writeout_nc(id_out_var(33),'salt_elem',6,nvrt,nea,tr_el(2,:,:))
 !       if(iof_hydro(30)==1) call writeout_nc(id_out_var(34),'pressure_gradient',7,1,nsa,bpgr(:,1),bpgr(:,2))
 !       bpgr is not in schism_glbl, skip it 
-     end if !mod
+      end if !mod
+      end if !full_para=0
 
-!   Close nc files
-     if(mod(it,ihfskip)==0) then
-       ifile=ifile+1  !output file #
-       call fill_nc_header(1)
-     endif !it==ifile*ihfskip
+     if(task_id==1) then !only on compute cores
+!     Close nc files
+      if(mod(it,ihfskip)==0) then
+        ifile=ifile+1  !output file #
+        if(full_para==0) call fill_nc_header(1)
+      endif !it==ifile*ihfskip
 !    debug
 !    write(message,*) 'Run: ifile=',ifile
 !    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
-    end if ! outf
+
+!   Output hotstart for EnOI
+     if(nhot==1.and.mod(it,nhot_write)==0) then
+        a_6='000000'
+        write(a_6,'(i6.6)') myrank
+        write(it_char,'(i150)')it
+        it_char=adjustl(it_char)
+        lit=len_trim(it_char)
+        it_char=out_dir(1:len_out_dir)//'hotstart_'//a_6//'_'//it_char(1:lit)//'.nc'
+        !if (myrank.eq.0) write(*,'(a,a150)') "hotout-fn",trim(adjustl(it_char)) !Check
+        j=nf90_create(trim(adjustl(it_char)),OR(NF90_NETCDF4,NF90_CLOBBER),ncid_hot)
+        j=nf90_def_dim(ncid_hot,'nResident_node',np,node_dim)
+        j=nf90_def_dim(ncid_hot,'nResident_elem',ne,elem_dim)
+        j=nf90_def_dim(ncid_hot,'nResident_side',ns,side_dim)
+        j=nf90_def_dim(ncid_hot,'nVert',nvrt,nvrt_dim)
+        j=nf90_def_dim(ncid_hot,'ntracers',ntracers,ntracers_dim)
+        j=nf90_def_dim(ncid_hot,'one',1,one_dim)
+        j=nf90_def_dim(ncid_hot,'three',3,three_dim)
+        j=nf90_def_dim(ncid_hot,'two',2,two_dim)
+        j=nf90_def_dim(ncid_hot,'four',4,four_dim)
+        j=nf90_def_dim(ncid_hot,'five',5,five_dim)
+        j=nf90_def_dim(ncid_hot,'six',6,six_dim)
+        j=nf90_def_dim(ncid_hot,'seven',7,seven_dim)
+        j=nf90_def_dim(ncid_hot,'eight',8,eight_dim)
+        j=nf90_def_dim(ncid_hot,'nine',9,nine_dim)
+
+        var1d_dim(1)=one_dim
+        j=nf90_def_var(ncid_hot,'time',NF90_DOUBLE,var1d_dim,nwild(1))
+        j=nf90_def_var(ncid_hot,'it',NF90_INT,var1d_dim,nwild(2))
+        j=nf90_def_var(ncid_hot,'ifile',NF90_INT,var1d_dim,nwild(3))
+        j=nf90_def_var(ncid_hot,'nsteps_from_cold',NF90_INT,var1d_dim,nwild(20))
+
+        var1d_dim(1)=elem_dim
+        j=nf90_def_var(ncid_hot,'idry_e',NF90_INT,var1d_dim,nwild(4))
+        var1d_dim(1)=side_dim
+        j=nf90_def_var(ncid_hot,'idry_s',NF90_INT,var1d_dim,nwild(5))
+        var1d_dim(1)=node_dim
+        j=nf90_def_var(ncid_hot,'idry',NF90_INT,var1d_dim,nwild(6))
+        j=nf90_def_var(ncid_hot,'eta2',NF90_DOUBLE,var1d_dim,nwild(7))
+        j=nf90_def_var(ncid_hot,'cumsum_eta',NF90_DOUBLE,var1d_dim,nwild(21))
+
+        !Note the order of multi-dim arrays not reversed here!
+        !As long as the write is consistent with def it's fine
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=elem_dim
+        j=nf90_def_var(ncid_hot,'we',NF90_DOUBLE,var2d_dim,nwild(8))
+        var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=elem_dim
+        j=nf90_def_var(ncid_hot,'tr_el',NF90_DOUBLE,var3d_dim,nwild(9))
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=side_dim
+        j=nf90_def_var(ncid_hot,'su2',NF90_DOUBLE,var2d_dim,nwild(10))
+        j=nf90_def_var(ncid_hot,'sv2',NF90_DOUBLE,var2d_dim,nwild(11))
+        var3d_dim(1)=ntracers_dim; var3d_dim(2)=nvrt_dim; var3d_dim(3)=node_dim
+        j=nf90_def_var(ncid_hot,'tr_nd',NF90_DOUBLE,var3d_dim,nwild(12))
+        j=nf90_def_var(ncid_hot,'tr_nd0',NF90_DOUBLE,var3d_dim,nwild(13))
+        var2d_dim(1)=nvrt_dim; var2d_dim(2)=node_dim
+        j=nf90_def_var(ncid_hot,'q2',NF90_DOUBLE,var2d_dim,nwild(14))
+        j=nf90_def_var(ncid_hot,'xl',NF90_DOUBLE,var2d_dim,nwild(15))
+        j=nf90_def_var(ncid_hot,'dfv',NF90_DOUBLE,var2d_dim,nwild(16))
+        j=nf90_def_var(ncid_hot,'dfh',NF90_DOUBLE,var2d_dim,nwild(17))
+        j=nf90_def_var(ncid_hot,'dfq1',NF90_DOUBLE,var2d_dim,nwild(18))
+        j=nf90_def_var(ncid_hot,'dfq2',NF90_DOUBLE,var2d_dim,nwild(19))
+
+        !Deflate some vars
+        do i=4,21
+          if(i==20) cycle !skip 20
+          j=nf90_def_var_deflate(ncid_hot,nwild(i),0,1,4)
+        enddo !i
+
+        j=nf90_enddef(ncid_hot)
+
+        !Write
+        j=nf90_put_var(ncid_hot,nwild(1),time)
+        j=nf90_put_var(ncid_hot,nwild(2),it)
+        j=nf90_put_var(ncid_hot,nwild(3),ifile)
+        j=nf90_put_var(ncid_hot,nwild(20),nsteps_from_cold)
+        j=nf90_put_var(ncid_hot,nwild(4),idry_e,(/1/),(/ne/))
+        j=nf90_put_var(ncid_hot,nwild(5),idry_s,(/1/),(/ns/))
+        j=nf90_put_var(ncid_hot,nwild(6),idry,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(7),eta2,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(21),cumsum_eta,(/1/),(/np/))
+        j=nf90_put_var(ncid_hot,nwild(8),we(:,1:ne),(/1,1/),(/nvrt,ne/))
+        j=nf90_put_var(ncid_hot,nwild(9),tr_el(:,:,1:ne),(/1,1,1/),(/ntracers,nvrt,ne/))
+        j=nf90_put_var(ncid_hot,nwild(10),su2(:,1:ns),(/1,1/),(/nvrt,ns/))
+        j=nf90_put_var(ncid_hot,nwild(11),sv2(:,1:ns),(/1,1/),(/nvrt,ns/))
+        j=nf90_put_var(ncid_hot,nwild(12),tr_nd(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(13),tr_nd0(:,:,1:np),(/1,1,1/),(/ntracers,nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(14),q2(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(15),xl(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(16),dfv(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(17),dfh(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(18),dfq1(:,1:np),(/1,1/),(/nvrt,np/))
+        j=nf90_put_var(ncid_hot,nwild(19),dfq2(:,1:np),(/1,1/),(/nvrt,np/))
+
+        nvars_hot=21 !record # of vars in nwild so far
+
+        j=nf90_close(ncid_hot)
+
+        !if(myrank==0) write(*,*) 'hot start written in schism_001 ',it,time,ifile,nvars_hot
+      end if !nhot output
+     end if !taskid=1
+
+    endif ! outf
     
 !CWB2021-1 end
-#endif
+#endif /*USE_PDAF*/
 
     it=it+1
   end do !while
@@ -796,7 +1006,7 @@ subroutine Run(comp, importState, exportState, parentClock, rc)
      write(message,*)trim(compName)//' entering PDAF assimilate, ',it
      call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
 !    Using assimilate PDAF interface
-     call assimilate_pdaf() !
+     if (task_id==1) call assimilate_pdaf() !
 !    call assimilate_pdaf(pdaf_stat)
 !    localrc=pdaf_stat !pdaf_stat is using i2, localrc is i4
      write(message,*)'Done PDAF assimilate'

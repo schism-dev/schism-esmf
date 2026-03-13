@@ -62,11 +62,12 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE schism_msgp, only: comm,parallel_init,myrank,nproc,parallel_abort
+  USE schism_msgp, only: comm,parallel_init,myrank,nproc,parallel_abort,nscribes,task_id_schism=>task_id
   USE mod_parallel_pdaf, &
        ONLY: mype_world, npes_world, mype_model, npes_model, &
        COMM_model, mype_filter, npes_filter, COMM_filter, filterpe, &
        n_modeltasks, local_npes_model, task_id, COMM_couple, MPIerr
+  use PDAF
 ! USE parser, &
 !      ONLY: parse
 
@@ -98,8 +99,12 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
   INTEGER :: mype_couple, npes_couple ! Rank and size in COMM_couple
   INTEGER :: pe_index           ! Index of PE
   INTEGER :: my_color, color_couple ! Variables for communicator-splitting 
+  INTEGER :: world_group
   LOGICAL :: iniflag            ! Flag whether MPI is initialized
   CHARACTER(len=32) :: handle   ! handle for command line parser
+  integer,allocatable :: group_ranks(:),group_ranks_final(:)
+  integer :: group_a,group_b,union_group,comm_pdaf,ihalf_group
+  integer :: send_burf(2),ic_comm,mype_world2,npes_world2
 
 
   ! *** Initialize MPI if not yet initialized ***
@@ -149,8 +154,10 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
   ! *** only used to generate model communicators ***
   COMM_ensemble = MPI_COMM_WORLD
 
+  npes_world = npes_world - n_modeltasks*nscribes !# of PEs - ncribes cores
   npes_ens = npes_world !# of PEs
   mype_ens = mype_world !local rank
+
 
 
   ! *** Store # PEs per ensemble                 ***
@@ -175,19 +182,80 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
   pe_index = 0
   doens1: DO i = 1, n_modeltasks
      DO j = 1, local_npes_model(i)
-        IF (mype_ens == pe_index) THEN
+        IF ((mype_ens == pe_index).and.(task_id_schism == 1)) THEN
            task_id = i !similar to our sequence index (shared among multiple tasks)
            EXIT doens1
         END IF
         pe_index = pe_index + 1
      END DO !j
   END DO doens1
+  local_npes_model=local_npes_model-nscribes !Reset to correct number for scribes 
 
   !Copy from SCHISM (init'ed under ESMF). May be shared among >1 task
   COMM_model=comm 
-!  call mpi_comm_dup(comm,COMM_model,MPIerr)
   npes_model=nproc
+  !if (task_id_schism==1) mype_model=myrank
   mype_model=myrank
+  !write(0,'(a,3i8)') "1. task_id_schism,myrank,mype_world=",task_id_schism,myrank,mype_world
+  !write(0,'(a,4i8)') "id,nproc,petCountLocal,npes_world = ", mype_model,nproc,petCountLocal, npes_world
+
+  !Group comm for scribeIO
+  if (schismCount.eq.concurrentCount) then !Only full-parallel mode
+     call MPI_COMM_GROUP(MPI_COMM_WORLD, world_group, MPIerr)
+     allocate(group_ranks(schismCount*petCountLocal*2)) !Local
+     allocate(group_ranks_final(schismCount*(petCountLocal-nscribes))) !Local
+     ihalf_group=schismCount*(petCountLocal-nscribes)/2
+     group_ranks=0
+     group_ranks_final=0
+     send_burf=(/mype_ens,task_id_schism/)
+     call MPI_ALLGATHER(send_burf, 2, MPI_INTEGER,group_ranks,2,MPI_INTEGER,MPI_COMM_WORLD, MPIerr) 
+     !if (mype_ens==0) write(*,'(a,80(2i4))') 'group_rank:',group_ranks
+     ic_comm=0
+     do i=1,schismCount*petCountLocal
+        if (group_ranks(i*2).eq.1) then !task_id_schism=1
+           ic_comm=ic_comm+1
+           group_ranks_final(ic_comm)=group_ranks(i*2-1)
+        end if
+     end do
+     !if (ic_comm.ne.ihalf_group*2) write(*,*) 'ic_comm=', ic_comm,ihalf_group
+     !write(*,'(a,80(2i4))') 'group_rank_final:',group_ranks_final
+ 
+     !Split into 2 groups for later group_union
+     !call MPI_GROUP_INCL(world_group, ihalf_group, group_ranks_final(1:ihalf_group), group_a, MPIerr)
+     !call MPI_GROUP_INCL(world_group, ihalf_group, group_ranks_final(ihalf_group+1:ihalf_group*2), group_b, MPIerr)
+     call MPI_GROUP_INCL(world_group, ihalf_group*2, group_ranks_final, union_group, MPIerr)
+
+     !Union & create new comm 
+     !call MPI_GROUP_UNION(group_a, group_b, union_group, MPIerr)
+
+     !Just create new comm with union_group
+     call MPI_COMM_CREATE(MPI_COMM_WORLD, union_group, comm_pdaf, MPIerr)
+     !if (MPIerr.eq.0) write(*,*) 'Success create new comm_pdaf!',mype_world
+     !CALL MPI_Comm_Size(comm_pdaf, npes_world2, MPIerr)
+     !if (MPIerr.eq.0) write(*,*) 'Success create new npe!',npes_world2,mype_world
+
+     !Free group to avoid memory leak
+     !call MPI_GROUP_FREE(group_a, MPIerr)
+     !call MPI_GROUP_FREE(group_b, MPIerr)
+     call MPI_GROUP_FREE(union_group, MPIerr)
+     call MPI_GROUP_FREE(world_group, MPIerr)
+
+     !Re-rank and overwrite original mype_world 
+     if (comm_pdaf /= MPI_COMM_NULL) then
+        CALL MPI_Comm_rank(comm_pdaf, mype_world2, MPIerr)
+        !if (MPIerr.eq.0) write(*,*) 'Success create new rank!',mype_world,mype_world2
+        CALL MPI_Comm_Size(comm_pdaf, npes_world2, MPIerr)
+        !if (MPIerr.eq.0) write(*,*) 'Success create new rank size!',mype_world,mype_world2,npes_world2
+        mype_world=mype_world2
+        CALL MPI_Barrier(comm_pdaf, MPIerr)
+     else
+        mype_world=-1 !Force to specify 
+        mype_world2=-1 !Force to specify
+     end if
+
+     !set comm_pdaf for scribeIO
+     call PDAF_set_comm_pdaf(comm_pdaf) !Set to new comm for all cores
+  end if
 
 !  CALL MPI_Comm_split(COMM_ensemble, task_id, mype_ens, &
 !       COMM_model, MPIerr)
@@ -216,13 +284,24 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
   ! *** For simplicity equal to COMM_couple (model?) ***
   my_color = task_id !same as model, but only PEs of Task 1 are really used?
 
-  CALL MPI_Comm_split(MPI_COMM_WORLD, my_color, mype_world, &
+  if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
+     if (comm_pdaf /= MPI_COMM_NULL) then !Only for compute cores
+        CALL MPI_Comm_split(comm_pdaf, my_color, mype_world2, &
+          COMM_filter, MPIerr)
+        CALL MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
+        CALL MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
+        !write(*,'(a,(3i4))') 'npes_filter, mype_filter:',npes_filter, mype_filter,mype_world2
+     end if
+  else
+     CALL MPI_Comm_split(MPI_COMM_WORLD, my_color, mype_world, &
        COMM_filter, MPIerr)
 
   ! *** Initialize PE informations         ***
   ! *** according to coupling communicator ***
-  CALL MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
-  CALL MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
+     CALL MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
+     CALL MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
+
+  end if
 
 
   ! ***              COMM_COUPLE                 ***
@@ -232,39 +311,65 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen,schismCount,petCountLocal,concurre
 
   color_couple = mype_filter + 1 !shift ranks by 1 (not sure why)
 
-  CALL MPI_Comm_split(MPI_COMM_WORLD, color_couple, mype_world, &
+  if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
+      if (comm_pdaf /= MPI_COMM_NULL) then !Only for compute cores
+         CALL MPI_Comm_split(comm_pdaf, color_couple, mype_world2, &
+          COMM_couple, MPIerr)
+         CALL MPI_Comm_Size(COMM_couple, npes_couple, MPIerr)
+         CALL MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
+      end if
+  else
+      CALL MPI_Comm_split(MPI_COMM_WORLD, color_couple, mype_world, &
        COMM_couple, MPIerr)
 
   ! *** Initialize PE informations         ***
   ! *** according to coupling communicator ***
-  CALL MPI_Comm_Size(COMM_couple, npes_couple, MPIerr)
-  CALL MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
+      CALL MPI_Comm_Size(COMM_couple, npes_couple, MPIerr)
+      CALL MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
+  end if
 
   IF (screen > 0) THEN
-     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
+       if (comm_pdaf /= MPI_COMM_NULL) CALL MPI_Barrier(comm_pdaf, MPIerr)
+    else
+       CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    end if
      IF (mype_world == 0) THEN
-        WRITE (*, '(/18x, a)') 'PE configuration:'
-        WRITE (*, '(2x, a6, a9, a10, a14, a13, /2x, a5, a9, a7, a7, a7, a7, a7, /2x, a)') &
+        WRITE (*, '(/25x, a)') 'PE configuration:'
+        WRITE (*, '(2x, a7, a9, a13, a18, a14, /2x, a6, a9, a9, a9, a9, a9, a8, /2x, a)') &
              'world', 'filter', 'model', 'couple', 'filterPE', &
              'rank', 'rank', 'task', 'rank', 'task', 'rank', 'T/F', &
-             '----------------------------------------------------------'
+             '------------------------------------------------------------'
      END IF
-     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
+       if (comm_pdaf /= MPI_COMM_NULL) CALL MPI_Barrier(comm_pdaf, MPIerr)
+    else
+       CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    end if
      IF (task_id == 1) THEN
-        WRITE (*, '(2x, i4, 4x, i4, 4x, i3, 4x, i3, 4x, i3, 4x, i3, 5x, l3)') &
+        WRITE (*, '(2x, i5, 4x, i5, 4x, i5, 4x, i5, 4x, i5, 4x, i5, 5x, l3)') &
              mype_world, mype_filter, task_id, mype_model, color_couple, &
              mype_couple, filterpe
      ENDIF
      IF (task_id > 1) THEN
-        WRITE (*,'(2x, i4, 12x, i3, 4x, i3, 4x, i3, 4x, i3, 5x, l3)') &
+        WRITE (*,'(2x, i5, 13x, i5, 4x, i5, 4x, i5, 4x, i5, 5x, l3)') &
          mype_world, task_id, mype_model, color_couple, mype_couple, filterpe
      END IF
-     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    if (schismCount.eq.concurrentCount) then !Only full-parallel mode, scribeIO
+       if (comm_pdaf /= MPI_COMM_NULL) CALL MPI_Barrier(comm_pdaf, MPIerr)
+    else
+       CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+    end if
 
      IF (mype_world == 0) WRITE (*, '(/a)') ''
 
   END IF
 
+  if (allocated(group_ranks)) deallocate(group_ranks) !scribeIO
+  if (allocated(group_ranks_final)) deallocate(group_ranks_final) !scribeIO
+
+  !write(*,*) 'In init_parallel_pdaf chk, myrank=',mype_world,mype_world2
+  CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
 
 ! ******************************************************************************
 ! *** Initialize model equivalents to COMM_model, npes_model, and mype_model ***
