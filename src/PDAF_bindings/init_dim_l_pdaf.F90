@@ -23,13 +23,16 @@ SUBROUTINE init_dim_l_pdaf(step, domain_p, dim_l)
 !
 ! !USES:
   use schism_glbl,only : nvrt,ntracers,xnd,ynd,xlon,ylat,ics,pi
-  use mod_assimilation, only: coords_l
+  use mod_assimilation, only: coords_l,mdl_coords_p,idx_domain_p,Vlocal_opt
   IMPLICIT NONE
 
 ! !ARGUMENTS:
   INTEGER, INTENT(in)  :: step     ! Current time step
   INTEGER, INTENT(in)  :: domain_p ! Current local analysis domain
   INTEGER, INTENT(out) :: dim_l    ! Local state dimension
+
+  !local vars
+  integer :: i,id,ic
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_lseik_update   (as U_init_dim_l)
@@ -46,17 +49,27 @@ SUBROUTINE init_dim_l_pdaf(step, domain_p, dim_l)
   ! Template reminder - delete when implementing functionality
 ! WRITE (*,*) 'TEMPLATE init_dim_l_pdaf.F90: Set local state dimension here!'
 
-! ssh + t,s,u,v,w
+  !if (Vlocal_opt.eq.0) then
+     ! ssh + t,s,u,v,w
+     dim_l = 1+(ntracers+3)*nvrt
 
-  dim_l = 1+(ntracers+3)*nvrt
+     if (ics==2) then
+        coords_l(1)=xlon(domain_p)/pi*180.d0
+        coords_l(2)=ylat(domain_p)/pi*180.d0
+     else
+        coords_l(1)=xnd(domain_p)
+        coords_l(2)=ynd(domain_p)
+     end if
+  if (Vlocal_opt.eq.1) then
+  !else  !2D+1D
 
-  if (ics==2) then
-     coords_l(1)=xlon(domain_p)/pi*180.d0
-     coords_l(2)=ylat(domain_p)/pi*180.d0
-  else
-     coords_l(1)=xnd(domain_p)
-     coords_l(2)=ynd(domain_p)
+     dim_l = 1 ! For 2D+1D local 
+  
+     id=idx_domain_p(2,domain_p)
+
+     coords_l(1)=mdl_coords_p(1,id)
+     coords_l(2)=mdl_coords_p(2,id)
+     coords_l(3)=mdl_coords_p(3,id)
   end if
-
 
 END SUBROUTINE init_dim_l_pdaf

@@ -17,6 +17,7 @@ SUBROUTINE finalize_pdaf()
   USE mod_parallel_pdaf, &
        !ONLY: finalize_parallel, mype_world
        ONLY: mype_world
+  use PDAF
 
   IMPLICIT NONE    
   
@@ -25,7 +26,8 @@ SUBROUTINE finalize_pdaf()
 !EOP
 
 ! *** Show allocated memory for PDAF ***
-  IF (mype_world==0) CALL PDAF_print_info(2)
+  IF (mype_world==0) CALL PDAF_print_info(10)
+  CALL PDAF_print_info(11)
 
 ! *** Print PDAF detail timings onto screen ***
   IF (mype_world==0) CALL PDAF_print_info(3)

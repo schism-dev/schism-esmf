@@ -16,9 +16,10 @@ SUBROUTINE assimilate_pdaf()
 ! Later revisions - see svn log
 !
 ! !USES:
-  USE pdaf_interfaces_module, ONLY: PDAFomi_assimilate_local, PDAFomi_assimilate_global, &
+  !USE pdaf_interfaces_module, ONLY: PDAFomi_assimilate_local, PDAFomi_assimilate_global, &
+  USE pdaf, ONLY: PDAFomi_assimilate_local, PDAFomi_assimilate_global, &
          PDAFomi_assimilate_lenkf,&
-         PDAF_get_localfilter
+         PDAF_get_localfilter,PDAFomi_put_state_local,PDAFomi_put_state_global,PDAFomi_put_state_lenkf
 
   use schism_glbl, only: errmsg
   use schism_msgp, only: parallel_abort
@@ -37,7 +38,7 @@ SUBROUTINE assimilate_pdaf()
   EXTERNAL :: next_observation_pdaf,  & ! Provide time step, model time of next observation
               distribute_state_pdaf,  & ! Routine to distribute a state vector to model fields
               collect_state_pdaf,     & ! Collect a state vector from model fields
-              prepoststep_ens           ! User supplied pre/poststep routine
+              prepoststep_pdaf           ! User supplied pre/poststep routine
 ! Localization of state vector
   EXTERNAL :: init_n_domains_pdaf,    & ! Provide number of local analysis domains
               init_dim_l_pdaf,        & ! Initialize state dimension for local ana. domain
@@ -72,15 +73,22 @@ SUBROUTINE assimilate_pdaf()
 ! write(*,*) 'in assimilate_pdaf, localfilter=',localfilter
 
   IF (localfilter == 1) THEN
-     CALL PDAFomi_put_state_local_si(status_pdaf)
+     !CALL PDAFomi_put_state_local_si(status_pdaf)
+     CALL PDAFomi_put_state_local(collect_state_pdaf, init_dim_obs_pdafomi, &
+       obs_op_pdafomi, prepoststep_pdaf, init_n_domains_pdaf, init_dim_l_pdaf, &
+       init_dim_obs_l_pdafomi, g2l_state_pdaf, l2g_state_pdaf, status_pdaf)
 !    write(*,*) 'in assimilate_pdaf, afterlocal=',localfilter
   ELSE
      IF (filtertype/=8) THEN
 !        All global filters, except LEnKF
-         CALL PDAFomi_put_state_global_si(status_pdaf)
+         !CALL PDAFomi_put_state_global_si(status_pdaf)
+         CALL PDAFomi_put_state_global(collect_state_pdaf, init_dim_obs_pdafomi, &
+                                       obs_op_pdafomi, prepoststep_pdaf,status_pdaf)
      ELSE
 !        LEnKF has its own OMI interface routine
-         CALL PDAFomi_put_state_lenkf_si(status_pdaf)
+         !CALL PDAFomi_put_state_lenkf_si(status_pdaf)
+         CALL PDAFomi_put_state_lenkf(collect_state_pdaf, init_dim_obs_pdafomi, &
+                  obs_op_pdafomi, prepoststep_pdaf, localize_covar_pdafomi,status_pdaf)
      END IF
   END IF
 

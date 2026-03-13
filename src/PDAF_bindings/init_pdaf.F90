@@ -4,7 +4,7 @@
 ! !ROUTINE: init_pdaf - Interface routine to call initialization of PDAF
 !
 ! !INTERFACE:
-SUBROUTINE init_pdaf(schismCount,ierr)
+SUBROUTINE init_pdaf(schismCount,concurrentCount,ierr)
 
 ! !DESCRIPTION:
 ! This routine collects the initialization of variables for PDAF.
@@ -23,7 +23,7 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! !USES:
 !   USE mod_model, &        ! Model variables
 !        ONLY: nx, ny
-  use schism_glbl, only: errmsg,nea,nsa,npa,nvrt,ntracers,xnd,ynd,xlon,ylat,ics,pi
+  use schism_glbl, only: errmsg,nea,nsa,npa,nvrt,ntracers,xnd,ynd,xlon,ylat,ics,pi,znl,kbp
   use schism_msgp, only: parallel_abort
   USE mod_parallel_pdaf, &     ! Parallelization variables
        ONLY: mype_world, n_modeltasks, task_id, &
@@ -34,7 +34,9 @@ SUBROUTINE init_pdaf(schismCount,ierr)
        rank_analysis_enkf, locweight, local_range, srange, &
        filename, type_trans, type_sqrt, delt_obs,offset_field_p,varscale, &
        ihfskip_PDAF,nspool_PDAF,outf, nhot_PDAF, nhot_write_PDAF, &
-       rms_type,rms_obs2,ens_init,Zdepth_limit,use_global_obs,min_MSL_acDay
+       rms_type,rms_obs2,ens_init,Zdepth_limit,use_global_obs,min_MSL_acDay,&
+       iau,iau_step_ZUV,iau_step_TS,mdl_coords_p,idx_domain_p,domain_limit_depth,&
+       Vlocal_opt,vidx_domain_p,it_shift,eof_split
   USE PDAFomi_obs_f, only: PDAFomi_set_domain_limits
   use obs_A_pdafomi, only: assim_A
   use obs_Z_pdafomi, only: assim_Z
@@ -43,6 +45,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   use obs_U_pdafomi, only: assim_U
   use obs_V_pdafomi, only: assim_V
 ! use PDAF_mod_filter, only: dim_p,state !just for check
+  use PDAF
+  use PDAF_iau, only: iau_now
 
   IMPLICIT NONE
 
@@ -54,18 +58,20 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! Calls: PDAF_get_state
 !EOP
 
-  integer, intent(in) :: schismCount
+  integer, intent(in) :: schismCount,concurrentCount
   integer, intent(out) :: ierr !return error code
 
 ! Local variables
-  INTEGER :: filter_param_i(7) ! Integer parameter array for filter
-  REAL    :: filter_param_r(2) ! Real parameter array for filter
+  INTEGER :: filter_param_i(2) ! Integer parameter array for filter
+  REAL    :: filter_param_r(1) ! Real parameter array for filter
   INTEGER :: status_pdaf       ! PDAF status flag
   INTEGER :: doexit, steps,i,lfdb     ! Not used in this implementation
   REAL    :: timenow           ! Not used in this implementation
   character(len=72) :: indir
-  integer :: j
+  integer :: j,ic,k
   real :: gcoords(2,2),coords_p(2,npa) ! for domain_limits searching
+  real,allocatable :: ens_inc_init(:,:) ! for IAU init
+  real,allocatable :: iau_weightcus(:) ! for IAU init
 
 ! temp-add
 ! real :: state_p(dim_p)
@@ -84,7 +90,8 @@ SUBROUTINE init_pdaf(schismCount,ierr)
            ihfskip_PDAF,nspool_PDAF,outf,dim_ens, &
            nhot_PDAF, nhot_write_PDAF, &
            rms_type,rms_obs2,ens_init,Zdepth_limit, &
-           assim_A,assim_Z,assim_S,assim_T,assim_U,assim_V,use_global_obs,min_MSL_acDay
+           assim_A,assim_Z,assim_S,assim_T,assim_U,assim_V,use_global_obs,min_MSL_acDay, &
+           iau,iau_step_ZUV,iau_step_TS,domain_limit_depth,Vlocal_opt,it_shift,eof_split
 
 
 ! ***************************
@@ -202,13 +209,13 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   rms_obs = 0.5    ! Observation error standard deviation
                    ! for the Gaussian distribution 
 ! *** Localization settings
-  locweight = 0     ! Type of localizating weighting
+  locweight = 2     ! Type of localizating weighting, horizontal + vertical
                     !   (0) constant weight of 1
                     !   (1) exponentially decreasing with SRANGE
                     !   (2) use 5th-order polynomial
                     !   (3) regulated localization of R with mean error variance
                     !   (4) regulated localization of R with single-point error variance
-  local_range = 1  ! Range in grid points for observation domain in local filters
+  local_range = (/1.,1.,200./)  ! Range in grid points for observation domain in local filters, in X,Y,Z direction
   srange = local_range  ! Support range for 5th-order polynomial
                     ! or range for 1/e for exponential weighting
   varscale = 1.0    ! Init ensemble variance
@@ -217,6 +224,14 @@ SUBROUTINE init_pdaf(schismCount,ierr)
   Zdepth_limit = 200. ! Control SSH/SSH-A data depth limiter, default: 200m, shelf depth
   min_MSL_acDay = 10. ! Control minimum accumalation MSL day to derived SSH-A, unit: Days
   use_global_obs=1   ! for domain searching, 
+  iau = 0           ! IAU control
+  iau_step_ZUV = 1
+  iau_step_TS = 1
+  domain_limit_depth=99999. !domain_p limit
+  Vlocal_opt=0 !Control Vertical localize, 0:2D, 1:2D+1D (expensive)
+  it_shift=0 !Control it shift for ihot=2
+  eof_split=0 !Control eofs.bin read option
+
   assim_A=.True.
   assim_Z=.True.
   assim_S=.True.
@@ -295,42 +310,56 @@ SUBROUTINE init_pdaf(schismCount,ierr)
 ! *** Subsequently, PDAF_init is called.            ***
 ! *****************************************************
 
-! init_ens_pdaf() inside will init state_p(:) (different filters have different
-! init routines)
- whichinit: IF (filtertype == 2) THEN
-    ! *** EnKF with Monte Carlo init ***
-    filter_param_i(1) = dim_state_p ! State dimension
-    filter_param_i(2) = dim_ens     ! Size of ensemble
-    filter_param_i(3) = rank_analysis_enkf ! Rank of speudo-inverse in analysis
-    filter_param_i(4) = incremental ! Whether to perform incremental analysis
-    filter_param_i(5) = 0           ! Smoother lag (not implemented here)
-    filter_param_r(1) = forget      ! Forgetting factor
-    
-    CALL PDAF_init(filtertype, subtype, 0, &
-         filter_param_i, 6,&
-         filter_param_r, 2, &
-         COMM_model, COMM_filter, COMM_couple, &
-         task_id, n_modeltasks, filterpe, init_ens_pdaf, &
-         screen, status_pdaf)
- ELSE
-    ! *** All other filters                       ***
-    ! *** SEIK, LSEIK, ETKF, LETKF, ESTKF, LESTKF ***
-    filter_param_i(1) = dim_state_p ! State dimension
-    filter_param_i(2) = dim_ens     ! Size of ensemble
-    filter_param_i(3) = 0           ! Smoother lag (not implemented here)
-    filter_param_i(4) = incremental ! Whether to perform incremental analysis
-    filter_param_i(5) = type_forget ! Type of forgetting factor
-    filter_param_i(6) = type_trans  ! Type of ensemble transformation
-    filter_param_i(7) = type_sqrt   ! Type of transform square-root (SEIK-sub4/ESTKF)
-    filter_param_r(1) = forget      ! Forgetting factor
-    
-    CALL PDAF_init(filtertype, subtype, 0, &
-         filter_param_i, 7,&
-         filter_param_r, 2, &
-         COMM_model, COMM_filter, COMM_couple, &
-         task_id, n_modeltasks, filterpe, init_ens_pdaf, &
-         screen, status_pdaf)
- END IF whichinit
+  ! Here we specify only the required integer and real parameters
+  ! Other parameters are set using calls to PDAF_set_iparam/PDAF_set_rparam
+  filter_param_i(1) = dim_state_p ! State dimension
+  filter_param_i(2) = dim_ens     ! Size of ensemble
+  filter_param_r(1) = forget      ! Forgetting factor
+
+  CALL PDAF_init(filtertype, subtype, 0, &
+       filter_param_i, 2,&
+       filter_param_r, 1, &
+       COMM_model, COMM_filter, COMM_couple, &
+       task_id, n_modeltasks, filterpe, init_ens_pdaf, &
+       screen, status_pdaf)
+  ! *** Additional parameter specifications ***
+
+  ! Generic settings for all filters
+  CALL PDAF_set_iparam(5, type_forget, status_pdaf)
+  CALL PDAF_set_iparam(6, type_trans, status_pdaf)
+  CALL PDAF_set_iparam(7, type_sqrt, status_pdaf)
+! CALL PDAF_set_iparam(8, observe_ens, status_pdaf)
+! CALL PDAF_set_iparam(9, type_obs_init, status_pdaf)
+
+  ! Specific settings
+  IF (filtertype==PDAF_DA_ENKF) CALL PDAF_set_iparam(4, rank_analysis_enkf, status_pdaf)
+! if (filtertype==PDAF_DA_PF) CALL PDAF_set_iparam(6, pf_res_type, status_pdaf)
+! if (filtertype==PDAF_DA_PF) CALL PDAF_set_rparam(3, pf_noise_amp, status_pdaf)
+
+! IAU setup
+  call PDAF_iau_init(iau,delt_obs,status_pdaf)
+  if ((subtype.eq.10).or.(subtype.eq.11)) then !EnOI
+     allocate(ens_inc_init(dim_state_p,1))
+  else
+     allocate(ens_inc_init(dim_state_p,schismCount/concurrentCount))
+  end if   
+  ens_inc_init=0.
+  if ((subtype.eq.10).or.(subtype.eq.11)) then !EnOI
+      call PDAF_iau_init_inc(dim_state_p,1,ens_inc_init,status_pdaf) !put ens_inc=0.
+  else
+      call PDAF_iau_init_inc(dim_state_p,schismCount/concurrentCount,ens_inc_init,status_pdaf) !put ens_inc=0.
+  end if
+  iau_now=.FALSE. !for 1st time PDAF_get_state
+  deallocate(ens_inc_init) !
+
+! Reset iau_weight with proper setting
+  if ((iau_step_ZUV.gt.1).or.(iau_step_TS.gt.1)) then
+     allocate(iau_weightcus(delt_obs))
+     iau_weightcus=1./real(delt_obs)*real(iau_step_ZUV) !assign to ZUV first
+     call PDAF_iau_set_weights(delt_obs,iau_weightcus)
+     deallocate(iau_weightcus)
+  end if
+
 
 ! Call collect_state_pdaf to initialize state_p for each member
 ! call collect_state_pdaf(dim_p,state)
@@ -354,16 +383,68 @@ SUBROUTINE init_pdaf(schismCount,ierr)
      if (ics==2) then !degree
          coords_p(1,j)=xlon(j)/pi*180.d0
          coords_p(2,j)=ylat(j)/pi*180.d0
+
      else  ! meter
          coords_p(1,j)=xnd(j)
          coords_p(2,j)=ynd(j)
      end if
   end do
-  gcoords(1,1) = minval(coords_p(1,:)) - local_range
-  gcoords(1,2) = maxval(coords_p(1,:)) + local_range
-  gcoords(2,2) = minval(coords_p(2,:)) - local_range
-  gcoords(2,1) = maxval(coords_p(2,:)) + local_range
+  gcoords(1,1) = minval(coords_p(1,:)) - local_range(1)
+  gcoords(1,2) = maxval(coords_p(1,:)) + local_range(1)
+  gcoords(2,2) = minval(coords_p(2,:)) - local_range(2)
+  gcoords(2,1) = maxval(coords_p(2,:)) + local_range(2)
   call PDAFomi_set_domain_limits(gcoords)
+
+  !Allocate vidx_domain_p for 2D simple Verticle localization (bottom layer index)
+  allocate(vidx_domain_p(npa))
+  vidx_domain_p=1
+  do i=1,npa
+     do k=nvrt,kbp(i),-1 !Reverse search vert column from surface, since obs are located at surface mostly
+        if (znl(k,i).gt.(0.d0-local_range(3))) vidx_domain_p(i)=k
+     end do
+  end do
+
+  !Allocate idx_domain_p for minimize n_domain usage, for 2D+1D
+  allocate(idx_domain_p(2,dim_state_p))
+  idx_domain_p=0
+  !Set mdl_coords_p for 2D+1D local
+  allocate(mdl_coords_p(3,dim_state_p)) !For 2D+1D local
+  ic=0
+  do i=1,npa !elev
+     ic=ic+1
+     if (ics==2) then
+         mdl_coords_p(1,ic)=xlon(i)/pi*180.d0
+         mdl_coords_p(2,ic)=ylat(i)/pi*180.d0
+     else
+         mdl_coords_p(1,ic)=xnd(i)
+         mdl_coords_p(2,ic)=ynd(i)
+     end if
+     mdl_coords_p(3,ic)=0.d0
+  end do
+
+  do j=1,ntracers+3 ! + 3 = U,V,W
+     do i=1,npa
+        do k=1,nvrt
+           ic=ic+1
+           if (ics==2) then
+              mdl_coords_p(1,ic)=xlon(i)/pi*180.d0
+              mdl_coords_p(2,ic)=ylat(i)/pi*180.d0
+           else
+              mdl_coords_p(1,ic)=xnd(i)
+              mdl_coords_p(2,ic)=ynd(i)
+           end if
+           if (k.le.(kbp(i)-1)) then
+              mdl_coords_p(3,ic)=-99999.d0 ! set as large value to avoid localization
+              !if ((mype_world.eq.0).and.(i.eq.10).and.(j.eq.1)) write(*,'(a,i,f12.2)') 'In init_pdaf, mdl_coords_p: ',k,mdl_coords_p(3,ic)
+           else
+              mdl_coords_p(3,ic)=znl(k,i)
+              !if ((mype_world.eq.0).and.(i.eq.10).and.(j.eq.1)) write(*,'(a,i,f12.2)') 'In init_pdaf, mdl_coords_p: ',k,mdl_coords_p(3,ic)
+           end if
+        end do
+     end do
+  end do
+  !Debug
+  !if (mype_world.eq.0) write(*,'(a,80f8.2)') 'In init_pdaf, znl: ',znl(:,10)
 
 
 ! ******************************'***

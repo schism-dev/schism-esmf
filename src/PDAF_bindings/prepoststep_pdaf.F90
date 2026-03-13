@@ -162,11 +162,13 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   ! Global sum of RMS errors
   CALL MPI_Allreduce (rmse_p, rmse, 6, MPI_REAL8, MPI_SUM, &
        COMM_filter, MPIerr)
+  !CALL MPI_Barrier(COMM_filter,MPIerr)
 
   rmse = SQRT(rmse)
 
   ! Display RMS errors
   IF (mype_filter==0) THEN
+     !write(*,*) 'Skip RMSE MPI_Allreduce, therefore these stats are wrong'
      WRITE (*,'(a, 10x,a)') &
           'SCHISM-PDAF', 'RMS error according to sampled covariance'
      WRITE (*,'(a,7x,a9,1x,a14,a14,a14,a14,a14,/a, 10x,81a)') &
