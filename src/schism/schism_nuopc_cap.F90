@@ -390,90 +390,50 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("mixed_layer_depth", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+#ifdef USE_CICE
   !  Adding CICE fields to ufs_fd
-  !  Zonal ice velocity [m/s] --------------------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Si_uvel", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Merid ice velocity [m/s] --------------------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Si_vvel", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Zonal ice-to-ocean stress [N/m/m] -------------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_taux", "N m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Merid ice-to-ocean stress [N/m/m] -------------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_tauy", "N m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Snow volume (per unit area) [m] ----------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Si_vsno", "m", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Ice volume (per unit area) [m] ---------- ------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Si_vice", "m", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Fresh water flux due to ice melting [kg/m/m/s] ------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_meltw", "kg m-2 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
- 
-  !  Salt flux due to ice formation/melt [kg/m/m/s] -----------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_salt", "kg m-2 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Heat flux at the base of the ice [W/m/m] --------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_melth", "W m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Shortwave radiation through sea ice coverage [W/m/m] --------------
   call NUOPC_FieldDictionaryAddIfNeeded("Fioi_swpen", "W m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  
-  !  Freezing melting potential (energy for ice formation) [W/m/m] ---
   call NUOPC_FieldDictionaryAddIfNeeded("Si_frzmlt", "W m-2", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  !  Ice-to-ocean drage coef [Unitless] -------------------------
   call NUOPC_FieldDictionaryAddIfNeeded("Si_CdnIO", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-  ! Advertizing CICE states
-  ! Sea surface height-------------------------------------------------------------- 
-  call NUOPC_Advertise(importState, "sea_surface_height_above_sea_level", rc=localrc)
   
-  !  Zonal/Merid ice velocity -----------------------------
+  ! for coupling to CICE 
+  call NUOPC_Advertise(importState, "sea_surface_height_above_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "Si_uvel", rc=localrc)
   call NUOPC_Advertise(importState, "Si_vvel", rc=localrc)
-
-  !  Zonal/Merid ice-to-ocn stress ------------------------
   call NUOPC_Advertise(importState, "Fioi_taux", rc=localrc)
   call NUOPC_Advertise(importState, "Fioi_tauy", rc=localrc)
- 
-  !  Snow volume ----------------------------------------
   call NUOPC_Advertise(importState, "Si_vsno", rc=localrc)
-
-  !  Ice volume -----------------------------------------
   call NUOPC_Advertise(importState, "Si_vice", rc=localrc)
-
-  !  Ice fraction ----------------------------------------
   call NUOPC_Advertise(importState, "Si_ifrac", rc=localrc)
-
-  !  Melt water flux ---------------------------------------
   call NUOPC_Advertise(importState, "Fioi_meltw", rc=localrc)
-
-  !  Salt flux --------------------------------------------
   call NUOPC_Advertise(importState, "Fioi_salt", rc=localrc)
-
-  !  Heat flux ice to ocn ----------------------------------
   call NUOPC_Advertise(importState, "Fioi_melth", rc=localrc)
-
-  !  Pen shortwave rad through ice -------------------------
   call NUOPC_Advertise(importState, "Fioi_swpen", rc=localrc)
-  
-  !  freezing melting potential  --------------------------
   call NUOPC_Advertise(importState, "Si_frzmlt", rc=localrc)
+  call NUOPC_Advertise(importState, "Si_CdnIO", rc=localrc)
+  call NUOPC_Advertise(importState, "Si_hi", rc=localrc)
+#endif USE_CICE
 
   !  freezing melting potential  -------------------------
   call NUOPC_Advertise(importState, "Si_CdnIO", rc=localrc)
@@ -716,6 +676,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="inst_prec_rate", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+#ifdef USE_CICE
   !  Adding CICE vars to import state 
   !> Ice_velocity ---------------------------------------------
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
@@ -778,8 +739,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="Si_CdnIO", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-
-
+#endif USE_CICE
 
   !> Wave parameters, for now we only have those from the WW3DATA cap in 
   !> NOAA's CoastalApp.  
@@ -1279,12 +1239,14 @@ end subroutine SCHISM_Export
 #define ESMF_METHOD "SCHISM_Import"
 subroutine SCHISM_Import(comp, importState, clock, rc)
 
-  use schism_glbl     , only: RADFLAG, windx2, windy2, pr2
-  use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc,npa
-  use schism_glbl     , only: uvice,vvice,taux,tauy,vsno,vice, &
+  use schism_glbl     , only: RADFLAG, windx2, windy2, pr2, npa
+  use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc
+#ifdef USE_CICE
+  use schism_glbl     , only: uvice,vvice,taux_ice,tauy_ice,vol_sno,vol_ice, &
                               aice,ifresh_flux,isalt_flux,iheat_flux, &
                               isw_pen,frzmlt,tau_oi,fresh_wa_flux, &
-                              salinity_flux,net_heat_flux,srad_th_ice,CdnIO,znl, nvrt
+                              salinity_flux,net_heat_flux,srad_th_ice,CdnIO,znl, nvrt, tr_nd
+#endif USE_CICE
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
@@ -1394,9 +1356,10 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   call SCHISM_StateUpdate(importState, 'inst_prec_rate', fluxprc, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    
+
+#ifdef USE_CICE    
   !>-------------------------------------------------------
-  !>              Allocated vars to dump import to
+  !>    Allocate vars to dump cice import to
   !>-------------------------------------------------------
   
   if (.not. allocated(uvice)) then
@@ -1407,21 +1370,21 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
       allocate(vvice(npa))
       vvice(:) =0.0d0
   end if
-  if (.not. allocated(taux)) then
-      allocate(taux(npa))
-      taux(:) =0.0d0
+  if (.not. allocated(taux_ice)) then
+      allocate(taux_ice(npa))
+      taux_ice(:) =0.0d0
   end if
-  if (.not. allocated(tauy)) then
-      allocate(tauy(npa))
-      tauy(:) =0.0d0
+  if (.not. allocated(tauy_ice)) then
+      allocate(tauy_ice(npa))
+      tauy_ice(:) =0.0d0
   end if
-  if (.not. allocated(vsno)) then
-      allocate(vsno(npa))
-      vsno(:) =0.0d0
+  if (.not. allocated(vol_sno)) then
+      allocate(vol_sno(npa))
+      vol_sno(:) =0.0d0
   end if
-  if (.not. allocated(vice)) then
-      allocate(vice(npa))
-      vice(:) =0.0d0
+  if (.not. allocated(vol_ice)) then
+      allocate(vol_ice(npa))
+      vol_ice(:) =0.0d0
   end if
   if (.not. allocated(aice)) then
       allocate(aice(npa))
@@ -1462,20 +1425,20 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> ice-stress Zonal-direction -------------------------
-  call SCHISM_StateUpdate(importState, 'Fioi_taux', taux, &
+  call SCHISM_StateUpdate(importState, 'Fioi_taux', taux_ice, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> ice-stress Merid-direction -------------------------
-  call SCHISM_StateUpdate(importState, 'Fioi_tauy', tauy, &
+  call SCHISM_StateUpdate(importState, 'Fioi_tauy', tauy_ice, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   !> Volume of snow ------------------------------------
-  call SCHISM_StateUpdate(importState, 'Si_vsno', vsno, &
+  call SCHISM_StateUpdate(importState, 'Si_vsno', vol_sno, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   !> Volume of ice -------------------------------------
-  call SCHISM_StateUpdate(importState, 'Si_vice', vice, &
+  call SCHISM_StateUpdate(importState, 'Si_vice', vol_ice, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
@@ -1522,27 +1485,30 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
       !>Ice ocean stress -------------------------------
       !>Taux,Tauy are in units of [N/m/m]
 
-      tau_oi(1,i)=taux(i)
-      tau_oi(2,i)=tauy(i)
+      tau_oi(1,i)=taux_ice(i)
+      tau_oi(1,i)=tauy_ice(i)
 
 
       !> Salinity flux ---------------------------------
       !> This is the slainity flux to the ocean from ice 
-      !> formaiton and melt. isalt has units [kg/s/m/m] 
-      
-      salinity_flux(i) = aice(i)*(isalt_flux(i))/real(1000)
-
-      !>Fresh water flux -------------------------------
+      !> formaiton and melt. isalt has units [kg/s/m/m]
+      !> if pos. ocn gains salt so fw would be opposite 
+      if (tr_nd(2,nvrt,i) < real(1) ) then
+         salinity_flux(i) = ((isalt_flux(i))*real(1000))/real(1)
+      else
+         salinity_flux(i) = ((isalt_flux(i))*real(1000))/tr_nd(2,nvrt,i)
+      endif
+      !>Fresh water flux -------------------------------\
       !> ifresh_flux is in units of [kg/s/m/m]
       !> Water is distributed across whole element
 
-      fresh_wa_flux(i) = ifresh_flux(i)
+      fresh_wa_flux(i) = ifresh_flux(i)-salinity_flux(i)!*rho0
 
       !>Heat flux ice to ocean  ------------------------
       !> iheat_flux is in units of [W/m/m]
       !> Energy is distributed across whole element
 
-      net_heat_flux(i) = iheat_flux(i)
+      net_heat_flux(i) = iheat_flux(i) + max(real(0.0),frzmlt(i)/aice(i))
 
       !>Short-wave pen. flux ---------------------------
       !>isw_pen is in units of [W/m/m]
@@ -1552,15 +1518,16 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
     else
 
       !> No ice so all these values are zero
-      tau_oi(1,i)      = real(0)
-      tau_oi(2,i)      = real(0)
+      tau_oi(1,i)       = real(0)
+      tau_oi(2,i)       = real(0)
       salinity_flux(i) = real(0)
       fresh_wa_flux(i) = real(0) !+ max(real(0.0),frzmlt(i))
       net_heat_flux(i) = real(0)
-      srad_th_ice(i)  = real(0)
+      srad_th_ice(i)   = real(0)
     
     endif
   enddo
+#endif USE_CICE
 
   !> Write fields on import state for debugging
   if (debug_level > 0) then
