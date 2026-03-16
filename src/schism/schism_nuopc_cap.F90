@@ -389,7 +389,8 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
   call NUOPC_FieldDictionaryAddIfNeeded("mixed_layer_depth", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  #ifdef USE_CICE
+
+#ifdef USE_CICE
   !  Adding CICE fields to ufs_fd
   call NUOPC_FieldDictionaryAddIfNeeded("Si_uvel", "m s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -432,7 +433,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "Si_frzmlt", rc=localrc)
   call NUOPC_Advertise(importState, "Si_CdnIO", rc=localrc)
   call NUOPC_Advertise(importState, "Si_hi", rc=localrc)
-  #endif USE_CICE
+#endif USE_CICE
 
   ! for coupling to ATM/DATM
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
@@ -669,7 +670,8 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="inst_prec_rate", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  #ifdef USE_CICE
+
+#ifdef USE_CICE
   !  Adding CICE vars to import state 
   !> Ice_velocity ---------------------------------------------
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
@@ -732,7 +734,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="Si_CdnIO", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  #endif USE_CICE
+#endif USE_CICE
 
 
   !> Wave parameters, for now we only have those from the WW3DATA cap in 
@@ -1205,12 +1207,12 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
 
   use schism_glbl     , only: RADFLAG, windx2, windy2, pr2, npa
   use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc
-  #ifdef USE_CICE
+#ifdef USE_CICE
   use schism_glbl     , only: uvice,vvice,taux_ice,tauy_ice,vol_sno,vol_ice, &
                               aice,ifresh_flux,isalt_flux,iheat_flux, &
                               isw_pen,frzmlt,tau_oi,fresh_wa_flux, &
                               salinity_flux,net_heat_flux,srad_th_ice,CdnIO,znl, nvrt, tr_nd
-  #endif USE_CICE
+#endif USE_CICE
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
@@ -1294,7 +1296,8 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   call SCHISM_StateUpdate(importState, 'inst_prec_rate', fluxprc, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  #ifdef USE_CICE    
+
+#ifdef USE_CICE    
   !>-------------------------------------------------------
   !>    Allocate vars to dump cice import to
   !>-------------------------------------------------------
@@ -1464,7 +1467,8 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
     
     endif
   enddo
-  #endif USE_CICE
+#endif USE_CICE
+
   !> Write fields on import state for debugging
   if (debug_level > 0) then
      call ESMF_ClockGet(clock, currTime=currTime, rc=localrc)
