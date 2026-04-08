@@ -435,12 +435,6 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "Si_hi", rc=localrc)
 #endif USE_CICE
 
-  !  freezing melting potential  -------------------------
-  call NUOPC_Advertise(importState, "Si_CdnIO", rc=localrc)
-
-  !  ice thickness potential  ------------------------- 
-  call NUOPC_Advertise(importState, "Si_hi", rc=localrc)
-  
   ! for coupling to ATM/DATM
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
@@ -1486,8 +1480,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
       !>Taux,Tauy are in units of [N/m/m]
 
       tau_oi(1,i)=taux_ice(i)
-      tau_oi(1,i)=tauy_ice(i)
-
+      tau_oi(2,i)=tauy_ice(i)
 
       !> Salinity flux ---------------------------------
       !> This is the slainity flux to the ocean from ice 
