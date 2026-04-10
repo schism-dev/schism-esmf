@@ -635,7 +635,6 @@ subroutine SCHISM_StateUpdateF1(state, name, farray, kwe, isPtr, onElement, rc)
        call ESMF_FieldGet(fieldNode, farrayPtr=farrayPtr2, rc=localrc)
        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
        ! fill internal data structure
-       print*, lbound(farrayPtr2), ubound(farrayPtr2), isPtr%numOwnedNodes
        do ip = 1, isPtr%numOwnedNodes
           farray(isPtr%ownedNodeIds(ip)) = farrayPtr2(ip)
        end do
@@ -1993,8 +1992,6 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
   fieldNode = ESMF_FieldCreate(name='fieldNode', mesh=meshNode, array=array, &
      meshloc=ESMF_MESHLOC_NODE, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-  print*, "foreignNodeIds min, max = ", minval(isDataPtr%foreignNodeGlobIds), maxval(isDataPtr%foreignNodeGlobIds)
-  print*, "nodeids min, max = ", minval(nodeids(np+1:npa)), maxval(nodeids(np+1:npa))
 
   ! create routehandle for halo update
   isPresent = ESMF_RouteHandleIsCreated(isDataPtr%haloHandle, rc=localrc)
