@@ -530,7 +530,7 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   use schism_esmf_util, only : SCHISM_MeshCreateElement
   
   !> @todo move all use statements of schism into schism_bmi
-  use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind
+  use schism_glbl, only: np, pr2, windx2, windy2, srad, nws, rkind, npa
   use schism_esmf_util, only: SCHISM_StateFieldCreateRealize
   implicit none
 
@@ -568,13 +568,12 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   rc = ESMF_SUCCESS
   localrc= ESMF_SUCCESS
 
-  if (meshloc == ESMF_MESHLOC_NODE) then
-    call SCHISM_MeshCreateNode(comp, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  else
-    call SCHISM_MeshCreateElement(comp, rc=localrc)
-    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  end if
+  ! Create mesh on both node and element
+  call SCHISM_MeshCreateNode(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_MeshCreateElement(comp, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call ESMF_GridCompGet(comp, mesh=mesh2d, name=compName, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -735,7 +734,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="Si_CdnIO", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 #endif USE_CICE
-
 
   !> Wave parameters, for now we only have those from the WW3DATA cap in 
   !> NOAA's CoastalApp.  
@@ -1086,8 +1084,9 @@ end subroutine SCHISM_RemoveUnconnectedFields
 #define ESMF_METHOD "SCHISM_Export"
 subroutine SCHISM_Export(comp, exportState, clock, rc)
 
-  use schism_glbl,      only: nvrt, eta2, dav, uu2, vv2, tr_nd, idry_e, npa, deta1_dxy_elem, dp, znl
+  use schism_glbl,      only: nvrt, eta2, dav, uu2, vv2, tr_nd, idry_e, npa, deta1_dxy_elem, dp, znl, nvrt
   use schism_esmf_util, only: SCHISM_StateUpdate
+  use schism_esmf_util, only: fieldNode, fieldElem, routeHandleN2E
 
   implicit none
 
@@ -1106,6 +1105,8 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   real(ESMF_KIND_R8), allocatable, save, target :: sst_K(:)
   real(ESMF_KIND_R8), allocatable, save, target :: hmix(:)
   character(len=ESMF_MAXSTR) :: timeStr
+  integer :: itemCount, srcTermProcessing_Value = 0
+  logical, save :: firstTime = .true.
   character(len=*), parameter :: subname = '(SCHISM_Export): '
   !--------------------------------
 
@@ -1121,12 +1122,39 @@ subroutine SCHISM_Export(comp, exportState, clock, rc)
   if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Check if we need transfer fields from node to element. If so, create routehandle
+  if (meshloc == ESMF_MESHLOC_ELEMENT) then
+     !> Check this is initial call or not
+     if (firstTime) then
+        !> Create routehandle node -> element
+        call ESMF_FieldRegridStore(fieldNode, fieldElem, &
+               routehandle=routeHandleN2E, &
+               regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+               srcTermProcessing=srcTermProcessing_Value, &
+               ignoreDegenerate=.true., &
+               unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+               rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        !> Set flag
+        firstTime = .false.
+     end if
+  end if
+
   !> Update fields on export state
   !> sea surface height
   call SCHISM_StateUpdate(exportState, 'sea_surface_height_above_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !> Sea surface graidend (for cice coupling)
+  call SCHISM_StateUpdate(exportState, 'sea_surface_slope_zonal', deta1_dxy_elem(:,1), &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  call SCHISM_StateUpdate(exportState, 'sea_surface_slope_merid', deta1_dxy_elem(:,2), &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
   !> depth average current in x direction
   call SCHISM_StateUpdate(exportState, 'depth-averaged_x-velocity', dav(1,:), &
     isPtr=isDataPtr, rc=localrc)
@@ -1216,6 +1244,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor
   use schism_esmf_util, only: SCHISM_StateImportWave3dVortex
   use schism_esmf_util, only: SCHISM_StateUpdate
+  use schism_esmf_util, only: fieldNode, fieldElem, routeHandleE2N
 
   implicit none
 
@@ -1227,9 +1256,12 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
   
   !> Local variables
   type(ESMF_Time) :: currTime
+  integer         :: i
   type(type_InternalStateWrapper) :: internalState
   type(type_InternalState), pointer :: isDataPtr => null()
   integer(ESMF_KIND_I4) :: localrc
+  integer :: itemCount, srcTermProcessing_Value = 0
+  logical :: firstTime = .true.
   character(len=ESMF_MAXSTR) :: timeStr
   character(len=*), parameter :: subname = '(SCHISM_Import): '
   !--------------------------------
@@ -1245,6 +1277,28 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
 
   if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Check if we need transfer fields from element to node. If so, create routehandle
+  if (meshloc == ESMF_MESHLOC_ELEMENT) then
+     !> Check this is initial call or not
+     if (firstTime) then
+        !> Create routehandle element -> node
+        call ESMF_FieldRegridStore(fieldElem, fieldNode, &
+               routehandle=routeHandleE2N, &
+               regridmethod=ESMF_REGRIDMETHOD_BILINEAR, &
+               extrapMethod=ESMF_EXTRAPMETHOD_NEAREST_IDAVG, &
+               extrapNumLevels=3, &
+               extrapNumSrcPnts=16, &
+               srcTermProcessing=srcTermProcessing_Value, &
+               ignoreDegenerate=.true., &
+               unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+               rc=localrc)
+        _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+        !> Set flag
+        firstTime = .false.
+     end if
+  end if
 
   !> Update fields on import state
   if (RADFLAG == 'VOR') then
@@ -1426,8 +1480,7 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
       !>Taux,Tauy are in units of [N/m/m]
 
       tau_oi(1,i)=taux_ice(i)
-      tau_oi(1,i)=tauy_ice(i)
-
+      tau_oi(2,i)=tauy_ice(i)
 
       !> Salinity flux ---------------------------------
       !> This is the slainity flux to the ocean from ice 
