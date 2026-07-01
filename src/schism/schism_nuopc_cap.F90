@@ -444,6 +444,7 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_Advertise(importState, "inst_net_sw_flx", rc=localrc)
   call NUOPC_Advertise(importState, "inst_down_lw_flx", rc=localrc)
   call NUOPC_Advertise(importState, "inst_prec_rate", rc=localrc)
+  call NUOPC_Advertise(importState, "inst_fprec_rate", rc=localrc)
 
   ! for coupling to WW3/WDAT
   call NUOPC_Advertise(importState, "sea_surface_wave_significant_height", rc=localrc)
@@ -668,6 +669,10 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
 
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="inst_prec_rate", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  call SCHISM_StateFieldCreateRealize(comp, state=importState, &
+    name="inst_fprec_rate", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
 #ifdef USE_CICE
@@ -1234,7 +1239,7 @@ end subroutine SCHISM_Export
 subroutine SCHISM_Import(comp, importState, clock, rc)
 
   use schism_glbl     , only: RADFLAG, windx2, windy2, pr2, npa
-  use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc
+  use schism_glbl     , only: airt2,shum2,srad,hradd,fluxprc,prec_snow
 #ifdef USE_CICE
   use schism_glbl     , only: uvice,vvice,taux_ice,tauy_ice,vol_sno,vol_ice, &
                               aice,ifresh_flux,isalt_flux,iheat_flux, &
@@ -1346,8 +1351,13 @@ subroutine SCHISM_Import(comp, importState, clock, rc)
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  !> Precipatation rate
+  !> Precipatation rate (liquid)
   call SCHISM_StateUpdate(importState, 'inst_prec_rate', fluxprc, &
+    isPtr=isDataPtr, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> Precipatation rate (frozen)
+  call SCHISM_StateUpdate(importState, 'inst_fprec_rate', prec_snow, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
