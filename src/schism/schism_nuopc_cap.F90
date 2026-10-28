@@ -951,7 +951,7 @@ end subroutine DataInitialize
 !> Because the import/export states and the clock do not come in through the parameter list, they must be accessed via a call to NUOPC_ModelGet
 subroutine ModelAdvance(comp, rc)
 
-  use schism_glbl, only: dt
+  use schism_glbl, only: dt, rkind, npa, srad, fluxprc
 
   implicit none
 
@@ -970,6 +970,11 @@ subroutine ModelAdvance(comp, rc)
   integer                 :: i, num_schism_steps
   real(ESMF_KIND_R8)      :: seconds
   character(len=*), parameter :: subname = '(ModelAdvance): '
+
+  !> Imported shortwave and precipitation, kept for the whole coupling interval
+  real(rkind), allocatable, save :: srad_import(:), fluxprc_import(:)
+  logical, save           :: have_srad = .false., have_fluxprc = .false.
+  type(ESMF_StateItem_Flag) :: itemType
   !--------------------------------
 
   rc = ESMF_SUCCESS
@@ -983,6 +988,27 @@ subroutine ModelAdvance(comp, rc)
   !> Update fields on import state
   call SCHISM_Import(comp, importState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  !> srad and fluxprc are imported once per coupling interval, but each
+  !> schism_step modifies them in place (albedo in surf_fluxes2 and, with
+  !> USE_CICE, the ice-concentration blend). Keep the imported values and
+  !> give every step of the interval a fresh copy, as the sflux path does in
+  !> standalone SCHISM; otherwise both operations compound across the steps.
+  !> Only fields that are connected (present in the import state) are kept.
+  if (.not.allocated(srad_import)) then
+    allocate(srad_import(npa), fluxprc_import(npa))
+    call ESMF_StateGet(importState, itemname='inst_net_sw_flx', itemType=itemType, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    have_srad = (itemType == ESMF_STATEITEM_FIELD)
+    call ESMF_StateGet(importState, itemname='inst_prec_rate', itemType=itemType, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+    have_fluxprc = (itemType == ESMF_STATEITEM_FIELD)
+    write(message, '(A,L1,A,L1)') trim(subname)//' srad/fluxprc restored from import before each schism_step: srad=', &
+      have_srad, ' fluxprc=', have_fluxprc
+    call ESMF_LogWrite(trim(message), ESMF_LOGMSG_INFO)
+  end if
+  if (have_srad)    srad_import(:)    = srad(1:npa)
+  if (have_fluxprc) fluxprc_import(:) = fluxprc(1:npa)
 
   !> Write log about advance
   call ESMF_ClockPrint(clock, options="currTime", &
@@ -1010,6 +1036,8 @@ subroutine ModelAdvance(comp, rc)
   end if
 
   do i = it, it+num_schism_steps-1
+     if (have_srad)    srad(1:npa)    = srad_import(:)
+     if (have_fluxprc) fluxprc(1:npa) = fluxprc_import(:)
      call schism_step(i)
      it = it + 1
   end do
